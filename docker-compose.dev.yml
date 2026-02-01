@@ -1,0 +1,19 @@
+# Development: รันเฉพาะ app + db (ไม่มี nginx)
+# ใช้: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# หรือ: docker compose up -d db app
+# เข้าแอปที่ http://localhost:8000
+
+version: '3.8'
+
+services:
+  app:
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      DEBUG: "true"
+      ENABLE_DOCS: "true"
+
+  # ปิด nginx ในโหมด dev (ไม่ start)
+  nginx:
+    profiles:
+      - full

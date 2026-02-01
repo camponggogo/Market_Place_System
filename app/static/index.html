@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตรวจสอบยอดเงิน - Food Court</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        
+        * {
+            font-family: 'TH Sarabun New', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .scan-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .qr-scanner {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+        
+        .qr-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .balance-card.show {
+            display: block;
+        }
+        
+        .balance-label {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .balance-amount {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .customer-info {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .refund-section {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .refund-section.show {
+            display: block;
+        }
+        
+        .refund-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .refund-option {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .refund-option.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .refund-option input[type="radio"] {
+            margin-right: 5px;
+        }
+        
+        .amount-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .promptpay-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .promptpay-input.show {
+            display: block;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ตรวจสอบยอดเงิน</h1>
+        
+        <div class="alert" id="alert"></div>
+        
+        <div class="scan-section">
+            <div class="qr-scanner">
+                <p style="margin-bottom: 15px; color: #666;">สแกน QR Code จากบัตรหรือใบเสร็จ</p>
+                <input 
+                    type="text" 
+                    id="qr-input" 
+                    class="qr-input" 
+                    placeholder="หรือกรอกรหัสลูกค้า"
+                    autocomplete="off"
+                >
+                <button class="btn" onclick="checkBalance()">ตรวจสอบยอดเงิน</button>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">กำลังตรวจสอบ...</p>
+        </div>
+        
+        <div class="balance-card" id="balance-card">
+            <div class="balance-label">ยอดเงินคงเหลือ</div>
+            <div class="balance-amount" id="balance-amount">0.00</div>
+            <div class="customer-info">
+                <div id="customer-name"></div>
+                <div id="customer-phone"></div>
+            </div>
+        </div>
+        
+        <div class="refund-section" id="refund-section">
+            <h2 style="margin-bottom: 15px; font-size: 22px;">ขอคืนเงิน</h2>
+            
+            <div class="refund-options">
+                <label class="refund-option" onclick="selectRefundMethod('cash')">
+                    <input type="radio" name="refund-method" value="cash" checked>
+                    <div>เงินสด</div>
+                    <small>รับที่เคาน์เตอร์</small>
+                </label>
+                <label class="refund-option" onclick="selectRefundMethod('promptpay')">
+                    <input type="radio" name="refund-method" value="promptpay">
+                    <div>PromptPay</div>
+                    <small>โอนคืนอัตโนมัติ</small>
+                </label>
+            </div>
+            
+            <input 
+                type="number" 
+                id="refund-amount" 
+                class="amount-input" 
+                placeholder="จำนวนเงินที่ต้องการคืน"
+                min="0"
+                step="0.01"
+            >
+            
+            <input 
+                type="text" 
+                id="promptpay-input" 
+                class="promptpay-input" 
+                placeholder="เลข PromptPay (ถ้าเลือก PromptPay)"
+            >
+            
+            <button class="btn" onclick="requestRefund()">ยืนยันการคืนเงิน</button>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8000/api';
+        let currentCustomerId = null;
+        let currentBalance = 0;
+        
+        function showAlert(message, type = 'info') {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+        
+        async function checkBalance() {
+            const qrInput = document.getElementById('qr-input').value.trim();
+            if (!qrInput) {
+                showAlert('กรุณากรอกรหัสลูกค้าหรือสแกน QR Code', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/customers/check-balance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        qr_code: qrInput
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'เกิดข้อผิดพลาด');
+                }
+                
+                const data = await response.json();
+                currentCustomerId = data.customer_id;
+                currentBalance = data.balance;
+                
+                // แสดงยอดเงิน
+                document.getElementById('balance-amount').textContent = 
+                    data.balance.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('customer-name').textContent = 
+                    data.name || 'ไม่ระบุชื่อ';
+                document.getElementById('customer-phone').textContent = 
+                    data.phone || 'ไม่ระบุเบอร์โทร';
+                
+                document.getElementById('balance-card').classList.add('show');
+                
+                // แสดงส่วนขอคืนเงินถ้ามียอดเงิน
+                if (data.balance > 0) {
+                    document.getElementById('refund-section').classList.add('show');
+                    document.getElementById('refund-amount').max = data.balance;
+                    document.getElementById('refund-amount').value = data.balance;
+                    
+                    if (data.has_pending_refund) {
+                        showAlert('คุณมีคำขอคืนเงินที่รอการประมวลผลอยู่', 'info');
+                    }
+                } else {
+                    document.getElementById('refund-section').classList.remove('show');
+                    showAlert('คุณไม่มียอดเงินคงเหลือ', 'info');
+                }
+                
+            } catch (error) {
+                showAlert(error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function selectRefundMethod(method) {
+            const promptpayInput = document.getElementById('promptpay-input');
+            if (method === 'promptpay') {
+                promptpayInput.classList.add('show');
+            } else {
+                promptpayInput.classList.remove('show');
+            }
+            
+            // Update radio button
+            document.querySelector(`input[value="${method}"]`).checked = true;
+        }
+        
+        async function requestRefund() {
+            if (!currentCustomerId) {
+                showAlert('กรุณาตรวจสอบยอดเงินก่อน', 'error');
+                return;
+            }
+            
+            const refundMethod = document.querySelector('input[name="refund-method"]:checked').value;
+            const amount = parseFloat(document.getElementById('refund-amount').value);
+            const promptpayNumber = document.getElementById('promptpay-input').value.trim();
+            
+            if (!amount || amount <= 0) {
+                showAlert('กรุณากรอกจำนวนเงินที่ต้องการคืน', 'error');
+                return;
+            }
+            
+            if (amount > currentBalance) {
+                showAlert('จำนวนเงินที่ต้องการคืนเกินยอดเงินคงเหลือ', 'error');
+                return;
+            }
+            
+            if (refundMethod === 'promptpay' && !promptpayNumber) {
+                showAlert('กรุณากรอกเลข PromptPay', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/customers/refund`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        customer_id: currentCustomerId,
+                        amount: amount,
+                        refund_method: refundMethod,
+                        promptpay_number: refundMethod === 'promptpay' ? promptpayNumber : null
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'เกิดข้อผิดพลาด');
+                }
+                
+                const data = await response.json();
+                showAlert(data.message, 'success');
+                
+                // รีเฟรชยอดเงิน
+                setTimeout(() => {
+                    checkBalance();
+                }, 2000);
+                
+            } catch (error) {
+                showAlert(error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Allow Enter key to trigger check balance
+        document.getElementById('qr-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkBalance();
+            }
+        });
+    </script>
+</body>
+</html>
+

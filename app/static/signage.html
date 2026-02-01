@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จอที่ 2 - QR Payment & Digital Signage</title>
+    <style>
+        html, body { margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'TH Sarabun New', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            min-height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .screen {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            padding: 40px;
+        }
+        /* Digital Signage (default) */
+        .signage-mode .welcome {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 700;
+            margin-bottom: 20px;
+            animation: fadeIn 1s ease;
+        }
+        .signage-mode .sub {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            opacity: 0.9;
+        }
+        /* QR Payment mode */
+        .qr-mode { display: none; }
+        .qr-mode.active { display: block; animation: fadeIn 0.5s ease; }
+        .qr-mode h2 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 20px;
+        }
+        .qr-mode .qr-wrap {
+            background: #fff;
+            padding: 24px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .qr-mode .qr-wrap .qr-banner {
+            display: block;
+            width: clamp(200px, 38vw, 300px);
+            height: auto;
+            margin-bottom: 16px;
+        }
+        .qr-mode .qr-wrap img#signage-qr {
+            display: block;
+            width: clamp(220px, 40vw, 320px);
+            height: auto;
+        }
+        .qr-mode .amount {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-weight: 700;
+            color: #28a745;
+        }
+        /* Paid mode */
+        .paid-mode { display: none; }
+        .paid-mode.active { display: block; animation: fadeIn 0.5s ease; }
+        .paid-mode .message {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            color: #28a745;
+            margin-bottom: 16px;
+        }
+        .paid-mode .amount {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            opacity: 0.95;
+        }
+        .signage-mode { display: none; }
+        .signage-mode.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="screen">
+        <div id="signage-mode" class="signage-mode active">
+            <div class="welcome">ยินดีต้อนรับ</div>
+            <div class="sub">รอการชำระเงินผ่าน PromptPay</div>
+        </div>
+        <div id="qr-mode" class="qr-mode">
+            <h2>สแกนเพื่อชำระเงิน</h2>
+            <div class="qr-wrap">
+                <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
+                <img id="signage-qr" src="" alt="QR Code">
+            </div>
+            <div class="amount" id="signage-amount">0.00 บาท</div>
+        </div>
+        <div id="paid-mode" class="paid-mode">
+            <div class="message">ได้รับเงินเรียบร้อยแล้ว</div>
+            <div class="amount" id="paid-amount">0.00 บาท</div>
+        </div>
+    </div>
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        const urlParams = new URLSearchParams(window.location.search);
+        const storeId = urlParams.get('store_id') || 1;
+        let pollInterval = null;
+        let paidShownAt = null;
+        const PAID_DISPLAY_MS = 5000;
+
+        function showMode(mode) {
+            document.getElementById('signage-mode').classList.remove('active');
+            document.getElementById('qr-mode').classList.remove('active');
+            document.getElementById('paid-mode').classList.remove('active');
+            document.getElementById(mode + '-mode').classList.add('active');
+        }
+
+        function speakPaymentReceived(amount) {
+            if (!('speechSynthesis' in window)) return;
+            const text = 'เงินเข้าแล้ว ' + (typeof amount === 'number' ? amount.toFixed(0) : amount) + ' บาท ขอบคุณครับ';
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'th-TH';
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+        }
+
+        async function poll() {
+            try {
+                const res = await fetch(API_BASE + '/signage/display?store_id=' + storeId);
+                const data = await res.json();
+                if (data.status === 'paid') {
+                    showMode('paid');
+                    document.getElementById('paid-amount').textContent = parseFloat(data.amount || 0).toFixed(2) + ' บาท';
+                    if (!paidShownAt) {
+                        paidShownAt = Date.now();
+                        speakPaymentReceived(data.amount);
+                    }
+                    if (Date.now() - paidShownAt >= PAID_DISPLAY_MS) {
+                        await fetch(API_BASE + '/signage/ack-paid?store_id=' + storeId, { method: 'POST' });
+                        paidShownAt = null;
+                        showMode('signage');
+                    }
+                    return;
+                }
+                if (data.status === 'waiting_payment' && data.qr_image) {
+                    paidShownAt = null;
+                    showMode('qr');
+                    document.getElementById('signage-qr').src = data.qr_image;
+                    document.getElementById('signage-amount').textContent = parseFloat(data.amount || 0).toFixed(2) + ' บาท';
+                    return;
+                }
+                paidShownAt = null;
+                showMode('signage');
+            } catch (e) { console.warn('Signage poll', e); }
+        }
+
+        function startPolling() {
+            if (pollInterval) return;
+            poll();
+            pollInterval = setInterval(poll, 2000);
+        }
+        (function tryFullscreen() {
+            if (new URLSearchParams(window.location.search).get('fullscreen') !== '1') return;
+            function goFullscreen() {
+                var el = document.documentElement;
+                if (el.requestFullscreen) el.requestFullscreen().catch(function() {});
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) el.msRequestFullscreen();
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() { setTimeout(goFullscreen, 400); });
+            else setTimeout(goFullscreen, 400);
+        })();
+        document.addEventListener('DOMContentLoaded', startPolling);
+    </script>
+</body>
+</html>

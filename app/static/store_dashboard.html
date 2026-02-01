@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ร้านค้า - Food Court</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        
+        * {
+            font-family: 'TH Sarabun New', sans-serif;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .crypto-status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .crypto-status.pending {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .crypto-status.confirmed {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        
+        .crypto-status.failed {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard ร้านค้า</h1>
+        
+        <div class="card">
+            <h2>สถานะการยอมรับสัญญา Crypto</h2>
+            <div id="contract-status"></div>
+            <button class="btn btn-primary" onclick="viewContract()">ดูสัญญา P2P</button>
+        </div>
+        
+        <div class="card">
+            <h2>รายการ Crypto Transactions</h2>
+            <div id="crypto-transactions"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8000/api';
+        const STORE_ID = 1; // ควรดึงจาก session หรือ authentication
+        
+        async function loadContractStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/crypto/stores/${STORE_ID}/contract-status`);
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('contract-status');
+                if (data.contract_accepted) {
+                    statusDiv.innerHTML = `
+                        <p><strong>สถานะ:</strong> ยอมรับสัญญาแล้ว</p>
+                        <p><strong>วันที่ยอมรับ:</strong> ${new Date(data.contract_accepted_at).toLocaleDateString('th-TH')}</p>
+                        <p><strong>เวอร์ชันสัญญา:</strong> ${data.contract_version}</p>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <p><strong>สถานะ:</strong> ยังไม่ยอมรับสัญญา</p>
+                        <p>กรุณายอมรับสัญญา P2P เพื่อเปิดใช้งานการรับชำระเงินด้วย Crypto</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading contract status:', error);
+            }
+        }
+        
+        async function loadCryptoTransactions() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/crypto/stores/${STORE_ID}/transactions`);
+                const transactions = await response.json();
+                
+                const transactionsDiv = document.getElementById('crypto-transactions');
+                
+                if (transactions.length === 0) {
+                    transactionsDiv.innerHTML = '<p>ยังไม่มีรายการ Crypto Transactions</p>';
+                    return;
+                }
+                
+                let html = '<table><thead><tr><th>Transaction ID</th><th>TX Hash</th><th>จำนวน</th><th>สถานะ</th><th>ตรวจสอบ</th></tr></thead><tbody>';
+                
+                transactions.forEach(tx => {
+                    const statusClass = tx.status === 'confirmed' ? 'confirmed' : 
+                                       tx.status === 'failed' ? 'failed' : 'pending';
+                    html += `
+                        <tr>
+                            <td>${tx.transaction_id}</td>
+                            <td><a href="${tx.explorer_url || '#'}" target="_blank">${tx.tx_hash.substring(0, 20)}...</a></td>
+                            <td>${tx.amount_crypto} ${tx.crypto_type}</td>
+                            <td><span class="crypto-status ${statusClass}">${tx.status}</span></td>
+                            <td><button class="btn btn-primary" onclick="checkTransaction(${tx.id})">ตรวจสอบ</button></td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                transactionsDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading crypto transactions:', error);
+            }
+        }
+        
+        async function checkTransaction(cryptoTransactionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/crypto/transactions/${cryptoTransactionId}/update-status`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                alert(`สถานะ: ${data.status}`);
+                loadCryptoTransactions();
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
+        
+        function viewContract() {
+            window.location.href = `/contracts/p2p_contract_template.html?store_id=${STORE_ID}`;
+        }
+        
+        // Load data on page load
+        loadContractStatus();
+        loadCryptoTransactions();
+    </script>
+</body>
+</html>
+

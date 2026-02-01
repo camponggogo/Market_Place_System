@@ -1,0 +1,44 @@
+# Core FastAPI dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.23
+PyMySQL>=1.1.0
+cryptography>=41.0.0
+
+# Production Web Servers (เลือกใช้ตามต้องการ)
+gunicorn>=21.2.0  # Production server with Uvicorn workers (แนะนำ)
+hypercorn>=0.14.0  # Fast ASGI server with HTTP/2 support
+
+# Pydantic - ใช้ version ที่ยืดหยุ่นเพื่อหลีกเลี่ยง conflicts
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Authentication & Security
+python-multipart>=0.0.6
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Configuration
+python-dotenv>=1.0.0
+
+# HTTP Client - ใช้ version ที่ยืดหยุ่น
+aiohttp>=3.9.1
+httpx>=0.25.2
+
+# QR Code
+qrcode>=7.4.2
+
+# Image Processing - ใช้ version ที่ยืดหยุ่น
+Pillow>=10.1.0
+
+# PDF & Reports
+reportlab>=4.0.7
+
+# Data Processing - ใช้ version ที่ยืดหยุ่น
+pandas>=2.1.3
+numpy>=1.26.4
+openpyxl>=3.1.2
+
+# Scheduling
+schedule>=1.2.0
+

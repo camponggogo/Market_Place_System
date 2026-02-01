@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Court - ลูกค้า</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        
+        * {
+            font-family: 'TH Sarabun New', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .qr-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .qr-code-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            border: 3px solid #667eea;
+            margin-bottom: 15px;
+        }
+        
+        #qrcode {
+            display: inline-block;
+        }
+        
+        .foodcourt-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .balance-label {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .balance-amount {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .info-item label {
+            display: block;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .info-item .value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .transaction-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .transaction-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .transaction-item-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #dc3545;
+        }
+        
+        .transaction-item-details {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .logout-btn {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .fc-id-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .fc-id-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+        
+        .fc-id-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .fc-id-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .fc-id-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .fc-id-balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .fc-id-qr {
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .fc-id-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .topup-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+        }
+        
+        .topup-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .topup-btn {
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .topup-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .topup-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .topup-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .topup-modal.show {
+            display: flex;
+        }
+        
+        .topup-modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .topup-modal-title {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .topup-amount-input {
+            width: 100%;
+            padding: 15px;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .quick-amount-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-amount-btn {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .quick-amount-btn:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+        
+        .payment-methods-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .payment-method-btn {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .payment-method-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .payment-method-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .payment-method-btn .icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 50px;
+        }
+        
+        .payment-method-btn .icon img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .payment-method-btn .label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .topup-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .topup-modal-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .topup-modal-btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .topup-modal-btn-confirm {
+            background: #667eea;
+            color: white;
+        }
+        
+        .topup-modal-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Food Court - ลูกค้า</h1>
+        </div>
+        
+        <!-- Login/Register Section -->
+        <div id="auth-section" class="tab-content active">
+            <div id="alert-container"></div>
+            
+            <div class="tabs" style="margin: -30px -30px 30px -30px;">
+                <div class="tab active" onclick="showAuthTab('login')">เข้าสู่ระบบ</div>
+                <div class="tab" onclick="showAuthTab('register')">ลงทะเบียน</div>
+            </div>
+            
+            <!-- Login Tab -->
+            <div id="login-tab" class="tab-content active">
+                <div class="form-group">
+                    <label>เบอร์โทรศัพท์</label>
+                    <input type="tel" id="login-phone" placeholder="0812345678" autocomplete="off">
+                </div>
+                <button class="btn" onclick="login()">เข้าสู่ระบบ</button>
+            </div>
+            
+            <!-- Register Tab -->
+            <div id="register-tab" class="tab-content">
+                <div class="form-group">
+                    <label>เบอร์โทรศัพท์</label>
+                    <input type="tel" id="register-phone" placeholder="0812345678" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>ชื่อ (ไม่บังคับ)</label>
+                    <input type="text" id="register-name" placeholder="ชื่อของคุณ" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>PromptPay (ไม่บังคับ)</label>
+                    <input type="text" id="register-promptpay" placeholder="เบอร์โทรหรือเลขบัญชี" autocomplete="off">
+                </div>
+                <button class="btn" onclick="register()">ลงทะเบียน</button>
+            </div>
+        </div>
+        
+        <!-- Customer Dashboard -->
+        <div id="dashboard-section" class="tab-content" style="display: none;">
+            <div id="dashboard-alert-container"></div>
+            
+            <div class="tabs" style="margin: -30px -30px 30px -30px;">
+                <div class="tab active" onclick="showDashboardTab('qr')">QR Code</div>
+                <div class="tab" onclick="showDashboardTab('balance')">ยอดเงิน</div>
+                <div class="tab" onclick="showDashboardTab('transactions')">รายการ</div>
+            </div>
+            
+            <!-- QR Code Tab -->
+            <div id="qr-tab" class="tab-content active">
+                <div id="fc-ids-list" class="fc-id-list"></div>
+            </div>
+            
+            <!-- Balance Tab -->
+            <div id="balance-tab" class="tab-content">
+                <div class="balance-card">
+                    <div class="balance-label">ยอดเงินคงเหลือรวม</div>
+                    <div class="balance-amount" id="total-balance">0.00</div>
+                </div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Food Court IDs</label>
+                        <div class="value" id="total-fc-ids">0</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Active</label>
+                        <div class="value" id="active-fc-ids">0</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Used</label>
+                        <div class="value" id="used-fc-ids">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Transactions Tab -->
+            <div id="transactions-tab" class="tab-content">
+                <div id="transactions-list"></div>
+            </div>
+            
+            <div class="logout-btn">
+                <button class="btn btn-secondary" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
+    
+    <!-- Top Up Modal -->
+    <div class="topup-modal" id="topup-modal">
+        <div class="topup-modal-content">
+            <div class="topup-modal-title">💳 เติมเงิน</div>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <div style="font-size: 16px; color: #666;">Food Court ID:</div>
+                <div style="font-size: 20px; font-weight: bold; color: #667eea;" id="topup-fc-id">-</div>
+            </div>
+            
+            <div class="form-group">
+                <label style="font-size: 18px; margin-bottom: 10px;">จำนวนเงินที่ต้องการเติม (บาท)</label>
+                <input 
+                    type="number" 
+                    id="topup-amount-input" 
+                    class="topup-amount-input" 
+                    min="0" 
+                    step="0.01" 
+                    placeholder="0.00"
+                >
+            </div>
+            
+            <div class="quick-amount-grid">
+                <button class="quick-amount-btn" onclick="setTopupAmount(100)">100</button>
+                <button class="quick-amount-btn" onclick="setTopupAmount(200)">200</button>
+                <button class="quick-amount-btn" onclick="setTopupAmount(500)">500</button>
+                <button class="quick-amount-btn" onclick="setTopupAmount(1000)">1,000</button>
+            </div>
+            
+            <div class="form-group">
+                <label style="font-size: 18px; margin-bottom: 10px;">วิธีชำระเงิน</label>
+                <div class="payment-methods-grid">
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('credit_card_visa')" data-method="credit_card_visa">
+                        <div class="icon"><span style="font-size: 32px;">💳</span></div>
+                        <div class="label">บัตรเครดิต</div>
+                    </div>
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('promptpay')" data-method="promptpay">
+                        <div class="icon"><img src="/static/imgs/PromptPay_logo.png" alt="PromptPay" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><span style="display: none; font-size: 32px;">📱</span></div>
+                        <div class="label">PromptPay</div>
+                    </div>
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('true_wallet')" data-method="true_wallet">
+                        <div class="icon"><img src="/static/imgs/TrueMoneyWallet.png" alt="True Wallet" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><span style="display: none; font-size: 32px;">💚</span></div>
+                        <div class="label">True Wallet</div>
+                    </div>
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('wechat_pay')" data-method="wechat_pay">
+                        <div class="icon"><img src="/static/imgs/WeChat_Pay.png" alt="WeChat Pay" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><span style="display: none; font-size: 32px;">💬</span></div>
+                        <div class="label">WeChat Pay</div>
+                    </div>
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('alipay')" data-method="alipay">
+                        <div class="icon"><img src="/static/imgs/Alipay_logo.png" alt="Alipay" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><span style="display: none; font-size: 32px;">💰</span></div>
+                        <div class="label">Alipay</div>
+                    </div>
+                    <div class="payment-method-btn" onclick="selectPaymentMethod('rabbit_line_pay')" data-method="rabbit_line_pay">
+                        <div class="icon"><img src="/static/imgs/LINE_Pay_logo.png" alt="Rabbit LINE Pay" style="width: 50px; height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><span style="display: none; font-size: 32px;">🐰</span></div>
+                        <div class="label">Rabbit LINE Pay</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="topup-modal-actions">
+                <button class="topup-modal-btn topup-modal-btn-cancel" onclick="closeTopupModal()">ยกเลิก</button>
+                <button class="topup-modal-btn topup-modal-btn-confirm" onclick="confirmTopup()" id="confirm-topup-btn" disabled>ยืนยันเติมเงิน</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = window.location.origin + '/api';
+        let currentCustomer = null;
+        let qrcodeInstances = {};
+        let selectedTopupFCId = null;
+        let selectedPaymentMethod = null;
+        
+        // Health check and auto login on page load
+        window.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const healthResponse = await fetch(window.location.origin + '/health');
+                if (!healthResponse.ok) {
+                    console.warn('Health check failed, but continuing...');
+                }
+            } catch (error) {
+                console.error('Cannot connect to server:', error);
+                showAlert('⚠️ ไม่สามารถเชื่อมต่อกับ server ได้ กรุณาตรวจสอบการเชื่อมต่อ', 'error');
+            }
+            
+            // Check if customer is saved in localStorage
+            const savedPhone = localStorage.getItem('customer_phone');
+            if (savedPhone) {
+                // Auto login with saved phone
+                document.getElementById('login-phone').value = savedPhone;
+                // Set flag to suppress success message on auto-login
+                localStorage.setItem('auto_login_attempted', 'false');
+                await loginWithPhone(savedPhone);
+            } else {
+                localStorage.removeItem('auto_login_attempted');
+            }
+        });
+        
+        // Allow Enter key to trigger login/register
+        document.getElementById('login-phone')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+        
+        document.getElementById('register-phone')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                register();
+            }
+        });
+        
+        function showAuthTab(tab) {
+            document.querySelectorAll('#auth-section .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#auth-section .tab-content').forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'login') {
+                document.querySelector('#auth-section .tab:first-child').classList.add('active');
+                document.getElementById('login-tab').classList.add('active');
+            } else {
+                document.querySelector('#auth-section .tab:last-child').classList.add('active');
+                document.getElementById('register-tab').classList.add('active');
+            }
+        }
+        
+        function showDashboardTab(tab) {
+            document.querySelectorAll('#dashboard-section .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#dashboard-section .tab-content').forEach(t => t.classList.remove('active'));
+            
+            const tabIndex = tab === 'qr' ? 0 : tab === 'balance' ? 1 : 2;
+            document.querySelectorAll('#dashboard-section .tab')[tabIndex].classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            
+            if (tab === 'qr') {
+                loadFoodCourtIDs();
+            } else if (tab === 'balance') {
+                loadBalance();
+            } else if (tab === 'transactions') {
+                loadTransactions();
+            }
+        }
+        
+        function showAlert(message, type = 'info', containerId = 'alert-container') {
+            const alertContainer = document.getElementById(containerId);
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+        
+        async function register() {
+            const phone = document.getElementById('register-phone').value.trim();
+            const name = document.getElementById('register-name').value.trim();
+            const promptpay = document.getElementById('register-promptpay').value.trim();
+            
+            if (!phone) {
+                showAlert('กรุณากรอกเบอร์โทรศัพท์', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/customers/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        phone: phone,
+                        name: name || null,
+                        promptpay_number: promptpay || null
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'เกิดข้อผิดพลาด');
+                }
+                
+                const data = await response.json();
+                currentCustomer = data;
+                
+                // Auto login after register
+                await loginWithPhone(phone);
+                
+            } catch (error) {
+                showAlert('❌ ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function login() {
+            const phone = document.getElementById('login-phone').value.trim();
+            
+            if (!phone) {
+                showAlert('กรุณากรอกเบอร์โทรศัพท์', 'error');
+                return;
+            }
+            
+            await loginWithPhone(phone);
+        }
+        
+        async function loginWithPhone(phone) {
+            showLoading(true);
+            
+            try {
+                // Get customer by phone
+                const response = await fetch(`${API_BASE_URL}/admin/customers?search=${encodeURIComponent(phone)}&limit=1`);
+                
+                if (!response.ok) {
+                    throw new Error('ไม่พบข้อมูลลูกค้า');
+                }
+                
+                const customers = await response.json();
+                
+                if (customers.length === 0) {
+                    throw new Error('ไม่พบข้อมูลลูกค้า กรุณาลงทะเบียนก่อน');
+                }
+                
+                currentCustomer = customers[0];
+                
+                // Save phone to localStorage for auto login
+                localStorage.setItem('customer_phone', phone);
+                
+                // Show dashboard
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'block';
+                
+                // Load data
+                loadFoodCourtIDs();
+                loadBalance();
+                
+                // Only show success alert if not auto-login
+                const isAutoLogin = localStorage.getItem('auto_login_attempted') === 'false';
+                if (!isAutoLogin) {
+                    showAlert('✅ เข้าสู่ระบบสำเร็จ', 'success', 'dashboard-alert-container');
+                }
+                localStorage.setItem('auto_login_attempted', 'true');
+                
+            } catch (error) {
+                showAlert('❌ ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function logout() {
+            if (confirm('ต้องการออกจากระบบหรือไม่?')) {
+                currentCustomer = null;
+                // Clear saved phone from localStorage
+                localStorage.removeItem('customer_phone');
+                document.getElementById('auth-section').style.display = 'block';
+                document.getElementById('dashboard-section').style.display = 'none';
+                document.getElementById('login-phone').value = '';
+                document.getElementById('register-phone').value = '';
+                document.getElementById('register-name').value = '';
+                document.getElementById('register-promptpay').value = '';
+            }
+        }
+        
+        async function loadFoodCourtIDs() {
+            if (!currentCustomer) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/counter/foodcourt-ids?limit=100&customer_id=${currentCustomer.id}`);
+                const customerFCIds = await response.json();
+                
+                const fcIdsList = document.getElementById('fc-ids-list');
+                
+                if (customerFCIds.length === 0) {
+                    fcIdsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Food Court ID</p>';
+                    return;
+                }
+                
+                let html = '';
+                customerFCIds.forEach((fc, index) => {
+                    const qrId = `qrcode-${index}`;
+                    const isActive = fc.status === 'active';
+                    
+                    html += `
+                        <div class="fc-id-card ${isActive ? 'active' : ''}">
+                            <div class="fc-id-header">
+                                <div class="fc-id-name">${fc.foodcourt_id}</div>
+                                <div class="fc-id-balance">${parseFloat(fc.current_balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</div>
+                            </div>
+                            <div class="fc-id-qr">
+                                <div id="${qrId}"></div>
+                            </div>
+                            <div class="fc-id-info">
+                                <div><label>จำนวนเงินเริ่มต้น:</label> ${parseFloat(fc.initial_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</div>
+                                <div><label>วิธีชำระเงิน:</label> ${fc.payment_method}</div>
+                                <div><label>สถานะ:</label> ${fc.status}</div>
+                                <div><label>วันที่สร้าง:</label> ${new Date(fc.created_at).toLocaleDateString('th-TH')}</div>
+                            </div>
+                            <div class="topup-section">
+                                <button class="btn" onclick="openTopupModal('${fc.foodcourt_id}')" style="font-size: 16px; padding: 12px;">💳 เติมเงิน</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                fcIdsList.innerHTML = html;
+                
+                // Generate QR codes
+                customerFCIds.forEach((fc, index) => {
+                    const qrId = `qrcode-${index}`;
+                    const qrDiv = document.getElementById(qrId);
+                    
+                    if (qrDiv && !qrcodeInstances[qrId]) {
+                        qrcodeInstances[qrId] = new QRCode(qrDiv, {
+                            text: fc.foodcourt_id,
+                            width: 200,
+                            height: 200,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error loading Food Court IDs:', error);
+                showAlert('❌ ไม่สามารถโหลดข้อมูลได้', 'error', 'dashboard-alert-container');
+            }
+        }
+        
+        async function loadBalance() {
+            if (!currentCustomer) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/counter/foodcourt-ids?limit=100&customer_id=${currentCustomer.id}`);
+                const fcIds = await response.json();
+                
+                let totalBalance = 0;
+                let totalFCIds = fcIds.length;
+                let activeFCIds = 0;
+                let usedFCIds = 0;
+                
+                fcIds.forEach(fc => {
+                    totalBalance += parseFloat(fc.current_balance || 0);
+                    if (fc.status === 'active') activeFCIds++;
+                    if (fc.status === 'used') usedFCIds++;
+                });
+                
+                document.getElementById('total-balance').textContent = 
+                    totalBalance.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('total-fc-ids').textContent = totalFCIds;
+                document.getElementById('active-fc-ids').textContent = activeFCIds;
+                document.getElementById('used-fc-ids').textContent = usedFCIds;
+                
+            } catch (error) {
+                console.error('Error loading balance:', error);
+                showAlert('❌ ไม่สามารถโหลดข้อมูลได้', 'error', 'dashboard-alert-container');
+            }
+        }
+        
+        async function loadTransactions() {
+            if (!currentCustomer) return;
+            
+            try {
+                // Get Food Court IDs for this customer first
+                const fcIdsResponse = await fetch(`${API_BASE_URL}/counter/foodcourt-ids?limit=100&customer_id=${currentCustomer.id}`);
+                const customerFCIds = await fcIdsResponse.json();
+                
+                const transactionsList = document.getElementById('transactions-list');
+                
+                if (customerFCIds.length === 0) {
+                    transactionsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Food Court ID ที่ผูกไว้</p>';
+                    return;
+                }
+                
+                // Get FC IDs list
+                const fcIdList = customerFCIds.map(fc => fc.foodcourt_id);
+                
+                // Get transactions for this customer's Food Court IDs
+                const response = await fetch(`${API_BASE_URL}/admin/transactions?limit=100`);
+                const transactions = await response.json();
+                
+                // Filter transactions for this customer's Food Court IDs only
+                const customerTransactions = transactions.filter(t => {
+                    return t.foodcourt_id && fcIdList.includes(t.foodcourt_id);
+                });
+                
+                if (customerTransactions.length === 0) {
+                    transactionsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มีรายการ</p>';
+                    return;
+                }
+                
+                let html = '';
+                customerTransactions.forEach(trans => {
+                    html += `
+                        <div class="transaction-item">
+                            <div class="transaction-item-header">
+                                <div>
+                                    <strong>${trans.foodcourt_id || 'N/A'}</strong>
+                                    <div class="transaction-item-details">${new Date(trans.created_at).toLocaleString('th-TH')}</div>
+                                </div>
+                                <div class="transaction-item-amount">-${parseFloat(trans.amount).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</div>
+                            </div>
+                            <div class="transaction-item-details">
+                                <div>ร้านค้า ID: ${trans.store_id}</div>
+                                <div>วิธีชำระเงิน: ${trans.payment_method}</div>
+                                <div>สถานะ: ${trans.status}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                transactionsList.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                showAlert('❌ ไม่สามารถโหลดข้อมูลได้', 'error', 'dashboard-alert-container');
+            }
+        }
+        
+        function openTopupModal(foodcourtId) {
+            selectedTopupFCId = foodcourtId;
+            selectedPaymentMethod = null;
+            document.getElementById('topup-fc-id').textContent = foodcourtId;
+            document.getElementById('topup-amount-input').value = '';
+            document.querySelectorAll('.payment-method-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('confirm-topup-btn').disabled = true;
+            document.getElementById('topup-modal').classList.add('show');
+        }
+        
+        function closeTopupModal() {
+            document.getElementById('topup-modal').classList.remove('show');
+            selectedTopupFCId = null;
+            selectedPaymentMethod = null;
+            document.getElementById('topup-amount-input').value = '';
+        }
+        
+        function setTopupAmount(amount) {
+            document.getElementById('topup-amount-input').value = amount;
+            checkTopupInputs();
+        }
+        
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            document.querySelectorAll('.payment-method-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.method === method) {
+                    btn.classList.add('active');
+                }
+            });
+            checkTopupInputs();
+        }
+        
+        function checkTopupInputs() {
+            const amount = parseFloat(document.getElementById('topup-amount-input').value);
+            const hasAmount = !isNaN(amount) && amount > 0;
+            const hasMethod = selectedPaymentMethod !== null;
+            const confirmBtn = document.getElementById('confirm-topup-btn');
+            confirmBtn.disabled = !(hasAmount && hasMethod);
+        }
+        
+        // Add event listener for amount input
+        document.addEventListener('DOMContentLoaded', function() {
+            const topupAmountInput = document.getElementById('topup-amount-input');
+            if (topupAmountInput) {
+                topupAmountInput.addEventListener('input', checkTopupInputs);
+            }
+        });
+        
+        async function confirmTopup() {
+            const amount = parseFloat(document.getElementById('topup-amount-input').value);
+            
+            if (!amount || amount <= 0) {
+                showAlert('กรุณากรอกจำนวนเงินที่ถูกต้อง', 'error', 'dashboard-alert-container');
+                return;
+            }
+            
+            if (!selectedPaymentMethod) {
+                showAlert('กรุณาเลือกวิธีชำระเงิน', 'error', 'dashboard-alert-container');
+                return;
+            }
+            
+            if (!selectedTopupFCId) {
+                showAlert('ไม่พบ Food Court ID', 'error', 'dashboard-alert-container');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/counter/topup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        foodcourt_id: selectedTopupFCId,
+                        amount: amount,
+                        payment_method: selectedPaymentMethod,
+                        counter_id: 0,
+                        counter_user_id: 0
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'เกิดข้อผิดพลาดในการเติมเงิน');
+                }
+                
+                const data = await response.json();
+                
+                showAlert(`✅ เติมเงินสำเร็จ! ยอดเงินใหม่: ${parseFloat(data.new_balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท`, 'success', 'dashboard-alert-container');
+                
+                // Reload data
+                loadFoodCourtIDs();
+                loadBalance();
+                
+                // Close modal
+                closeTopupModal();
+                
+            } catch (error) {
+                console.error('Error topping up:', error);
+                showAlert('❌ ' + error.message, 'error', 'dashboard-alert-container');
+            } finally {
+                showLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>
+

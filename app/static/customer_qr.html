@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Court ID QR Code - ลูกค้า</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        
+        * {
+            font-family: 'TH Sarabun New', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .qr-section {
+            margin-bottom: 30px;
+        }
+        
+        .qr-code-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            border: 3px solid #667eea;
+            margin-bottom: 20px;
+        }
+        
+        #qrcode {
+            display: inline-block;
+        }
+        
+        .foodcourt-id {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+        
+        .balance-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .balance-label {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .balance-amount {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .info-item {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        
+        .info-item label {
+            opacity: 0.9;
+            margin-right: 10px;
+        }
+        
+        .input-section {
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+            text-align: left;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            color: #666;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ Food Court ID QR Code</h1>
+        
+        <div id="alert-container"></div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label>กรอก Food Court ID</label>
+                <input 
+                    type="text" 
+                    id="foodcourt-id-input" 
+                    placeholder="FC-20241201-12345"
+                    autocomplete="off"
+                    autofocus
+                >
+            </div>
+            <button class="btn" onclick="loadQRCode()" id="load-btn">📱 สร้าง QR Code</button>
+        </div>
+        
+        <div id="qr-display" style="display: none;">
+            <div class="qr-section">
+                <div class="qr-code-container">
+                    <div id="qrcode"></div>
+                </div>
+                <div class="foodcourt-id" id="display-fc-id">-</div>
+            </div>
+            
+            <div class="balance-info">
+                <div class="balance-label">ยอดเงินคงเหลือ</div>
+                <div class="balance-amount" id="balance-amount">0.00</div>
+                <div class="info-item">
+                    <label>จำนวนเงินเริ่มต้น:</label>
+                    <span id="initial-amount">0.00</span> บาท
+                </div>
+                <div class="info-item">
+                    <label>วิธีชำระเงิน:</label>
+                    <span id="payment-method">-</span>
+                </div>
+                <div class="info-item">
+                    <label>สถานะ:</label>
+                    <span id="status">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 วิธีใช้งาน:</h3>
+            <ol>
+                <li>กรอก Food Court ID ของคุณ</li>
+                <li>กดปุ่ม "สร้าง QR Code"</li>
+                <li>แสดง QR Code ให้ร้านค้าสแกน</li>
+                <li>ร้านค้าจะหักยอดเงินตามจำนวนที่กำหนด</li>
+            </ol>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
+    
+    <script>
+        // Get API URL from window location or use default
+        const API_BASE_URL = (window.location.origin || 'http://localhost:8000') + '/api';
+        let qrcodeInstance = null;
+        
+        console.log('API Base URL:', API_BASE_URL);
+        
+        // Allow Enter key to trigger load QR Code
+        document.getElementById('foodcourt-id-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadQRCode();
+            }
+        });
+        
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+        
+        async function loadQRCode() {
+            const fcId = document.getElementById('foodcourt-id-input').value.trim();
+            
+            if (!fcId) {
+                showAlert('กรุณากรอก Food Court ID', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                console.log('Fetching balance for:', fcId);
+                console.log('API URL:', `${API_BASE_URL}/counter/balance/${fcId}`);
+                
+                // ตรวจสอบยอดเงินและข้อมูล
+                const response = await fetch(`${API_BASE_URL}/counter/balance/${encodeURIComponent(fcId)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    let errorMessage = 'ไม่พบ Food Court ID';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.detail || error.message || errorMessage;
+                        console.error('API Error:', error);
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                        errorMessage = `HTTP error! status: ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                // แสดงข้อมูล
+                document.getElementById('display-fc-id').textContent = data.foodcourt_id;
+                document.getElementById('balance-amount').textContent = 
+                    parseFloat(data.current_balance).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('initial-amount').textContent = 
+                    parseFloat(data.initial_amount).toLocaleString('th-TH', {minimumFractionDigits: 2});
+                document.getElementById('payment-method').textContent = data.payment_method;
+                document.getElementById('status').textContent = data.status;
+                
+                // สร้าง QR Code
+                const qrcodeDiv = document.getElementById('qrcode');
+                qrcodeDiv.innerHTML = ''; // Clear previous QR code
+                
+                if (qrcodeInstance) {
+                    qrcodeInstance.clear();
+                }
+                
+                qrcodeInstance = new QRCode(qrcodeDiv, {
+                    text: data.foodcourt_id,
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // แสดง QR Code section
+                document.getElementById('qr-display').style.display = 'block';
+                
+                showAlert('✅ สร้าง QR Code สำเร็จ! แสดง QR Code ให้ร้านค้าสแกน', 'success');
+                
+            } catch (error) {
+                console.error('Error loading QR Code:', error);
+                showAlert('❌ ' + error.message, 'error');
+                document.getElementById('qr-display').style.display = 'none';
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Test API connection on page load
+        window.addEventListener('load', function() {
+            console.log('Page loaded, testing API connection...');
+            fetch(`${API_BASE_URL.replace('/api', '')}/health`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API Health Check:', data);
+                })
+                .catch(error => {
+                    console.error('API Health Check failed:', error);
+                    showAlert('⚠️ ไม่สามารถเชื่อมต่อกับ API Server ได้ กรุณาตรวจสอบว่า server กำลังทำงานอยู่', 'error');
+                });
+        });
+    </script>
+</body>
+</html>
+

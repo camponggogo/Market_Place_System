@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เปิด POS 2 จอ</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; text-align: center; background: #f5f5f5; }
+        h1 { margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 16px 32px; margin: 10px; font-size: 18px; cursor: pointer; background: #28a745; color: #fff; border: none; border-radius: 8px; }
+        .btn:hover { background: #218838; }
+        .btn-signage { background: #007bff; }
+        .btn-signage:hover { background: #0056b3; }
+        p { color: #666; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>เครื่อง POS 2 จอ</h1>
+    <p>กดปุ่มด้านล่างเพื่อเปิด Store POS (จอ 1) และ Signage (จอ 2)</p>
+    <button class="btn" id="btn-open">เปิด Store POS + Signage</button>
+    <p id="status"></p>
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var storeId = params.get('store_id') || 1;
+            var btn = document.getElementById('btn-open');
+            var status = document.getElementById('status');
+            function fullscreenFeatures(left, top, w, h) {
+                return 'left=' + left + ',top=' + top + ',width=' + w + ',height=' + h +
+                    ',menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes';
+            }
+            function openBoth(primary, secondary) {
+                var url1 = '/store-pos?store_id=' + storeId + '&fullscreen=1';
+                var url2 = '/signage?store_id=' + storeId + '&fullscreen=1';
+                window.open(url1, 'store-pos', fullscreenFeatures(primary.left, primary.top, primary.width, primary.height));
+                window.open(url2, 'signage', fullscreenFeatures(secondary.left, secondary.top, secondary.width, secondary.height));
+                status.textContent = 'เปิดแล้ว: จอ 1 = Store POS, จอ 2 = Signage (ไม่ใช่จอหลัก)';
+            }
+            btn.onclick = async function() {
+                status.textContent = 'กำลังตรวจสอบจอที่ 2...';
+                var url1 = '/store-pos?store_id=' + storeId + '&fullscreen=1';
+                var url2 = '/signage?store_id=' + storeId + '&fullscreen=1';
+                var primary = { left: 0, top: 0, width: screen.availWidth, height: screen.availHeight };
+                var secondary = { left: screen.availWidth, top: 0, width: screen.availWidth, height: screen.availHeight };
+                if (window.getScreenDetails) {
+                    try {
+                        var details = await window.getScreenDetails();
+                        var screens = details.screens || [];
+                        if (screens.length >= 2) {
+                            var primaryScreen = null;
+                            var secondaryScreen = null;
+                            for (var i = 0; i < screens.length; i++) {
+                                var s = screens[i];
+                                var left = s.availLeft !== undefined ? s.availLeft : s.left;
+                                var top = s.availTop !== undefined ? s.availTop : s.top;
+                                var w = s.availWidth || s.width;
+                                var h = s.availHeight || s.height;
+                                if (s.isPrimary) primaryScreen = { left: left, top: top, width: w, height: h };
+                                else if (!secondaryScreen) secondaryScreen = { left: left, top: top, width: w, height: h };
+                            }
+                            if (primaryScreen && secondaryScreen) {
+                                openBoth(primaryScreen, secondaryScreen);
+                                return;
+                            }
+                            if (secondaryScreen) {
+                                primary = { left: screen.availLeft || 0, top: screen.availTop || 0, width: screen.availWidth, height: screen.availHeight };
+                                openBoth(primary, secondaryScreen);
+                                return;
+                            }
+                        }
+                    } catch (e) { console.warn('getScreenDetails', e); }
+                }
+                status.textContent = 'พบ 1 จอ หรือ API ไม่รองรับ - เปิด Signage ทางขวาของจอหลัก';
+                openBoth(primary, secondary);
+            };
+            window.onload = function() {
+                btn.click();
+                setTimeout(function() { window.close(); }, 1200);
+            };
+        })();
+    </script>
+</body>
+</html>
