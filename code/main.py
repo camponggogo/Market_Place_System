@@ -10,6 +10,11 @@ from app.api import customer, crypto, reports, tax, refund, stores, counter, pay
 from app.config import BACKEND_URL
 import os
 
+# Paths relative to main.py (code/) so server works from project root or code/
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_STATIC_DIR = os.path.join(_BASE_DIR, "app", "static")
+_CONTRACTS_DIR = os.path.join(_BASE_DIR, "app", "contracts")
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -62,30 +67,27 @@ app.include_router(payment_callback.router)
 app.include_router(signage.router)
 
 # Mount static files (must be before specific routes to avoid conflicts)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-app.mount("/contracts", StaticFiles(directory="app/contracts"), name="contracts")
+if os.path.exists(_STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+if os.path.exists(_CONTRACTS_DIR):
+    app.mount("/contracts", StaticFiles(directory=_CONTRACTS_DIR), name="contracts")
 
 # Mount images directory
-import os
-imgs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app", "imgs")
-if os.path.exists(imgs_dir):
-    app.mount("/static/imgs", StaticFiles(directory=imgs_dir), name="imgs")
+_imgs_dir = os.path.join(_BASE_DIR, "app", "imgs")
+if os.path.exists(_imgs_dir):
+    app.mount("/static/imgs", StaticFiles(directory=_imgs_dir), name="imgs")
 
 # Redirect root to admin dashboard
 @app.get("/admin")
 async def admin_dashboard():
     from fastapi.responses import FileResponse
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "app", "static", "admin_dashboard.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "admin_dashboard.html")
     return FileResponse(file_path)
 
 @app.get("/store-pos")
 async def store_pos():
     from fastapi.responses import FileResponse
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "app", "static", "store_pos.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "store_pos.html")
     if not os.path.exists(file_path):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
@@ -95,9 +97,7 @@ async def store_pos():
 @app.get("/signage")
 async def signage_page():
     from fastapi.responses import FileResponse
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "app", "static", "signage.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "signage.html")
     if not os.path.exists(file_path):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
@@ -108,8 +108,7 @@ async def signage_page():
 async def launch_pos_and_signage():
     """เปิด store-pos และ signage ใน 2 หน้าต่าง (สำหรับเครื่อง POS 2 จอ)"""
     from fastapi.responses import FileResponse, HTMLResponse
-    base = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base, "app", "static", "launch.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "launch.html")
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return HTMLResponse(content="<p>launch.html not found</p>")
@@ -117,9 +116,7 @@ async def launch_pos_and_signage():
 @app.get("/customer-qr")
 async def customer_qr():
     from fastapi.responses import FileResponse
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "app", "static", "customer_qr.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "customer_qr.html")
     if not os.path.exists(file_path):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
@@ -128,9 +125,7 @@ async def customer_qr():
 @app.get("/customer")
 async def customer():
     from fastapi.responses import FileResponse
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "app", "static", "customer.html")
+    file_path = os.path.join(_BASE_DIR, "app", "static", "customer.html")
     if not os.path.exists(file_path):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
