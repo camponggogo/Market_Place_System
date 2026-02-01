@@ -4,7 +4,7 @@ Test script สำหรับตรวจสอบ Tag30 ที่มี amount
 import sys
 from pathlib import Path
 
-root_dir = Path(__file__).parent.parent
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.services.promptpay import (

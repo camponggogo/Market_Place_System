@@ -6,8 +6,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import random
 
-# เพิ่ม root directory เข้า Python path
-root_dir = Path(__file__).parent.parent
+# โปรเจกต์จัดเป็น code/ + Run/ + Deploy/
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.database import SessionLocal, engine, Base

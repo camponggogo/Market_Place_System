@@ -6,7 +6,7 @@ Migration: เพิ่มคอลัมน์ ref1, ref2, ref3, bank_account �
 import sys
 from pathlib import Path
 
-root_dir = Path(__file__).parent.parent
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD

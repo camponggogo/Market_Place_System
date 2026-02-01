@@ -14,7 +14,7 @@ services:
       TZ: Asia/Bangkok
     volumes:
       - db_data:/var/lib/mysql
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../Run/init_db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     ports:
       - "${DB_PORT:-3306}:3306"
     networks:
@@ -30,8 +30,8 @@ services:
   # FastAPI Application
   app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Deploy/Dockerfile
     container_name: foodcourt_app
     restart: unless-stopped
     depends_on:
@@ -83,9 +83,9 @@ services:
       
       TZ: Asia/Bangkok
     volumes:
-      - ./config.ini:/app/config.ini:ro
-      - ./app/static:/app/app/static:ro
-      - ./app/contracts:/app/app/contracts:ro
+      - ../code/config.ini:/app/config.ini:ro
+      - ../code/app/static:/app/app/static:ro
+      - ../code/app/contracts:/app/app/contracts:ro
       - app_logs:/app/logs
       - app_data:/app/data
     ports:

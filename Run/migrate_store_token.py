@@ -5,7 +5,7 @@ Token 20 หลัก = group_id(3) + site_id(4) + store_id(6) + menu_id(7)
 import sys
 from pathlib import Path
 
-root_dir = Path(__file__).parent.parent
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD

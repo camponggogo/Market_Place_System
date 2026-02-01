@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # เพิ่ม root directory เข้า Python path
-root_dir = Path(__file__).parent.parent
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.services.promptpay import (

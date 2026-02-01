@@ -4,8 +4,9 @@ Migration script to create store_quick_amounts table
 import sys
 import os
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# โปรเจกต์จัดเป็น code/ + Run/ + Deploy/
+_code_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "code")
+sys.path.insert(0, _code_dir)
 
 from sqlalchemy import create_engine, Table, Column, Integer, Float, String, Boolean, DateTime, ForeignKey, Text, MetaData, text
 from sqlalchemy.sql import func

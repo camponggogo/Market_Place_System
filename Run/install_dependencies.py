@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path
 
 def install_requirements():
-    """ติดตั้ง dependencies จาก requirements.txt"""
-    root_dir = Path(__file__).parent.parent
+    """ติดตั้ง dependencies จาก requirements.txt (ใน code/)"""
+    root_dir = Path(__file__).parent.parent / "code"
     requirements_file = root_dir / "requirements.txt"
     
     if not requirements_file.exists():
@@ -29,8 +29,8 @@ def install_requirements():
         return False
 
 def install_test_requirements():
-    """ติดตั้ง test dependencies"""
-    root_dir = Path(__file__).parent.parent
+    """ติดตั้ง test dependencies (ใน code/)"""
+    root_dir = Path(__file__).parent.parent / "code"
     test_requirements_file = root_dir / "requirements-test.txt"
     
     if not test_requirements_file.exists():

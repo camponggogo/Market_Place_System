@@ -4,8 +4,8 @@ Script สำหรับตรวจสอบการตั้งค่าแ�
 import sys
 from pathlib import Path
 
-# เพิ่ม root directory เข้า Python path
-root_dir = Path(__file__).parent.parent
+# โปรเจกต์จัดเป็น code/ + Run/ + Deploy/
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 def check_dependencies():
@@ -118,7 +118,7 @@ def check_database_connection():
                 print(f"✅ Database '{DB_NAME}' exists")
             else:
                 print(f"⚠️  Database '{DB_NAME}' not found")
-                print(f"   Run: python scripts/create_database.py")
+                print(f"   Run: PYTHONPATH=code python Run/create_database.py")
                 connection.close()
                 return False
         
@@ -237,7 +237,7 @@ def main():
     if all_ok:
         print("✅ All checks passed! System is ready.")
         print("\nNext steps:")
-        print("  1. Run: python scripts/init_db.py")
+        print("  1. Run: PYTHONPATH=code python Run/init_db.py")
         print("  2. Run: uvicorn main:app --reload")
     else:
         print("⚠️  Some checks failed. Please fix the issues above.")

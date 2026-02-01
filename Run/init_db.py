@@ -4,8 +4,8 @@ Script สำหรับสร้าง Database Tables และข้อม�
 import sys
 from pathlib import Path
 
-# เพิ่ม root directory เข้า Python path
-root_dir = Path(__file__).parent.parent
+# โปรเจกต์จัดเป็น code/ + Run/ + Deploy/ — ให้ Python เห็น code/
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.database import engine, Base, SessionLocal

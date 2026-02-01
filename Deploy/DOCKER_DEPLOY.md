@@ -1,5 +1,9 @@
 # คู่มือการ Deploy ด้วย Docker
 
+**โครงสร้างโปรเจกต์:** โค้ดอยู่ที่ `code/`, สคริปต์รันที่ `Run/`, ไฟล์ Docker อยู่ที่ `Deploy/`  
+รัน Docker Compose จาก **root โปรเจกต์:** `docker compose -f Deploy/docker-compose.yml up -d`  
+ไฟล์ `config.ini` อยู่ที่ `code/config.ini` (mount ใน compose เป็น `../code/config.ini`)
+
 ## 📋 ข้อกำหนดเบื้องต้น
 
 - Server: `150.95.85.185`
@@ -115,12 +119,12 @@ chmod +x deploy.sh
 ./deploy.sh production
 ```
 
-**หรือใช้ docker compose โดยตรง:**
+**หรือใช้ docker compose โดยตรง (จาก root โปรเจกต์):**
 
 ```bash
 # Build และ start services
-docker compose build
-docker compose up -d
+docker compose -f Deploy/docker-compose.yml build
+docker compose -f Deploy/docker-compose.yml up -d
 
 # ดู logs
 docker compose logs -f
@@ -329,7 +333,7 @@ netstat -tulpn | grep :8000
 - Database data จะถูกเก็บใน Docker volume `db_data`
 - Application logs อยู่ใน Docker volume `app_logs`
 - Nginx logs อยู่ใน Docker volume `nginx_logs`
-- ไฟล์ config.ini จะถูก mount จาก host เพื่อให้แก้ไขได้ง่าย
+- ไฟล์ config.ini อยู่ที่ code/config.ini และจะถูก mount จาก host เพื่อให้แก้ไขได้ง่าย
 
 ## 🔗 URLs
 

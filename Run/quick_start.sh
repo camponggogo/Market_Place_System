@@ -1,9 +1,13 @@
 #!/bin/bash
 # Quick Start Script for Linux/Mac
-# Food Court Management System
+# Market_Place_System - โครงสร้าง: README (root), code/, Run/, Deploy/
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+export PYTHONPATH="$ROOT/code"
 
 echo "============================================================"
-echo "Food Court Management System - Quick Start"
+echo "Market_Place_System - Quick Start"
 echo "============================================================"
 echo ""
 
@@ -11,64 +15,61 @@ echo ""
 echo "Step 1: Checking Python..."
 if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 --version)
-    echo "✅ Python found: $PYTHON_VERSION"
+    echo "OK Python found: $PYTHON_VERSION"
     PYTHON_CMD=python3
 elif command -v python &> /dev/null; then
     PYTHON_VERSION=$(python --version)
-    echo "✅ Python found: $PYTHON_VERSION"
+    echo "OK Python found: $PYTHON_VERSION"
     PYTHON_CMD=python
 else
-    echo "❌ Python not found! Please install Python 3.12+"
+    echo "Python not found! Please install Python 3.12+"
     exit 1
 fi
 
 # Step 2: Install Dependencies
 echo ""
-echo "Step 2: Installing dependencies..."
+echo "Step 2: Installing dependencies (code/)..."
 $PYTHON_CMD -m pip install --upgrade pip
-$PYTHON_CMD -m pip install -r requirements.txt
+$PYTHON_CMD -m pip install -r code/requirements.txt
 if [ $? -eq 0 ]; then
-    echo "✅ Dependencies installed"
+    echo "OK Dependencies installed"
 else
-    echo "⚠️  Some dependencies may have conflicts"
+    echo "Some dependencies may have conflicts"
 fi
 
 # Step 3: Check Setup
 echo ""
 echo "Step 3: Checking setup..."
-$PYTHON_CMD scripts/check_setup.py
+$PYTHON_CMD Run/check_setup.py
 if [ $? -ne 0 ]; then
-    echo "⚠️  Setup check found issues"
+    echo "Setup check found issues"
 fi
 
 # Step 4: Create Database
 echo ""
 echo "Step 4: Creating database..."
-$PYTHON_CMD scripts/create_database.py
+$PYTHON_CMD Run/create_database.py
 if [ $? -ne 0 ]; then
-    echo "⚠️  Database creation had issues"
+    echo "Database creation had issues"
 fi
 
 # Step 5: Initialize Database
 echo ""
 echo "Step 5: Initializing database..."
-$PYTHON_CMD scripts/init_db.py
+$PYTHON_CMD Run/init_db.py
 if [ $? -eq 0 ]; then
-    echo "✅ Database initialized"
+    echo "OK Database initialized"
 else
-    echo "❌ Database initialization failed"
+    echo "Database initialization failed"
     exit 1
 fi
 
 # Step 6: Create Sample Data
 echo ""
-echo "Step 6: Creating sample data (20 items)..."
-read -p "Do you want to create sample data? (Y/N): " create_sample
-if [ "$create_sample" = "Y" ] || [ "$create_sample" = "y" ]; then
-    $PYTHON_CMD scripts/create_sample_data.py
-    if [ $? -eq 0 ]; then
-        echo "✅ Sample data created"
-    fi
+echo "Step 6: Creating sample data..."
+$PYTHON_CMD Run/create_sample_data.py
+if [ $? -eq 0 ]; then
+    echo "OK Sample data created"
 fi
 
 # Step 7: Start Server
@@ -77,20 +78,18 @@ echo "============================================================"
 echo "Setup Complete!"
 echo "============================================================"
 echo ""
-echo "To start the server, run:"
-echo "  uvicorn main:app --reload"
+echo "To start the server (from project root):"
+echo "  PYTHONPATH=code uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 echo ""
 echo "Then open:"
 echo "  http://localhost:8000/docs - API Documentation"
-echo "  http://localhost:8000/static/index.html - Customer Interface"
+echo "  http://localhost:8000/launch?store_id=1 - Store POS + Signage"
 echo ""
 
-read -p "Do you want to start the server now? (Y/N): " start_server
+read -p "Start the server now? (Y/N): " start_server
 if [ "$start_server" = "Y" ] || [ "$start_server" = "y" ]; then
     echo ""
-    echo "Starting server..."
-    echo "Press Ctrl+C to stop"
+    echo "Starting server... Press Ctrl+C to stop"
     echo ""
-    uvicorn main:app --reload
+    PYTHONPATH="$ROOT/code" uvicorn main:app --reload --host 0.0.0.0 --port 8000
 fi
-

@@ -4,8 +4,8 @@ Script สำหรับสร้าง Database ใน MariaDB
 import sys
 from pathlib import Path
 
-# เพิ่ม root directory เข้า Python path
-root_dir = Path(__file__).parent.parent
+# โปรเจกต์จัดเป็น code/ + Run/ + Deploy/
+root_dir = Path(__file__).parent.parent / "code"
 sys.path.insert(0, str(root_dir))
 
 from app.config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
