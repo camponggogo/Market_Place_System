@@ -1,14 +1,19 @@
 """
 Payment Callback API - รับ Back Transaction จากธนาคาร, รายงาน, รายการโอนสิ้นวัน, แจ้งร้าน
-อ้างอิง SCB Developers: https://developer.scb/ - QR Payment (แจ้งร้านเมื่อชำระเสร็จ), Slip Verification
+อ้างอิง:
+- SCB Developers: https://developer.scb/ - QR Payment (แจ้งร้านเมื่อชำระเสร็จ), Slip Verification
+- K Bank (ธนาคารกสิกร) K API: https://apiportal.kasikornbank.com - QR Payment Webhook
+- มาตรฐาน Thai QR Payment: reference1/2/3, totalAmount, transactionId, transactionDate
 """
+import logging
 from datetime import datetime, date
 from typing import Optional, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.config import BACKEND_URL
 from app.database import get_db
 from app.services.settlement_service import (
     receive_back_transaction,
@@ -21,7 +26,11 @@ from app.services.settlement_service import (
     get_recent_paid_for_store,
 )
 from app.api.signage import set_signage_paid
+from app.api.admin import resolve_banking_profile_for_store
+from app.models import Store
+from app.services import omise_promptpay, stripe_promptpay
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payment-callback", tags=["payment-callback"])
 
 
@@ -39,19 +48,192 @@ class BackTransactionPayload(BaseModel):
     raw_payload: Optional[Any] = None
 
 
+class KBankQRPaymentPayload(BaseModel):
+    """
+    Payload รูปแบบ K Bank (K API Portal) / มาตรฐาน Thai QR Payment
+    รองรับฟิลด์ที่ apiportal.kasikornbank.com และธนาคารไทยใช้ (reference1, totalAmount ฯลฯ)
+    """
+    # อ้างอิงใน QR (ref1 = store token, ref2, ref3) - รับได้ทั้ง reference1 และ ref1
+    reference1: Optional[str] = None
+    ref1: Optional[str] = None
+    reference2: Optional[str] = None
+    ref2: Optional[str] = None
+    reference3: Optional[str] = None
+    ref3: Optional[str] = None
+    # จำนวนเงิน (บาท)
+    totalAmount: Optional[float] = None
+    amount: Optional[float] = None
+    # เลขที่อ้างอิงธุรกรรม
+    transactionId: Optional[str] = None
+    transRef: Optional[str] = None
+    slipReference: Optional[str] = None
+    # เวลาชำระ (ISO 8601 หรือ timestamp มิลลิวินาที)
+    transactionDate: Optional[str] = None
+    paidAt: Optional[str] = None
+    dateTime: Optional[str] = None
+    currencyCode: Optional[str] = None
+    bankAccount: Optional[str] = None
+
+    class Config:
+        extra = "ignore"
+
+
+def _kbank_payload_to_back_transaction(body: dict) -> BackTransactionPayload:
+    """แมป payload จาก K Bank / Thai QR Payment เป็น BackTransactionPayload"""
+    ref1 = (body.get("reference1") or body.get("ref1") or "").strip()
+    ref2 = body.get("reference2") or body.get("ref2")
+    ref3 = body.get("reference3") or body.get("ref3")
+    amount = body.get("totalAmount") or body.get("amount")
+    slip = body.get("transactionId") or body.get("transRef") or body.get("slipReference")
+    paid_at = body.get("transactionDate") or body.get("paidAt") or body.get("dateTime")
+    bank_account = body.get("bankAccount") or body.get("bank_account")
+    if not ref1:
+        raise ValueError("reference1 หรือ ref1 จำเป็น")
+    if amount is None:
+        raise ValueError("totalAmount หรือ amount จำเป็น")
+    return BackTransactionPayload(
+        ref1=ref1,
+        ref2=str(ref2).strip() if ref2 else None,
+        ref3=str(ref3).strip() if ref3 else None,
+        amount=float(amount),
+        paid_at=paid_at,
+        slip_reference=str(slip).strip() if slip else None,
+        bank_account=str(bank_account).strip() if bank_account else None,
+        raw_payload=body,
+    )
+
+
 class SettlementNotifyRequest(BaseModel):
     settlement_id: int
 
 
+class CreateGatewayQRRequest(BaseModel):
+    amount: float  # บาท
+
+
 # --- Endpoints ---
+
+@router.post("/stores/{store_id}/create-gateway-qr")
+async def create_gateway_qr(
+    store_id: int,
+    body: CreateGatewayQRRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    สร้าง QR ชำระผ่าน Gateway ที่ตั้งไว้ให้ร้าน (Omise / Stripe)
+    ถ้า profile เป็น omise หรือ stripe จะสร้าง charge/payment_intent และคืน QR หรือ client_secret
+    metadata.ref1 = store.token เพื่อให้ webhook แมปกับร้านได้
+    """
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    profile = resolve_banking_profile_for_store(db, store)
+    if not profile:
+        raise HTTPException(status_code=400, detail="No payment gateway profile for this store")
+    ref1 = getattr(store, "token", None) or ""
+    if not ref1:
+        raise HTTPException(status_code=400, detail="Store has no token")
+    amount_satang = int(round(body.amount * 100))
+    if amount_satang < 1:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    provider = getattr(profile, "provider_type", None)
+    if provider == "omise":
+        sk = getattr(profile, "omise_secret_key", None)
+        if not sk:
+            raise HTTPException(status_code=400, detail="Omise secret key not configured")
+        try:
+            charge = omise_promptpay.create_charge_promptpay(
+                secret_key=sk,
+                amount_satang=amount_satang,
+                metadata={"ref1": ref1, "store_id": str(store_id)},
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        qr_uri = charge.get("_qr_download_uri")
+        qr_base64 = None
+        if qr_uri:
+            import httpx
+            try:
+                r = httpx.get(qr_uri, timeout=10.0)
+                if r.status_code == 200:
+                    import base64
+                    qr_base64 = "data:image/svg+xml;base64," + base64.b64encode(r.content).decode()
+            except Exception:
+                pass
+        return {
+            "provider": "omise",
+            "charge_id": charge.get("id"),
+            "amount": body.amount,
+            "qr_image": qr_base64,
+            "status": charge.get("status"),
+        }
+    if provider == "stripe":
+        sk = getattr(profile, "stripe_secret_key", None)
+        if not sk:
+            raise HTTPException(status_code=400, detail="Stripe secret key not configured")
+        try:
+            pi = stripe_promptpay.create_payment_intent_promptpay(
+                secret_key=sk,
+                amount_satang=amount_satang,
+                metadata={"ref1": ref1, "store_id": str(store_id)},
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {
+            "provider": "stripe",
+            "payment_intent_id": pi.get("id"),
+            "client_secret": pi.get("client_secret"),
+            "amount": body.amount,
+            "status": pi.get("status"),
+        }
+    if provider == "apple_pay":
+        sk = getattr(profile, "stripe_secret_key", None)
+        if not sk:
+            raise HTTPException(status_code=400, detail="Apple Pay ใช้ Stripe – กรุณาตั้ง Stripe Secret Key")
+        try:
+            pi = stripe_promptpay.create_payment_intent_apple_pay(
+                secret_key=sk,
+                amount_satang=amount_satang,
+                metadata={"ref1": ref1, "store_id": str(store_id)},
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {
+            "provider": "apple_pay",
+            "payment_intent_id": pi.get("id"),
+            "client_secret": pi.get("client_secret"),
+            "amount": body.amount,
+            "status": pi.get("status"),
+        }
+    raise HTTPException(
+        status_code=400,
+        detail=f"Gateway {provider or 'default'} use existing /api/stores/{{id}}/generate-promptpay-qr for SCB/K Bank",
+    )
+
+
+@router.get("/webhook/links")
+async def webhook_links():
+    """
+    คืนค่า URL สำหรับลงทะเบียน Webhook แยกตามผู้ให้บริการ
+    """
+    base = (BACKEND_URL or "").rstrip("/")
+    stripe_url = f"{base}/api/payment-callback/webhook/stripe"
+    return {
+        "scb": f"{base}/api/payment-callback/webhook",
+        "kbank": f"{base}/api/payment-callback/webhook/kbank",
+        "omise": f"{base}/api/payment-callback/webhook/omise",
+        "stripe": stripe_url,
+        "apple_pay": stripe_url,
+    }
+
 
 @router.get("/webhook")
 async def webhook_health():
     """
     ให้ธนาคาร/ระบบภายนอกตรวจสอบว่า Webhook endpoint ยังทำงาน (health check)
-    ใช้ตอนลงทะเบียน Webhook URL กับ SCB/ธนาคาร
+    ใช้ตอนลงทะเบียน Webhook URL กับ SCB เท่านั้น (ไม่ใช้กับ K Bank)
     """
-    return {"status": "ok", "message": "Webhook endpoint is ready"}
+    return {"status": "ok", "message": "SCB webhook endpoint is ready", "provider": "scb"}
 
 
 @router.post("/back-transaction")
@@ -64,6 +246,7 @@ async def post_back_transaction(
     ใช้ ref1 (store token), ref2, ref3, ยอดเงิน, เวลาโอน เก็บไว้ทำ Report
     """
     try:
+        logger.info("Bank callback received: ref1=%s amount=%.2f", payload.ref1[:20] + "..." if len(payload.ref1) > 20 else payload.ref1, payload.amount)
         paid_at = datetime.utcnow()
         if payload.paid_at:
             paid_at = datetime.fromisoformat(payload.paid_at.replace("Z", "+00:00"))
@@ -84,6 +267,7 @@ async def post_back_transaction(
         )
         if back.store_id:
             set_signage_paid(back.store_id)
+        logger.info("Back transaction saved: id=%s store_id=%s ref1=%s amount=%.2f", back.id, back.store_id, back.ref1, back.amount)
         return {
             "id": back.id,
             "ref1": back.ref1,
@@ -108,6 +292,114 @@ async def webhook_receive(
     เมื่อลูกค้าชำระเงิน ธนาคารจะส่ง POST มาที่ URL นี้
     URL ที่ลงทะเบียน: https://your-domain.com/api/payment-callback/webhook
     """
+    logger.info("SCB webhook POST received: ref1=%s amount=%.2f", payload.ref1[:20] + "..." if len(payload.ref1) > 20 else payload.ref1, payload.amount)
+    return await post_back_transaction(payload=payload, db=db)
+
+
+@router.get("/webhook/kbank")
+async def webhook_kbank_health():
+    """
+    Health check สำหรับ K Bank (ธนาคารกสิกร) QR Payment Webhook
+    ลงทะเบียน URL: https://your-domain.com/api/payment-callback/webhook/kbank
+    """
+    return {"status": "ok", "message": "K Bank QR Payment webhook is ready", "provider": "kbank"}
+
+
+@router.post("/webhook/kbank")
+async def webhook_kbank_receive(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Webhook สำหรับ K Bank (ธนาคารกสิกร) QR Payment จาก K API Portal
+    รองรับ payload มาตรฐาน Thai QR Payment: reference1, reference2, reference3,
+    totalAmount, transactionId, transactionDate ฯลฯ
+    ดูเอกสาร: https://apiportal.kasikornbank.com/app/exercises/0e53e69a-d024-49b6-b655-8fbbfc9d5cb6/20
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object")
+    try:
+        payload = _kbank_payload_to_back_transaction(body)
+    except ValueError as e:
+        logger.warning("K Bank webhook invalid payload: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+    ref1 = (payload.ref1 or "")[:20] + ("..." if len(payload.ref1 or "") > 20 else "")
+    logger.info("K Bank webhook POST received: ref1=%s amount=%.2f", ref1, payload.amount)
+    return await post_back_transaction(payload=payload, db=db)
+
+
+@router.get("/webhook/omise")
+async def webhook_omise_health():
+    """Health check สำหรับ Omise Webhook (ลงทะเบียนที่ dashboard.omise.co)"""
+    return {"status": "ok", "message": "Omise webhook is ready", "provider": "omise"}
+
+
+@router.post("/webhook/omise")
+async def webhook_omise_receive(request: Request, db: Session = Depends(get_db)):
+    """
+    Webhook จาก Omise (charge.complete)
+    ต้องส่ง metadata.ref1 (store token 20 หลัก) ตอนสร้าง charge เพื่อแมปกับร้าน
+    อ้างอิง: https://docs.omise.co/api-webhooks
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object")
+    key = body.get("key")
+    if key != "charge.complete":
+        return {"received": True}
+    data = body.get("data") or {}
+    charge = data if isinstance(data, dict) and data.get("object") == "charge" else data.get("charge") or data
+    if not charge or charge.get("status") != "successful":
+        return {"received": True}
+    ref1 = (charge.get("metadata") or {}).get("ref1") or ""
+    amount_satang = int(charge.get("amount") or 0)
+    amount_baht = amount_satang / 100.0
+    if not ref1:
+        logger.warning("Omise webhook: charge %s has no metadata.ref1", charge.get("id"))
+        return {"received": True}
+    logger.info("Omise webhook: charge.complete ref1=%s amount=%.2f", ref1[:20], amount_baht)
+    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, raw_payload=body)
+    return await post_back_transaction(payload=payload, db=db)
+
+
+@router.get("/webhook/stripe")
+async def webhook_stripe_health():
+    """Health check สำหรับ Stripe Webhook (ลงทะเบียนที่ dashboard.stripe.com)"""
+    return {"status": "ok", "message": "Stripe webhook is ready", "provider": "stripe"}
+
+
+@router.post("/webhook/stripe")
+async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)):
+    """
+    Webhook จาก Stripe (payment_intent.succeeded)
+    ต้องส่ง metadata.ref1 (store token) ตอนสร้าง PaymentIntent
+    อ้างอิง: https://docs.stripe.com/webhooks
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object")
+    ev_type = body.get("type")
+    if ev_type != "payment_intent.succeeded":
+        return {"received": True}
+    data = body.get("data", {}).get("object") or {}
+    ref1 = (data.get("metadata") or {}).get("ref1") or ""
+    amount_satang = int(data.get("amount") or 0)
+    amount_baht = amount_satang / 100.0
+    if not ref1:
+        logger.warning("Stripe webhook: payment_intent %s has no metadata.ref1", data.get("id"))
+        return {"received": True}
+    logger.info("Stripe webhook: payment_intent.succeeded ref1=%s amount=%.2f", ref1[:20], amount_baht)
+    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, raw_payload=body)
     return await post_back_transaction(payload=payload, db=db)
 
 

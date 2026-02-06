@@ -248,6 +248,16 @@ class Store(Base):
     # Profile and Event
     profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=True)
+
+    # SCB PromptPay App (ต่อร้าน – ใช้กับ Store-POS / Webhook)
+    scb_app_name = Column(String(64), nullable=True)       # App Name จาก SCB Developer
+    scb_api_key = Column(String(128), nullable=True)      # API Key
+    scb_api_secret = Column(String(255), nullable=True)  # API Secret
+    scb_callback_url = Column(String(512), nullable=True) # Callback URL ลงทะเบียนกับ SCB
+
+    # K Bank (K API) QR Payment – ต่อร้าน (apiportal.kasikornbank.com)
+    kbank_customer_id = Column(String(128), nullable=True)      # Customer ID จาก K API
+    kbank_consumer_secret = Column(String(255), nullable=True)   # Consumer Secret
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -497,3 +507,64 @@ class StoreSettlement(Base):
 
     # Relationships
     store = relationship("Store", back_populates="store_settlements")
+
+
+# ค่าที่ใช้ใน BankingProfile.provider_type
+PROVIDER_K_API = "k_api"           # K API ธนาคารกสิกรไทย
+PROVIDER_SCB_DEEPLINK = "scb_deeplink"  # SCB Deeplink ธนาคารไทยพาณิชย์
+PROVIDER_OMISE = "omise"           # Omise QR PromptPay (https://docs.omise.co)
+PROVIDER_MPAY = "mpay"             # MPay QR PromptPay (AIS – ติดต่อ mPAY-Followup@ais.co.th)
+PROVIDER_STRIPE = "stripe"         # Stripe QR PromptPay (https://docs.stripe.com/payments/promptpay)
+PROVIDER_APPLE_PAY = "apple_pay"   # Apple Pay ผ่าน Stripe (https://docs.stripe.com/payments/apple-pay)
+
+
+class BankingProfile(Base):
+    """
+    ตั้งค่า Payment Gateway / Bank API ต่อ Group, Site หรือ Store
+    provider_type: k_api | scb_deeplink | omise | mpay | stripe (null = legacy SCB+K Bank)
+    ลำดับการ resolve: store_id > site_id > group_id
+    """
+    __tablename__ = "banking_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(128), nullable=False)
+    scope_type = Column(String(20), nullable=False)  # "group" | "site" | "store"
+    group_id = Column(Integer, nullable=True, index=True)
+    site_id = Column(Integer, nullable=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
+
+    # เลือกผู้ให้บริการ (null = ใช้ทั้ง SCB + K Bank แบบเดิม)
+    provider_type = Column(String(32), nullable=True, index=True)
+
+    # K API (ธนาคารกสิกรไทย)
+    kbank_customer_id = Column(String(128), nullable=True)
+    kbank_consumer_secret = Column(String(255), nullable=True)
+    kbank_webhook_secret = Column(String(255), nullable=True)
+
+    # SCB Deeplink (ธนาคารไทยพาณิชย์)
+    scb_app_name = Column(String(64), nullable=True)
+    scb_api_key = Column(String(128), nullable=True)
+    scb_api_secret = Column(String(255), nullable=True)
+    scb_callback_url = Column(String(512), nullable=True)
+    scb_webhook_secret = Column(String(255), nullable=True)
+
+    # Omise QR PromptPay (https://docs.omise.co/promptpay)
+    omise_public_key = Column(String(255), nullable=True)
+    omise_secret_key = Column(String(255), nullable=True)
+    omise_webhook_secret = Column(String(255), nullable=True)
+
+    # Stripe QR PromptPay (https://docs.stripe.com/payments/promptpay)
+    stripe_secret_key = Column(String(255), nullable=True)
+    stripe_publishable_key = Column(String(255), nullable=True)
+    stripe_webhook_secret = Column(String(255), nullable=True)
+
+    # MPay QR PromptPay (AIS – ขอ API จาก mPAY-Followup@ais.co.th)
+    mpay_merchant_id = Column(String(128), nullable=True)
+    mpay_api_key = Column(String(255), nullable=True)
+    mpay_webhook_secret = Column(String(255), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    store = relationship("Store", backref="banking_profile_store")

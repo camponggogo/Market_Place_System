@@ -210,6 +210,70 @@
             color: #721c24;
         }
         
+        .site-group-store-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            min-height: 280px;
+        }
+        .sgs-column h3 {
+            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eee;
+        }
+        .sgs-list {
+            min-height: 200px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+        }
+        .sgs-list.sgs-dropzone.drag-over {
+            border-color: #667eea;
+            background: #e7ebff;
+        }
+        .sgs-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .sgs-item:hover { background: #f0f0f0; }
+        .sgs-item.site-item, .sgs-item.group-item { cursor: default; }
+        .sgs-item.group-item.droppable {
+            border-color: #667eea;
+            background: #e7ebff;
+        }
+        .store-card {
+            cursor: grab;
+            user-select: none;
+        }
+        .store-card:active { cursor: grabbing; }
+        .store-card .store-name { font-weight: bold; }
+        .store-card .store-meta { font-size: 12px; color: #666; margin-top: 4px; }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            min-width: 280px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .modal-card h3 { margin-bottom: 16px; color: #333; }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -378,6 +442,7 @@
         <div class="tab" onclick="showTab('reports')">📊 Reports</div>
         <div class="tab" onclick="showTab('customers')">👥 Customers</div>
         <div class="tab" onclick="showTab('stores')">🏪 Stores</div>
+        <div class="tab" onclick="showTab('banking')">🏦 Banking</div>
     </div>
     
     <div class="content">
@@ -656,6 +721,42 @@
         <!-- Stores Tab -->
         <div id="stores" class="tab-content">
             <div class="card">
+                <h2>จัด Site / Group / Store</h2>
+                <p style="color:#666;margin-bottom:12px;">ลากร้านไปวางที่ Group ที่ต้องการ หรือ Double-click ร้านเพื่อแก้ไข Site ID / Group ID</p>
+                <div class="site-group-store-grid">
+                    <div class="sgs-column">
+                        <h3>Site</h3>
+                        <div id="sgs-sites" class="sgs-list"></div>
+                    </div>
+                    <div class="sgs-column">
+                        <h3>Group</h3>
+                        <div id="sgs-groups" class="sgs-list sgs-dropzone"></div>
+                    </div>
+                    <div class="sgs-column">
+                        <h3>Store</h3>
+                        <div id="sgs-stores" class="sgs-list sgs-dropzone"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="store-edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeStoreEditModal()">
+                <div class="modal-card" onclick="event.stopPropagation()">
+                    <h3>แก้ไข Site / Group</h3>
+                    <input type="hidden" id="store-edit-id" value="">
+                    <div class="form-group">
+                        <label>Site ID</label>
+                        <input type="number" id="store-edit-site-id" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Group ID</label>
+                        <input type="number" id="store-edit-group-id" min="0" value="0">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button class="btn btn-primary" onclick="saveStoreSiteGroup()">บันทึก</button>
+                        <button class="btn" onclick="closeStoreEditModal()">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
                 <h2>รายการร้านค้า</h2>
                 <div id="stores-list"></div>
             </div>
@@ -671,6 +772,127 @@
                     <input type="text" id="new-store-tax-id" placeholder="1234567890123">
                 </div>
                 <button class="btn btn-primary btn-block" onclick="createStore()">เพิ่มร้านค้า</button>
+            </div>
+        </div>
+
+        <!-- Banking Profiles Tab -->
+        <div id="banking" class="tab-content">
+            <div class="card">
+                <h2>Link Webhook สำหรับลงทะเบียน</h2>
+                <p style="margin-bottom:12px;color:#666;">แยก URL ตามธนาคาร — ใช้ URL ของ SCB ลงทะเบียนที่ SCB Developer (Callback URL) เท่านั้น ใช้ URL ของ K Bank ลงทะเบียนที่ K Bank K API Portal เท่านั้น</p>
+                <div id="webhook-links-box" style="display:grid;gap:12px;">
+                    <div class="form-group">
+                        <label>SCB (Callback URL ลงทะเบียนที่ SCB Developer)</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="webhook-url-scb" readonly style="flex:1;background:#f5f5f5;">
+                            <button type="button" class="btn btn-primary" onclick="copyWebhookUrl('scb')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>K Bank (ลงทะเบียนที่ K Bank K API Portal)</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="webhook-url-kbank" readonly style="flex:1;background:#f5f5f5;">
+                            <button type="button" class="btn btn-primary" onclick="copyWebhookUrl('kbank')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Omise (ลงทะเบียนที่ <a href="https://dashboard.omise.co" target="_blank">dashboard.omise.co</a> → Webhooks)</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="webhook-url-omise" readonly style="flex:1;background:#f5f5f5;">
+                            <button type="button" class="btn btn-primary" onclick="copyWebhookUrl('omise')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Stripe (ลงทะเบียนที่ <a href="https://dashboard.stripe.com/webhooks" target="_blank">dashboard.stripe.com/webhooks</a>)</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="webhook-url-stripe" readonly style="flex:1;background:#f5f5f5;">
+                            <button type="button" class="btn btn-primary" onclick="copyWebhookUrl('stripe')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>ตั้งค่า Payment Gateway</h2>
+                <p style="margin-bottom:15px;color:#666;">เลือกผู้ให้บริการและกำหนดต่อ Group / Site / Store (ลำดับ: store &gt; site &gt; group)</p>
+                <div id="banking-profiles-list"></div>
+            </div>
+            <div class="card">
+                <h2 id="banking-form-title">เพิ่ม / แก้ไข Payment Gateway Profile</h2>
+                <input type="hidden" id="banking-profile-id" value="">
+                <div class="form-group">
+                    <label>ชื่อโปรไฟล์</label>
+                    <input type="text" id="banking-name" placeholder="เช่น SCB สาขา A, Omise Production">
+                </div>
+                <div class="form-group">
+                    <label>ผู้ให้บริการ (Payment Gateway)</label>
+                    <select id="banking-provider-type" onchange="bankingProviderChange()">
+                        <option value="">-- เลือก --</option>
+                        <option value="k_api">K API (ธนาคารกสิกรไทย)</option>
+                        <option value="scb_deeplink">SCB Deeplink (ธนาคารไทยพาณิชย์)</option>
+                        <option value="omise">Omise QR PromptPay</option>
+                        <option value="mpay">MPay QR PromptPay (AIS)</option>
+                        <option value="stripe">Stripe QR PromptPay</option>
+                        <option value="apple_pay">Apple Pay (ผ่าน Stripe)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ขอบเขต (Scope)</label>
+                    <select id="banking-scope-type" onchange="bankingScopeChange()">
+                        <option value="group">Group (group_id)</option>
+                        <option value="site">Site (site_id)</option>
+                        <option value="store">Store (1 ต่อ 1 ร้าน)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="banking-group-row">
+                    <label>Group ID</label>
+                    <input type="number" id="banking-group-id" placeholder="0">
+                </div>
+                <div class="form-group" id="banking-site-row" style="display:none;">
+                    <label>Site ID</label>
+                    <input type="number" id="banking-site-id" placeholder="0">
+                </div>
+                <div class="form-group" id="banking-store-row" style="display:none;">
+                    <label>Store ID</label>
+                    <input type="number" id="banking-store-id" placeholder="1">
+                </div>
+                <div id="banking-provider-k_api" class="banking-provider-fields" style="display:none;">
+                    <h4 style="margin:12px 0 8px;">K API (ธนาคารกสิกรไทย)</h4>
+                    <div class="form-group"><label>K Bank Customer ID</label><input type="text" id="banking-kbank-customer-id" placeholder=""></div>
+                    <div class="form-group"><label>K Bank Consumer Secret</label><input type="password" id="banking-kbank-consumer-secret" placeholder=""></div>
+                    <div class="form-group"><label>K Bank Webhook Secret</label><input type="password" id="banking-kbank-webhook-secret" placeholder=""></div>
+                </div>
+                <div id="banking-provider-scb_deeplink" class="banking-provider-fields" style="display:none;">
+                    <h4 style="margin:12px 0 8px;">SCB Deeplink (ธนาคารไทยพาณิชย์)</h4>
+                    <div class="form-group"><label>SCB App Name</label><input type="text" id="banking-scb-app-name" placeholder="QR-PromptPay-1"></div>
+                    <div class="form-group"><label>SCB API Key</label><input type="text" id="banking-scb-api-key" placeholder=""></div>
+                    <div class="form-group"><label>SCB API Secret</label><input type="password" id="banking-scb-api-secret" placeholder=""></div>
+                    <div class="form-group"><label>SCB Callback URL</label><input type="text" id="banking-scb-callback-url" placeholder="https://your-domain/api/payment-callback/webhook"></div>
+                    <div class="form-group"><label>SCB Webhook Secret</label><input type="password" id="banking-scb-webhook-secret" placeholder=""></div>
+                </div>
+                <div id="banking-provider-omise" class="banking-provider-fields" style="display:none;">
+                    <h4 style="margin:12px 0 8px;">Omise QR PromptPay (<a href="https://dashboard.omise.co" target="_blank">dashboard.omise.co</a>)</h4>
+                    <div class="form-group"><label>Omise Public Key</label><input type="text" id="banking-omise-public-key" placeholder="pkey_test_xxx"></div>
+                    <div class="form-group"><label>Omise Secret Key</label><input type="password" id="banking-omise-secret-key" placeholder="skey_test_xxx"></div>
+                    <div class="form-group"><label>Omise Webhook Secret</label><input type="password" id="banking-omise-webhook-secret" placeholder=""></div>
+                </div>
+                <div id="banking-provider-stripe" class="banking-provider-fields" style="display:none;">
+                    <h4 style="margin:12px 0 8px;">Stripe / Apple Pay (<a href="https://docs.stripe.com/api" target="_blank">docs.stripe.com/api</a>)</h4>
+                    <div class="form-group"><label>Stripe Publishable Key</label><input type="text" id="banking-stripe-publishable-key" placeholder="pk_test_xxx"></div>
+                    <div class="form-group"><label>Stripe Secret Key</label><input type="password" id="banking-stripe-secret-key" placeholder="sk_test_xxx"></div>
+                    <div class="form-group"><label>Stripe Webhook Secret</label><input type="password" id="banking-stripe-webhook-secret" placeholder="whsec_xxx"></div>
+                </div>
+                <div id="banking-provider-mpay" class="banking-provider-fields" style="display:none;">
+                    <h4 style="margin:12px 0 8px;">MPay QR PromptPay (AIS)</h4>
+                    <p style="color:#666;font-size:14px;margin-bottom:8px;">ติดต่อ AIS เพื่อขอ Merchant API: mPAY-Followup@ais.co.th หรือ 02-078-9299</p>
+                    <div class="form-group"><label>MPay Merchant ID</label><input type="text" id="banking-mpay-merchant-id" placeholder=""></div>
+                    <div class="form-group"><label>MPay API Key</label><input type="password" id="banking-mpay-api-key" placeholder=""></div>
+                    <div class="form-group"><label>MPay Webhook Secret</label><input type="password" id="banking-mpay-webhook-secret" placeholder=""></div>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="banking-is-active" checked> เปิดใช้งาน</label>
+                </div>
+                <button class="btn btn-primary" onclick="saveBankingProfile()">บันทึก</button>
+                <button class="btn" onclick="resetBankingForm()" style="margin-left:8px;">ยกเลิก</button>
             </div>
         </div>
     </div>
@@ -729,6 +951,202 @@
             } else if (tabName === 'reports') {
                 loadProfiles();
                 loadEvents();
+            } else if (tabName === 'banking') {
+                loadWebhookLinks();
+                loadBankingProfiles();
+            }
+        }
+        
+        async function loadWebhookLinks() {
+            try {
+                const res = await fetch(API_BASE_URL + '/payment-callback/webhook/links');
+                const data = await res.json();
+                const scbEl = document.getElementById('webhook-url-scb');
+                const kbankEl = document.getElementById('webhook-url-kbank');
+                const omiseEl = document.getElementById('webhook-url-omise');
+                const stripeEl = document.getElementById('webhook-url-stripe');
+                if (scbEl) scbEl.value = data.scb || '';
+                if (kbankEl) kbankEl.value = data.kbank || '';
+                if (omiseEl) omiseEl.value = data.omise || '';
+                if (stripeEl) stripeEl.value = data.stripe || '';
+            } catch (e) {
+                const base = API_BASE_URL.replace(/\/$/, '');
+                const scbEl = document.getElementById('webhook-url-scb');
+                const kbankEl = document.getElementById('webhook-url-kbank');
+                const omiseEl = document.getElementById('webhook-url-omise');
+                const stripeEl = document.getElementById('webhook-url-stripe');
+                if (scbEl) scbEl.value = base + '/payment-callback/webhook';
+                if (kbankEl) kbankEl.value = base + '/payment-callback/webhook/kbank';
+                if (omiseEl) omiseEl.value = base + '/payment-callback/webhook/omise';
+                if (stripeEl) stripeEl.value = base + '/payment-callback/webhook/stripe';
+            }
+        }
+        
+        function copyWebhookUrl(provider) {
+            const ids = { scb: 'webhook-url-scb', kbank: 'webhook-url-kbank', omise: 'webhook-url-omise', stripe: 'webhook-url-stripe' };
+            const id = ids[provider] || ids.scb;
+            const el = document.getElementById(id);
+            if (!el || !el.value) return;
+            navigator.clipboard.writeText(el.value).then(() => showAlert('คัดลอก URL แล้ว', 'success')).catch(() => alert(el.value));
+        }
+
+        function bankingScopeChange() {
+            const scope = document.getElementById('banking-scope-type').value;
+            document.getElementById('banking-group-row').style.display = scope === 'group' ? 'block' : 'none';
+            document.getElementById('banking-site-row').style.display = scope === 'site' ? 'block' : 'none';
+            document.getElementById('banking-store-row').style.display = scope === 'store' ? 'block' : 'none';
+        }
+        function bankingProviderChange() {
+            const p = document.getElementById('banking-provider-type').value;
+            document.querySelectorAll('.banking-provider-fields').forEach(el => { el.style.display = 'none'; });
+            if (p) {
+                const blockId = (p === 'apple_pay') ? 'banking-provider-stripe' : 'banking-provider-' + p;
+                const el = document.getElementById(blockId);
+                if (el) el.style.display = 'block';
+            }
+        }
+
+        async function loadBankingProfiles() {
+            try {
+                const res = await fetch(API_BASE_URL + '/admin/banking-profiles');
+                const list = await res.json();
+                const el = document.getElementById('banking-profiles-list');
+                if (!list.length) {
+                    el.innerHTML = '<p>ยังไม่มี Banking Profile</p>';
+                    return;
+                }
+                const providerLabels = { 'k_api':'K API', 'scb_deeplink':'SCB', 'omise':'Omise', 'mpay':'MPay', 'stripe':'Stripe' };
+                let html = '<table><thead><tr><th>ชื่อ</th><th>ผู้ให้บริการ</th><th>Scope</th><th>Group/Site/Store</th><th>สถานะ</th><th></th></tr></thead><tbody>';
+                list.forEach(p => {
+                    const scopeVal = p.scope_type === 'group' ? 'g=' + (p.group_id ?? '') : p.scope_type === 'site' ? 's=' + (p.site_id ?? '') : 'store=' + (p.store_id ?? '');
+                    const prov = p.provider_type ? (providerLabels[p.provider_type] || p.provider_type) : (p.scb_app_name ? 'SCB' : '') + (p.kbank_customer_id ? ' K Bank' : '');
+                    html += '<tr><td>' + (p.name || '') + '</td><td>' + (prov || '-') + '</td><td>' + (p.scope_type || '') + '</td><td>' + scopeVal + '</td><td>' + (p.is_active ? 'เปิด' : 'ปิด') + '</td><td><button class="btn btn-primary" onclick="editBankingProfile(' + p.id + ')">แก้ไข</button> <button class="btn btn-danger" onclick="deleteBankingProfile(' + p.id + ')">ลบ</button></td></tr>';
+                });
+                html += '</tbody></table>';
+                el.innerHTML = html;
+            } catch (e) {
+                document.getElementById('banking-profiles-list').innerHTML = '<p style="color:red">โหลดไม่สำเร็จ: ' + e.message + '</p>';
+            }
+        }
+
+        function editBankingProfile(id) {
+            fetch(API_BASE_URL + '/admin/banking-profiles/' + id)
+                .then(r => r.json())
+                .then(p => {
+                    document.getElementById('banking-profile-id').value = p.id;
+                    document.getElementById('banking-form-title').textContent = 'แก้ไข Payment Gateway Profile';
+                    document.getElementById('banking-name').value = p.name || '';
+                    document.getElementById('banking-provider-type').value = p.provider_type || '';
+                    document.getElementById('banking-scope-type').value = p.scope_type || 'group';
+                    document.getElementById('banking-group-id').value = p.group_id ?? '';
+                    document.getElementById('banking-site-id').value = p.site_id ?? '';
+                    document.getElementById('banking-store-id').value = p.store_id ?? '';
+                    document.getElementById('banking-scb-app-name').value = p.scb_app_name || '';
+                    document.getElementById('banking-scb-api-key').value = p.scb_api_key || '';
+                    document.getElementById('banking-scb-api-secret').value = p.scb_api_secret || '';
+                    document.getElementById('banking-scb-callback-url').value = p.scb_callback_url || '';
+                    document.getElementById('banking-scb-webhook-secret').value = p.scb_webhook_secret || '';
+                    document.getElementById('banking-kbank-customer-id').value = p.kbank_customer_id || '';
+                    document.getElementById('banking-kbank-consumer-secret').value = p.kbank_consumer_secret || '';
+                    document.getElementById('banking-kbank-webhook-secret').value = p.kbank_webhook_secret || '';
+                    document.getElementById('banking-omise-public-key').value = p.omise_public_key || '';
+                    document.getElementById('banking-omise-secret-key').value = p.omise_secret_key || '';
+                    document.getElementById('banking-omise-webhook-secret').value = p.omise_webhook_secret || '';
+                    document.getElementById('banking-stripe-publishable-key').value = p.stripe_publishable_key || '';
+                    document.getElementById('banking-stripe-secret-key').value = p.stripe_secret_key || '';
+                    document.getElementById('banking-stripe-webhook-secret').value = p.stripe_webhook_secret || '';
+                    document.getElementById('banking-mpay-merchant-id').value = p.mpay_merchant_id || '';
+                    document.getElementById('banking-mpay-api-key').value = p.mpay_api_key || '';
+                    document.getElementById('banking-mpay-webhook-secret').value = p.mpay_webhook_secret || '';
+                    document.getElementById('banking-is-active').checked = p.is_active !== false;
+                    bankingScopeChange();
+                    bankingProviderChange();
+                })
+                .catch(e => alert('โหลดไม่สำเร็จ: ' + e.message));
+        }
+
+        function resetBankingForm() {
+            document.getElementById('banking-profile-id').value = '';
+            document.getElementById('banking-form-title').textContent = 'เพิ่ม Payment Gateway Profile';
+            document.getElementById('banking-name').value = '';
+            document.getElementById('banking-provider-type').value = '';
+            document.getElementById('banking-scope-type').value = 'group';
+            document.getElementById('banking-group-id').value = '';
+            document.getElementById('banking-site-id').value = '';
+            document.getElementById('banking-store-id').value = '';
+            document.getElementById('banking-scb-app-name').value = '';
+            document.getElementById('banking-scb-api-key').value = '';
+            document.getElementById('banking-scb-api-secret').value = '';
+            document.getElementById('banking-scb-callback-url').value = '';
+            document.getElementById('banking-scb-webhook-secret').value = '';
+            document.getElementById('banking-kbank-customer-id').value = '';
+            document.getElementById('banking-kbank-consumer-secret').value = '';
+            document.getElementById('banking-kbank-webhook-secret').value = '';
+            document.getElementById('banking-omise-public-key').value = '';
+            document.getElementById('banking-omise-secret-key').value = '';
+            document.getElementById('banking-omise-webhook-secret').value = '';
+            document.getElementById('banking-stripe-publishable-key').value = '';
+            document.getElementById('banking-stripe-secret-key').value = '';
+            document.getElementById('banking-stripe-webhook-secret').value = '';
+            document.getElementById('banking-mpay-merchant-id').value = '';
+            document.getElementById('banking-mpay-api-key').value = '';
+            document.getElementById('banking-mpay-webhook-secret').value = '';
+            document.getElementById('banking-is-active').checked = true;
+            bankingScopeChange();
+            bankingProviderChange();
+        }
+
+        async function saveBankingProfile() {
+            const id = document.getElementById('banking-profile-id').value;
+            const scope = document.getElementById('banking-scope-type').value;
+            const payload = {
+                name: document.getElementById('banking-name').value.trim(),
+                scope_type: scope,
+                group_id: scope === 'group' ? parseInt(document.getElementById('banking-group-id').value) || null : null,
+                site_id: scope === 'site' ? parseInt(document.getElementById('banking-site-id').value) || null : null,
+                store_id: scope === 'store' ? parseInt(document.getElementById('banking-store-id').value) || null : null,
+                provider_type: document.getElementById('banking-provider-type').value || null,
+                scb_app_name: document.getElementById('banking-scb-app-name').value.trim() || null,
+                scb_api_key: document.getElementById('banking-scb-api-key').value.trim() || null,
+                scb_api_secret: document.getElementById('banking-scb-api-secret').value || null,
+                scb_callback_url: document.getElementById('banking-scb-callback-url').value.trim() || null,
+                scb_webhook_secret: document.getElementById('banking-scb-webhook-secret').value || null,
+                kbank_customer_id: document.getElementById('banking-kbank-customer-id').value.trim() || null,
+                kbank_consumer_secret: document.getElementById('banking-kbank-consumer-secret').value || null,
+                kbank_webhook_secret: document.getElementById('banking-kbank-webhook-secret').value || null,
+                omise_public_key: document.getElementById('banking-omise-public-key').value.trim() || null,
+                omise_secret_key: document.getElementById('banking-omise-secret-key').value || null,
+                omise_webhook_secret: document.getElementById('banking-omise-webhook-secret').value || null,
+                stripe_publishable_key: document.getElementById('banking-stripe-publishable-key').value.trim() || null,
+                stripe_secret_key: document.getElementById('banking-stripe-secret-key').value || null,
+                stripe_webhook_secret: document.getElementById('banking-stripe-webhook-secret').value || null,
+                mpay_merchant_id: document.getElementById('banking-mpay-merchant-id').value.trim() || null,
+                mpay_api_key: document.getElementById('banking-mpay-api-key').value || null,
+                mpay_webhook_secret: document.getElementById('banking-mpay-webhook-secret').value || null,
+                is_active: document.getElementById('banking-is-active').checked
+            };
+            const url = id ? API_BASE_URL + '/admin/banking-profiles/' + id : API_BASE_URL + '/admin/banking-profiles';
+            const method = id ? 'PUT' : 'POST';
+            try {
+                const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+                alert(id ? 'อัปเดตแล้ว' : 'สร้างแล้ว');
+                resetBankingForm();
+                loadBankingProfiles();
+            } catch (e) {
+                alert('ผิดพลาด: ' + e.message);
+            }
+        }
+
+        async function deleteBankingProfile(id) {
+            if (!confirm('ลบ Banking Profile นี้?')) return;
+            try {
+                const res = await fetch(API_BASE_URL + '/admin/banking-profiles/' + id, { method: 'DELETE' });
+                if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+                loadBankingProfiles();
+                resetBankingForm();
+            } catch (e) {
+                alert('ลบไม่สำเร็จ: ' + e.message);
             }
         }
         
@@ -886,10 +1304,13 @@
             }
         }
         
+        let storesCache = [];
+        
         async function loadStores() {
             try {
                 const response = await fetch(`${API_BASE_URL}/stores/`);
                 const stores = await response.json();
+                storesCache = stores;
                 
                 // Populate store select
                 const storeSelect = document.getElementById('use-store-id');
@@ -910,15 +1331,20 @@
                     reportStoreSelect.appendChild(option2);
                 });
                 
-                // Display stores list
+                // Site / Group / Store 3-column view
+                loadSiteGroupStoreView(stores);
+                
+                // Display stores list table
                 const storesList = document.getElementById('stores-list');
                 if (storesList) {
-                    let html = '<table><thead><tr><th>ID</th><th>ชื่อร้าน</th><th>Tax ID</th><th>Crypto</th><th>Contract</th></tr></thead><tbody>';
+                    let html = '<table><thead><tr><th>ID</th><th>ชื่อร้าน</th><th>Site</th><th>Group</th><th>Tax ID</th><th>Crypto</th><th>Contract</th></tr></thead><tbody>';
                     stores.forEach(store => {
                         html += `
                             <tr>
                                 <td>${store.id}</td>
                                 <td>${store.name}</td>
+                                <td>${store.site_id != null ? store.site_id : 0}</td>
+                                <td>${store.group_id != null ? store.group_id : 0}</td>
                                 <td>${store.tax_id || '-'}</td>
                                 <td>${store.crypto_enabled ? '✅' : '❌'}</td>
                                 <td>${store.contract_accepted ? '✅' : '❌'}</td>
@@ -931,6 +1357,121 @@
             } catch (error) {
                 console.error('Error loading stores:', error);
             }
+        }
+        
+        function loadSiteGroupStoreView(stores) {
+            const sites = [...new Set((stores || []).map(s => s.site_id != null ? s.site_id : 0))].sort((a,b)=>a-b);
+            const siteToGroups = {};
+            (stores || []).forEach(s => {
+                const sid = s.site_id != null ? s.site_id : 0;
+                const gid = s.group_id != null ? s.group_id : 0;
+                if (!siteToGroups[sid]) siteToGroups[sid] = new Set();
+                siteToGroups[sid].add(gid);
+            });
+            Object.keys(siteToGroups).forEach(sid => {
+                siteToGroups[sid] = [...siteToGroups[sid]].sort((a,b)=>a-b);
+            });
+            const sitesEl = document.getElementById('sgs-sites');
+            const groupsEl = document.getElementById('sgs-groups');
+            const storesEl = document.getElementById('sgs-stores');
+            if (!sitesEl || !groupsEl || !storesEl) return;
+            sitesEl.innerHTML = '';
+            sites.forEach(siteId => {
+                const div = document.createElement('div');
+                div.className = 'sgs-item site-item';
+                div.textContent = 'Site ' + siteId;
+                div.dataset.siteId = siteId;
+                sitesEl.appendChild(div);
+            });
+            const allGroups = [];
+            sites.forEach(siteId => {
+                (siteToGroups[siteId] || []).forEach(gid => {
+                    allGroups.push({ siteId: parseInt(siteId, 10), groupId: gid });
+                });
+            });
+            groupsEl.innerHTML = '';
+            allGroups.forEach(({ siteId, groupId }) => {
+                const div = document.createElement('div');
+                div.className = 'sgs-item group-item droppable';
+                div.textContent = `Site ${siteId} → Group ${groupId}`;
+                div.dataset.siteId = siteId;
+                div.dataset.groupId = groupId;
+                div.addEventListener('dragover', groupDragOver);
+                div.addEventListener('dragleave', groupDragLeave);
+                div.addEventListener('drop', groupDrop);
+                groupsEl.appendChild(div);
+            });
+            storesEl.innerHTML = '';
+            (stores || []).forEach(store => {
+                const card = document.createElement('div');
+                card.className = 'sgs-item store-card';
+                card.draggable = true;
+                card.dataset.storeId = store.id;
+                card.innerHTML = '<span class="store-name">' + (store.name || 'ร้าน #' + store.id) + '</span><div class="store-meta">Site ' + (store.site_id != null ? store.site_id : 0) + ' / Group ' + (store.group_id != null ? store.group_id : 0) + '</div>';
+                card.addEventListener('dragstart', storeDragStart);
+                card.addEventListener('dblclick', () => openStoreEditModal(store));
+                storesEl.appendChild(card);
+            });
+        }
+        
+        let draggedStoreId = null;
+        function storeDragStart(e) {
+            draggedStoreId = e.target.dataset.storeId;
+            e.dataTransfer.setData('text/plain', draggedStoreId);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        function groupDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('droppable');
+        }
+        function groupDragLeave(e) {
+            e.currentTarget.classList.remove('droppable');
+        }
+        async function groupDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('droppable');
+            const storeId = e.dataTransfer.getData('text/plain');
+            const siteId = parseInt(e.currentTarget.dataset.siteId, 10);
+            const groupId = parseInt(e.currentTarget.dataset.groupId, 10);
+            if (!storeId) return;
+            await updateStoreSiteGroup(storeId, siteId, groupId);
+        }
+        
+        async function updateStoreSiteGroup(storeId, siteId, groupId) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ site_id: siteId, group_id: groupId })
+                });
+                if (res.ok) {
+                    showAlert('อัปเดต Site/Group ของร้านเรียบร้อย', 'success');
+                    loadStores();
+                } else {
+                    const err = await res.json();
+                    showAlert('ไม่สามารถอัปเดตได้: ' + (err.detail || res.status), 'error');
+                }
+            } catch (err) {
+                showAlert('เกิดข้อผิดพลาด: ' + err.message, 'error');
+            }
+        }
+        
+        function openStoreEditModal(store) {
+            document.getElementById('store-edit-id').value = store.id;
+            document.getElementById('store-edit-site-id').value = store.site_id != null ? store.site_id : 0;
+            document.getElementById('store-edit-group-id').value = store.group_id != null ? store.group_id : 0;
+            document.getElementById('store-edit-modal').style.display = 'flex';
+        }
+        function closeStoreEditModal() {
+            document.getElementById('store-edit-modal').style.display = 'none';
+        }
+        async function saveStoreSiteGroup() {
+            const id = document.getElementById('store-edit-id').value;
+            const siteId = parseInt(document.getElementById('store-edit-site-id').value, 10) || 0;
+            const groupId = parseInt(document.getElementById('store-edit-group-id').value, 10) || 0;
+            await updateStoreSiteGroup(id, siteId, groupId);
+            closeStoreEditModal();
         }
         
         async function loadFCIDs() {

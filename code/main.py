@@ -31,7 +31,7 @@ try:
     from middleware.security import SecurityMiddleware
     app.add_middleware(
         SecurityMiddleware,
-        rate_limit_per_minute=60  # 60 requests ต่อนาทีต่อ IP
+        rate_limit_per_minute=300  # 300 ต่อนาทีต่อ IP (path ที่ poll บ่อยเช่น /admin, /api/signage ไม่นับ)
     )
 except ImportError:
     # ถ้าไม่มี middleware ก็ข้ามไป
@@ -43,7 +43,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=3600,  # Cache preflight requests
 )

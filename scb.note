@@ -1,0 +1,10 @@
+https://developer.scb/#/management/apps
+App : QR-PromptPay-1
+API Key : l79417b2c08a8c42b9b7d5c51210c01dbc
+API Secret : 9e96ab1086634cf4b7e4001ffec50908
+
+App Name : QR-PromptPay-1
+Public Description : QR-PromptPay Test 1
+API Key : l79417b2c08a8c42b9b7d5c51210c01dbc
+API Secret : 9e96ab1086634cf4b7e4001ffec50908
+Callback URL : http://150.95.85.185/webhook

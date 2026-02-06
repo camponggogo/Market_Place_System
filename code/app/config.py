@@ -6,6 +6,7 @@ Environment variables take precedence over config.ini
 import configparser
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 # Get the directory where config.ini is located
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,7 +14,7 @@ CONFIG_FILE = BASE_DIR / "config.ini"
 
 config = configparser.ConfigParser()
 if CONFIG_FILE.exists():
-    config.read(CONFIG_FILE)
+    config.read(CONFIG_FILE, encoding="utf-8")
 
 # Helper function to get config with env var fallback
 def get_config(section, key, fallback=None, env_var=None, env_type=str):
@@ -44,7 +45,7 @@ def get_config(section, key, fallback=None, env_var=None, env_type=str):
 # Database Configuration (environment variables take precedence)
 DB_HOST = get_config("DATABASE", "DB_HOST", fallback="localhost", env_var="DB_HOST")
 DB_PORT = get_config("DATABASE", "DB_PORT", fallback=3306, env_var="DB_PORT", env_type=int)
-DB_NAME = get_config("DATABASE", "DB_NAME", fallback="maket_place_system", env_var="DB_NAME")
+DB_NAME = get_config("DATABASE", "DB_NAME", fallback="market_place_system", env_var="DB_NAME")
 DB_USER = get_config("DATABASE", "DB_USER", fallback="root", env_var="DB_USER")
 DB_PASSWORD = get_config("DATABASE", "DB_PASSWORD", fallback="123456", env_var="DB_PASSWORD")
 
@@ -75,11 +76,41 @@ COMPANY_NAME = get_config("TAX", "COMPANY_NAME", fallback="", env_var="COMPANY_N
 PROMPTPAY_ENABLED = get_config("PAYMENT", "PROMPTPAY_ENABLED", fallback=True, env_var="PROMPTPAY_ENABLED", env_type=bool)
 PROMPTPAY_API_URL = get_config("PAYMENT", "PROMPTPAY_API_URL", fallback="", env_var="PROMPTPAY_API_URL")
 
+# SCB Partners API (Deeplink for Payment) – โครงสร้างตาม Postman
+SCB_BASE_URL = get_config("SCB", "SCB_BASE_URL", fallback="https://api-sandbox.partners.scb", env_var="SCB_BASE_URL")
+
+# K Bank (K API) – apiportal.kasikornbank.com (QR Payment, Inward Remittance)
+# เอกสาร: Inward Remittance IDENTITY + OAuth 2.0 Try API
+KBANK_CUSTOMER_ID = get_config("K_API", "KBANK_CUSTOMER_ID", fallback="", env_var="KBANK_CUSTOMER_ID")
+KBANK_CONSUMER_SECRET = get_config("K_API", "KBANK_CONSUMER_SECRET", fallback="", env_var="KBANK_CONSUMER_SECRET")
+# OAuth 2.0 token endpoint (Sandbox; Production ใช้ URL ที่ธนาคารแจ้ง)
+KBANK_OAUTH_TOKEN_URL = get_config(
+    "K_API", "KBANK_OAUTH_TOKEN_URL",
+    fallback="https://dev.openapi-nonprod.kasikornbank.com/v2/oauth/token",
+    env_var="KBANK_OAUTH_TOKEN_URL",
+)
+
+# Omise API – https://docs.omise.co (จาก docs/Omesi.note)
+OMISE_API_URL = get_config("OMISE", "OMISE_API_URL", fallback="https://api.omise.co", env_var="OMISE_API_URL")
+OMISE_PUBLIC_KEY = get_config("OMISE", "OMISE_PUBLIC_KEY", fallback="", env_var="OMISE_PUBLIC_KEY")
+OMISE_SECRET_KEY = get_config("OMISE", "OMISE_SECRET_KEY", fallback="", env_var="OMISE_SECRET_KEY")
+OMISE_WEBHOOK_SECRET = get_config("OMISE", "OMISE_WEBHOOK_SECRET", fallback="", env_var="OMISE_WEBHOOK_SECRET")
+
+# Stripe API – https://docs.stripe.com/api (จาก docs/Stripe.note)
+STRIPE_API_URL = get_config("STRIPE", "STRIPE_API_URL", fallback="https://api.stripe.com", env_var="STRIPE_API_URL")
+STRIPE_SECRET_KEY = get_config("STRIPE", "STRIPE_SECRET_KEY", fallback="", env_var="STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = get_config("STRIPE", "STRIPE_PUBLISHABLE_KEY", fallback="", env_var="STRIPE_PUBLISHABLE_KEY")
+STRIPE_WEBHOOK_SECRET = get_config("STRIPE", "STRIPE_WEBHOOK_SECRET", fallback="", env_var="STRIPE_WEBHOOK_SECRET")
+
+# Apple Pay – ใช้ผ่าน Stripe (https://docs.stripe.com/payments/apple-pay)
+APPLE_PAY_ENABLED = get_config("APPLE_PAY", "APPLE_PAY_ENABLED", fallback=True, env_var="APPLE_PAY_ENABLED", env_type=bool)
+
 # Notification Configuration
 LINE_OA_CHANNEL_ACCESS_TOKEN = get_config("NOTIFICATION", "LINE_OA_CHANNEL_ACCESS_TOKEN", fallback="", env_var="LINE_OA_CHANNEL_ACCESS_TOKEN")
 LINE_OA_CHANNEL_SECRET = get_config("NOTIFICATION", "LINE_OA_CHANNEL_SECRET", fallback="", env_var="LINE_OA_CHANNEL_SECRET")
 PUSH_NOTIFICATION_ENABLED = get_config("NOTIFICATION", "PUSH_NOTIFICATION_ENABLED", fallback=True, env_var="PUSH_NOTIFICATION_ENABLED", env_type=bool)
 
-# Database URL - MariaDB/MySQL
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+# Database URL - MariaDB/MySQL (password URL-encoded ถ้ามีอักขระพิเศษ เช่น @ # %)
+_safe_password = quote_plus(DB_PASSWORD) if DB_PASSWORD else ""
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{_safe_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 

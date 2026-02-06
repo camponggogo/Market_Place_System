@@ -1,0 +1,6 @@
+URL: curl https://api.omise.co
+Test cURL: https://api.omise.co/schedules/schd_test_5rr5a45u12e888vz09q -u skey_test_5bp8zbfsn4y89yacx7x:
+Webhook: https://campong.co.th/payment/omise/transactions
+Public Key: pkey_test_5bp8zbfs1oergemouve
+Secret key : skey_test_5bp8zbfsn4y89yacx7x
+WebHook Secret : +xhjg4xsdKm5Bn1Rt7GvPNAS6+rWDWkFYMqPXPxsb8U=

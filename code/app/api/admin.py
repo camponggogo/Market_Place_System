@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import (
     FoodCourtID, Transaction, StoreTransaction, CounterTransaction,
-    Customer, Store
+    Customer, Store, BankingProfile,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -273,4 +273,277 @@ async def unlink_foodcourt_id(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Banking Profiles (ตั้งค่า Bank API ต่อ group / site / store) ---
+
+class BankingProfileCreate(BaseModel):
+    name: str
+    scope_type: str  # "group" | "site" | "store"
+    group_id: Optional[int] = None
+    site_id: Optional[int] = None
+    store_id: Optional[int] = None
+    provider_type: Optional[str] = None  # k_api | scb_deeplink | omise | mpay | stripe
+    scb_app_name: Optional[str] = None
+    scb_api_key: Optional[str] = None
+    scb_api_secret: Optional[str] = None
+    scb_callback_url: Optional[str] = None
+    scb_webhook_secret: Optional[str] = None
+    kbank_customer_id: Optional[str] = None
+    kbank_consumer_secret: Optional[str] = None
+    kbank_webhook_secret: Optional[str] = None
+    omise_public_key: Optional[str] = None
+    omise_secret_key: Optional[str] = None
+    omise_webhook_secret: Optional[str] = None
+    stripe_secret_key: Optional[str] = None
+    stripe_publishable_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    mpay_merchant_id: Optional[str] = None
+    mpay_api_key: Optional[str] = None
+    mpay_webhook_secret: Optional[str] = None
+    is_active: bool = True
+
+
+class BankingProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    scope_type: Optional[str] = None
+    group_id: Optional[int] = None
+    site_id: Optional[int] = None
+    store_id: Optional[int] = None
+    provider_type: Optional[str] = None
+    scb_app_name: Optional[str] = None
+    scb_api_key: Optional[str] = None
+    scb_api_secret: Optional[str] = None
+    scb_callback_url: Optional[str] = None
+    scb_webhook_secret: Optional[str] = None
+    kbank_customer_id: Optional[str] = None
+    kbank_consumer_secret: Optional[str] = None
+    kbank_webhook_secret: Optional[str] = None
+    omise_public_key: Optional[str] = None
+    omise_secret_key: Optional[str] = None
+    omise_webhook_secret: Optional[str] = None
+    stripe_secret_key: Optional[str] = None
+    stripe_publishable_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    mpay_merchant_id: Optional[str] = None
+    mpay_api_key: Optional[str] = None
+    mpay_webhook_secret: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+def resolve_banking_profile_for_store(db: Session, store: Store):
+    """
+    หา BankingProfile สำหรับร้าน: store > site > group
+    """
+    if not store:
+        return None
+    # 1) ต่อร้าน (store)
+    p = db.query(BankingProfile).filter(
+        BankingProfile.is_active == True,
+        BankingProfile.store_id == store.id,
+    ).first()
+    if p:
+        return p
+    # 2) ต่อ site
+    p = db.query(BankingProfile).filter(
+        BankingProfile.is_active == True,
+        BankingProfile.scope_type == "site",
+        BankingProfile.site_id == store.site_id,
+        BankingProfile.store_id.is_(None),
+    ).first()
+    if p:
+        return p
+    # 3) ต่อ group
+    p = db.query(BankingProfile).filter(
+        BankingProfile.is_active == True,
+        BankingProfile.scope_type == "group",
+        BankingProfile.group_id == store.group_id,
+        BankingProfile.site_id.is_(None),
+        BankingProfile.store_id.is_(None),
+    ).first()
+    return p
+
+
+@router.get("/banking-profiles")
+async def list_banking_profiles(db: Session = Depends(get_db)):
+    """รายการ Banking Profiles ทั้งหมด"""
+    rows = db.query(BankingProfile).order_by(BankingProfile.scope_type, BankingProfile.group_id, BankingProfile.site_id, BankingProfile.store_id).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "scope_type": r.scope_type,
+            "group_id": r.group_id,
+            "site_id": r.site_id,
+            "store_id": r.store_id,
+            "provider_type": getattr(r, "provider_type", None),
+            "scb_app_name": r.scb_app_name,
+            "scb_callback_url": r.scb_callback_url,
+            "kbank_customer_id": (r.kbank_customer_id[:16] + "..." if r.kbank_customer_id and len(r.kbank_customer_id) > 16 else r.kbank_customer_id),
+            "omise_public_key": (lambda v: (v[:16] + "...") if v and len(v) > 16 else v)(getattr(r, "omise_public_key", None)),
+            "stripe_publishable_key": (lambda v: (v[:16] + "...") if v and len(v) > 16 else v)(getattr(r, "stripe_publishable_key", None)),
+            "is_active": r.is_active,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/banking-profiles/resolve")
+async def resolve_banking_profile(store_id: int, db: Session = Depends(get_db)):
+    """หา profile ที่ใช้กับร้านนี้ (สำหรับ debug / แสดงใน UI)"""
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    profile = resolve_banking_profile_for_store(db, store)
+    if not profile:
+        return {"store_id": store_id, "profile": None, "message": "No banking profile matched (store/site/group)"}
+    return {
+        "store_id": store_id,
+        "profile": {
+            "id": profile.id,
+            "name": profile.name,
+            "scope_type": profile.scope_type,
+        },
+    }
+
+
+@router.post("/banking-profiles", response_model=None)
+async def create_banking_profile(body: BankingProfileCreate, db: Session = Depends(get_db)):
+    """สร้าง Banking Profile"""
+    p = BankingProfile(
+        name=body.name,
+        scope_type=body.scope_type,
+        group_id=body.group_id,
+        site_id=body.site_id,
+        store_id=body.store_id,
+        provider_type=body.provider_type,
+        scb_app_name=body.scb_app_name,
+        scb_api_key=body.scb_api_key,
+        scb_api_secret=body.scb_api_secret,
+        scb_callback_url=body.scb_callback_url,
+        scb_webhook_secret=body.scb_webhook_secret,
+        kbank_customer_id=body.kbank_customer_id,
+        kbank_consumer_secret=body.kbank_consumer_secret,
+        kbank_webhook_secret=body.kbank_webhook_secret,
+        omise_public_key=body.omise_public_key,
+        omise_secret_key=body.omise_secret_key,
+        omise_webhook_secret=body.omise_webhook_secret,
+        stripe_secret_key=body.stripe_secret_key,
+        stripe_publishable_key=body.stripe_publishable_key,
+        stripe_webhook_secret=body.stripe_webhook_secret,
+        mpay_merchant_id=body.mpay_merchant_id,
+        mpay_api_key=body.mpay_api_key,
+        mpay_webhook_secret=body.mpay_webhook_secret,
+        is_active=body.is_active,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return {"id": p.id, "name": p.name, "message": "Created"}
+
+
+@router.get("/banking-profiles/{profile_id}")
+async def get_banking_profile(profile_id: int, db: Session = Depends(get_db)):
+    """ดึงรายละเอียด Banking Profile (รวม secret สำหรับแก้ไข; แสดงแบบ mask ใน list)"""
+    p = db.query(BankingProfile).filter(BankingProfile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Banking profile not found")
+    return {
+        "id": p.id,
+        "name": p.name,
+        "scope_type": p.scope_type,
+        "group_id": p.group_id,
+        "site_id": p.site_id,
+        "store_id": p.store_id,
+        "provider_type": getattr(p, "provider_type", None),
+        "scb_app_name": p.scb_app_name,
+        "scb_api_key": p.scb_api_key,
+        "scb_api_secret": p.scb_api_secret,
+        "scb_callback_url": p.scb_callback_url,
+        "scb_webhook_secret": p.scb_webhook_secret,
+        "kbank_customer_id": p.kbank_customer_id,
+        "kbank_consumer_secret": p.kbank_consumer_secret,
+        "kbank_webhook_secret": p.kbank_webhook_secret,
+        "omise_public_key": getattr(p, "omise_public_key", None),
+        "omise_secret_key": getattr(p, "omise_secret_key", None),
+        "omise_webhook_secret": getattr(p, "omise_webhook_secret", None),
+        "stripe_secret_key": getattr(p, "stripe_secret_key", None),
+        "stripe_publishable_key": getattr(p, "stripe_publishable_key", None),
+        "stripe_webhook_secret": getattr(p, "stripe_webhook_secret", None),
+        "mpay_merchant_id": getattr(p, "mpay_merchant_id", None),
+        "mpay_api_key": getattr(p, "mpay_api_key", None),
+        "mpay_webhook_secret": getattr(p, "mpay_webhook_secret", None),
+        "is_active": p.is_active,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+@router.put("/banking-profiles/{profile_id}")
+async def update_banking_profile(profile_id: int, body: BankingProfileUpdate, db: Session = Depends(get_db)):
+    """อัปเดต Banking Profile"""
+    p = db.query(BankingProfile).filter(BankingProfile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Banking profile not found")
+    if body.name is not None:
+        p.name = body.name
+    if body.scope_type is not None:
+        p.scope_type = body.scope_type
+    if body.group_id is not None:
+        p.group_id = body.group_id
+    if body.site_id is not None:
+        p.site_id = body.site_id
+    if body.store_id is not None:
+        p.store_id = body.store_id
+    if body.provider_type is not None:
+        p.provider_type = body.provider_type
+    if body.scb_app_name is not None:
+        p.scb_app_name = body.scb_app_name
+    if body.scb_api_key is not None:
+        p.scb_api_key = body.scb_api_key
+    if body.scb_api_secret is not None:
+        p.scb_api_secret = body.scb_api_secret
+    if body.scb_callback_url is not None:
+        p.scb_callback_url = body.scb_callback_url
+    if body.scb_webhook_secret is not None:
+        p.scb_webhook_secret = body.scb_webhook_secret
+    if body.kbank_customer_id is not None:
+        p.kbank_customer_id = body.kbank_customer_id
+    if body.kbank_consumer_secret is not None:
+        p.kbank_consumer_secret = body.kbank_consumer_secret
+    if body.kbank_webhook_secret is not None:
+        p.kbank_webhook_secret = body.kbank_webhook_secret
+    if body.omise_public_key is not None:
+        p.omise_public_key = body.omise_public_key
+    if body.omise_secret_key is not None:
+        p.omise_secret_key = body.omise_secret_key
+    if body.omise_webhook_secret is not None:
+        p.omise_webhook_secret = body.omise_webhook_secret
+    if body.stripe_secret_key is not None:
+        p.stripe_secret_key = body.stripe_secret_key
+    if body.stripe_publishable_key is not None:
+        p.stripe_publishable_key = body.stripe_publishable_key
+    if body.stripe_webhook_secret is not None:
+        p.stripe_webhook_secret = body.stripe_webhook_secret
+    if body.mpay_merchant_id is not None:
+        p.mpay_merchant_id = body.mpay_merchant_id
+    if body.mpay_api_key is not None:
+        p.mpay_api_key = body.mpay_api_key
+    if body.mpay_webhook_secret is not None:
+        p.mpay_webhook_secret = body.mpay_webhook_secret
+    if body.is_active is not None:
+        p.is_active = body.is_active
+    db.commit()
+    return {"id": p.id, "message": "Updated"}
+
+
+@router.delete("/banking-profiles/{profile_id}")
+async def delete_banking_profile(profile_id: int, db: Session = Depends(get_db)):
+    """ลบ Banking Profile"""
+    p = db.query(BankingProfile).filter(BankingProfile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Banking profile not found")
+    db.delete(p)
+    db.commit()
+    return {"message": "Deleted"}
 

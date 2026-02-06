@@ -1,0 +1,19 @@
+App Detail:
+CUSTOMER ID: sORg8e7ZIfvAcYe8gEZkkpUuf52BjUTc
+CONSUMER SECRET: mohvoISR9I0pgtcf
+ISSUED : 2022-04-27T00:23:03.403Z
+EXPTRES : None
+
+App 2 Detail: 
+curl --silent --location --request POST 'https://dev.openapi-nonprod.kasikornbank.com/v2/oauth/token' --header 'Authorization: Basic YTJGemFXdHZjbTVpWVc1cmRYTmxjZz09OmEyRnphV3R2Y201aVlXNXJjR0Z6YzNkdmNtUT0=' --data-urlencode 'grant_type=client_credentials'
+
+respone : 
+             {
+              "developer.email": "dev-sandbox-openapi@kasikornbank.com",
+              "token_type": "Bearer",
+              "client_id": "a2FzaWtvcm5iYW5rdXNlcg==",
+              "access_token": "a2FzaWtvcm5iYW5rdG9rZW4=",
+              "scope": "",
+              "expires_in": "1799",
+              "status": "approved"
+            }

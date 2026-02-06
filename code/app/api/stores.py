@@ -29,6 +29,12 @@ class StoreCreate(BaseModel):
     biller_id: Optional[str] = None  # PromptPay Biller ID 15 หลัก
 
 
+class StoreUpdate(BaseModel):
+    """อัปเดต site_id / group_id (จัดลำดับ Site > Group > Store)"""
+    site_id: Optional[int] = None
+    group_id: Optional[int] = None
+
+
 class StoreResponse(BaseModel):
     id: int
     name: str
@@ -137,7 +143,7 @@ async def get_store(store_id: int, db: Session = Depends(get_db)):
 @router.get("/")
 async def list_stores(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
-    ดึงรายการร้านค้าทั้งหมด
+    ดึงรายการร้านค้าทั้งหมด (รวม group_id, site_id สำหรับ Admin จัด Site/Group/Store)
     """
     stores = db.query(Store).offset(skip).limit(limit).all()
     
@@ -150,9 +156,44 @@ async def list_stores(skip: int = 0, limit: int = 100, db: Session = Depends(get
             "contract_accepted": store.contract_accepted,
             "token": getattr(store, "token", None),
             "biller_id": getattr(store, "biller_id", None),
+            "group_id": getattr(store, "group_id", 0),
+            "site_id": getattr(store, "site_id", 0),
         }
         for store in stores
     ]
+
+
+@router.patch("/{store_id}")
+async def update_store(
+    store_id: int,
+    body: StoreUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    อัปเดต site_id / group_id ของร้าน (และสร้าง token ใหม่)
+    """
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    if body.site_id is not None:
+        store.site_id = body.site_id
+    if body.group_id is not None:
+        store.group_id = body.group_id
+    store.token = generate_store_token(
+        group_id=store.group_id,
+        site_id=store.site_id,
+        store_id=store.id,
+        menu_id=0,
+    )
+    db.commit()
+    db.refresh(store)
+    return {
+        "id": store.id,
+        "name": store.name,
+        "group_id": store.group_id,
+        "site_id": store.site_id,
+        "token": store.token,
+    }
 
 
 class GeneratePromptPayQRRequest(BaseModel):
