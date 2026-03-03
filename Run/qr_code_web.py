@@ -269,7 +269,12 @@ def qr_code_page(
         if biller_id is None and getattr(store, "biller_id", None):
             biller_id = "".join(c for c in str(store.biller_id) if c.isdigit())[:15].zfill(15)
         if ref1 is None and getattr(store, "token", None):
-            ref1 = store.token
+            # Tag30 ใช้ ref1 เป็นตัวเลขเท่านั้น แอปธนาคารจึงสแกนผ่าน (ตรงกับ store-pos)
+            _t = (store.token or "").strip()
+            _d = "".join(c for c in _t if c.isdigit())
+            ref1 = (_d.zfill(20)[:20] if _d else (str(store.id) or "").zfill(20)[:20])
+        elif ref1 is None and store:
+            ref1 = (str(store.id) or "").zfill(20)[:20]
     if biller_id is None:
         biller_id = "011556400219809"
     if ref1 is None:

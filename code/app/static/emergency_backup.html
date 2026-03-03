@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>กรอกข้อมูลสำรอง (กรณีฉุกเฉิน)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #1a1d23; color: #e4e6eb; margin: 0; padding: 20px; }
+    .card { background: #2d323b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    h1 { color: #28a745; font-size: 20px; margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 14px; color: #aaa; }
+    input, select, textarea { width: 100%; padding: 10px; background: #1e2128; border: 1px solid #444; border-radius: 8px; color: #e4e6eb; font-size: 14px; margin-bottom: 12px; }
+    button { padding: 12px 20px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn-primary { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; }
+    .btn-secondary { background: #555; color: #fff; margin-left: 8px; }
+    .msg { margin-top: 12px; font-size: 13px; min-height: 20px; }
+    .err { color: #f88; }
+    .ok { color: #8f8; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #444; }
+    th { color: #28a745; }
+    .back { display: inline-block; margin-bottom: 16px; color: #28a745; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <a href="/admin" class="back">← กลับ Admin</a>
+  <a href="/store-pos" class="back" style="margin-left:12px">Store POS</a>
+
+  <div class="card">
+    <h1>กรอกข้อมูลรายการสำรอง (กรณีไฟดับ / ระบบล่ม)</h1>
+    <p style="font-size:13px; color:#888; margin-bottom:16px;">ต้องล็อกอินก่อน (Store POS หรือ Admin). การดูย้อนหลังได้เฉพาะผู้ดูแลระดับ admin</p>
+    <label>แหล่งที่มา</label>
+    <select id="source">
+      <option value="store_pos">Store POS</option>
+      <option value="admin">Admin</option>
+    </select>
+    <label>ร้าน (ถ้าเป็น Store POS)</label>
+    <select id="store_id">
+      <option value="">-- เลือกร้าน --</option>
+    </select>
+    <label>ประเภทรายการ</label>
+    <select id="entry_type">
+      <option value="sale">ขาย</option>
+      <option value="exchange">แลกเปลี่ยน</option>
+      <option value="topup">เติมเงิน</option>
+      <option value="other">อื่นๆ</option>
+    </select>
+    <label>จำนวนเงิน (บาท)</label>
+    <input type="number" id="amount" min="0" step="0.01" value="0">
+    <label>รายละเอียด (ถ้ามี)</label>
+    <textarea id="description" rows="2"></textarea>
+    <button class="btn-primary" id="btnSubmit">บันทึกรายการ</button>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <div class="card" id="listCard" style="display:none;">
+    <h1>รายการสำรองย้อนหลัง (เฉพาะ Admin)</h1>
+    <div id="listLoading">กำลังโหลด...</div>
+    <table id="listTable" style="display:none;">
+      <thead><tr><th>วันที่</th><th>แหล่ง</th><th>ร้าน</th><th>ประเภท</th><th>จำนวน</th><th>รายละเอียด</th></tr></thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const msgEl = document.getElementById('msg');
+    const listCard = document.getElementById('listCard');
+    const listLoading = document.getElementById('listLoading');
+    const listTable = document.getElementById('listTable');
+    const listBody = document.getElementById('listBody');
+
+    function setMsg(t, isErr) {
+      msgEl.textContent = t || '';
+      msgEl.className = 'msg ' + (isErr ? 'err' : 'ok');
+    }
+
+    async function loadMe() {
+      const r = await fetch(API + '/api/auth/me', { credentials: 'include' });
+      if (r.status !== 200) {
+        window.location.href = '/store-pos-login?next=' + encodeURIComponent(window.location.pathname || '/emergency-backup');
+        return null;
+      }
+      return r.json();
+    }
+
+    async function loadStores() {
+      const r = await fetch(API + '/api/stores', { credentials: 'include' });
+      if (r.ok) {
+        const arr = await r.json();
+        const sel = document.getElementById('store_id');
+        arr.forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.id;
+          o.textContent = s.name || 'ร้าน ' + s.id;
+          sel.appendChild(o);
+        });
+      }
+    }
+
+    document.getElementById('btnSubmit').addEventListener('click', async function() {
+      const me = await loadMe();
+      if (!me) return;
+      const source = document.getElementById('source').value;
+      const storeId = document.getElementById('store_id').value;
+      const entryType = document.getElementById('entry_type').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const description = document.getElementById('description').value.trim();
+      if (isNaN(amount) || amount < 0) { setMsg('กรอกจำนวนเงินให้ถูกต้อง', true); return; }
+      setMsg('กำลังบันทึก...');
+      try {
+        const r = await fetch(API + '/api/emergency-backup', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source,
+            store_id: storeId ? parseInt(storeId, 10) : null,
+            entry_type: entryType,
+            amount,
+            description: description || null
+          })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { setMsg(d.detail || 'บันทึกไม่สำเร็จ', true); return; }
+        setMsg('บันทึกสำเร็จ');
+        document.getElementById('amount').value = '0';
+        document.getElementById('description').value = '';
+        if (me.is_admin) loadList();
+      } catch (e) {
+        setMsg('เกิดข้อผิดพลาด: ' + e.message, true);
+      }
+    });
+
+    async function loadList() {
+      const me = await loadMe();
+      if (!me || !me.is_admin) return;
+      listCard.style.display = 'block';
+      const res = await fetch(API + '/api/emergency-backup', { credentials: 'include' });
+      if (res.status === 403 || res.status === 401) { listLoading.textContent = 'ไม่มีสิทธิ์ดู (เฉพาะ Admin)'; return; }
+      const data = await res.json();
+      listLoading.style.display = 'none';
+      if (!data.items || !data.items.length) { listLoading.textContent = 'ไม่มีรายการ'; listLoading.style.display = 'block'; return; }
+      listTable.style.display = 'table';
+      listBody.innerHTML = data.items.map(i => '<tr><td>' + (i.created_at || '-') + '</td><td>' + (i.source || '') + '</td><td>' + (i.store_id ?? '-') + '</td><td>' + (i.entry_type || '') + '</td><td>' + (i.amount ?? '') + '</td><td>' + (i.description || '') + '</td></tr>').join('');
+    }
+
+    (async function() {
+      const me = await loadMe();
+      if (!me) return;
+      await loadStores();
+      if (me.is_admin) loadList();
+    })();
+  </script>
+</body>
+</html>

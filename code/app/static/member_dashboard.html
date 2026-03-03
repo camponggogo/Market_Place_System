@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="แดชบอร์ดสมาชิก - ยอดเงิน แต้ม คูปอง โปรโมชั่น">
+  <title>หน้าหลักสมาชิก</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #1a1d23; color: #e4e6eb; min-height: 100vh; padding-bottom: 80px; }
+    .header { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; padding: 16px 20px; }
+    .header h1 { font-size: 20px; }
+    .header .user { font-size: 14px; opacity: .9; margin-top: 4px; }
+    .section { padding: 16px 20px; }
+    .section h2 { font-size: 16px; color: #28a745; margin-bottom: 12px; }
+    .card { background: #2d323b; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .balance { font-size: 28px; font-weight: bold; color: #28a745; }
+    .points { font-size: 20px; color: #ffc107; }
+    .ecoupon { font-size: 18px; color: #17a2b8; }
+    .ads { margin-top: 16px; }
+    .ad-item { background: #1e2128; border-radius: 10px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #28a745; }
+    .ad-item img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+    .voucher-list, .promo-list { font-size: 14px; }
+    .voucher-list .item, .promo-list .item { padding: 10px 0; border-bottom: 1px solid #444; }
+    .voucher-list .item:last-child, .promo-list .item:last-child { border-bottom: none; }
+    .activity-list { font-size: 13px; color: #aaa; }
+    .activity-list .item { padding: 8px 0; border-bottom: 1px solid #333; }
+    .topup-methods { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    .topup-method { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+    .topup-method input { accent-color: #28a745; }
+    .topup-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .history-table th, .history-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #333; }
+    .history-table th { color: #28a745; }
+    .history-table .amount-in { color: #28a745; }
+    .history-table .amount-out { color: #f88; }
+
+    /* Bottom nav - สแกนจ่ายอยู่กลาง */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: #2d323b; border-top: 1px solid #444; display: flex; align-items: center; justify-content: space-around; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888; text-decoration: none; font-size: 11px; flex: 1; padding: 8px; }
+    .nav-item.active { color: #28a745; }
+    .nav-item .icon { font-size: 22px; margin-bottom: 2px; }
+    .nav-item.scan { flex: 0 0 72px; margin-top: -24px; }
+    .nav-item.scan .icon { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #28a745, #20c997); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 12px rgba(40,167,69,.4); }
+    .nav-item.scan.active .icon { box-shadow: 0 4px 16px rgba(40,167,69,.6); }
+    .logout { display: inline-block; margin-top: 12px; padding: 8px 16px; background: rgba(255,255,255,.2); border-radius: 8px; color: #fff; font-size: 13px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>หน้าหลักสมาชิก</h1>
+    <div class="user" id="userName">กำลังโหลด...</div>
+    <a href="#" onclick="logout(); return false;" class="logout">ออกจากระบบ</a>
+  </div>
+
+  <div class="section">
+    <h2>เติมเงิน</h2>
+    <div class="card" id="topup-block">
+      <p style="font-size:13px; color:#aaa; margin-bottom:12px;">เลือกวิธีชำระ: PromptPay, e-Wallet (TrueWallet ฯลฯ) หรือ บัตรเครดิต/เดบิต (Stripe)</p>
+      <div class="row" style="margin-bottom:10px">
+        <label>จำนวน (บาท)</label>
+        <input type="number" id="topup-amount" min="20" step="1" value="50" style="width:90px; padding:8px; background:#1e2128; border:1px solid #444; border-radius:6px; color:#e4e6eb;">
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span>ประเภท</span>
+        <select id="topup-type" style="padding:6px; background:#1e2128; border:1px solid #444; border-radius:6px; color:#e4e6eb;">
+          <option value="topup">เติมเงิน</option>
+          <option value="ecoupon">ซื้อ E-Coupon</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <span style="font-size:13px; color:#aaa;">วิธีชำระเงิน</span>
+        <div class="topup-methods">
+          <label class="topup-method"><input type="radio" name="pm" value="promptpay"> PromptPay</label>
+          <label class="topup-method"><input type="radio" name="pm" value="truewallet"> e-Wallet</label>
+          <label class="topup-method"><input type="radio" name="pm" value="card" checked> บัตรเครดิต/เดบิต</label>
+        </div>
+      </div>
+      <div id="topup-card-wrap" style="display:none; margin:12px 0; padding:12px; background:#1e2128; border-radius:8px;"></div>
+      <div id="topup-payment-element" style="display:none; margin:12px 0; min-height:80px;"></div>
+      <div id="topup-msg" style="font-size:13px; margin:8px 0; min-height:20px;"></div>
+      <div class="topup-btns">
+        <button type="button" id="topup-btn-start" style="padding:10px 20px; background:linear-gradient(135deg,#28a745,#20c997); color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer;">ดำเนินการเติมเงิน</button>
+        <button type="button" id="topup-btn-pay" style="display:none; padding:10px 16px; background:#17a2b8; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; margin-left:8px;">ยืนยันชำระ</button>
+        <button type="button" id="topup-btn-cancel" style="display:none; padding:10px 16px; background:#555; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; margin-left:8px;">ยกเลิก</button>
+      </div>
+    </div>
+
+    <h2>ยอดเงินและแต้ม</h2>
+    <div class="card">
+      <div class="row">
+        <span>ยอดเงินคงเหลือ</span>
+        <span class="balance" id="balance">0.00</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span>คะแนนสะสม</span>
+        <span class="points" id="points">0</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span>E-Coupon ใช้จ่ายได้</span>
+        <span class="ecoupon" id="ecoupon">0.00 บาท</span>
+      </div>
+    </div>
+
+    <h2>คูปอง / โปรโมชั่น</h2>
+    <div class="card voucher-list" id="vouchers">
+      <div class="item">ไม่มีคูปอง</div>
+    </div>
+    <div class="card promo-list" id="promotions">
+      <div class="item">ไม่มีโปรโมชั่น</div>
+    </div>
+
+    <h2>โฆษณา / ฟีด</h2>
+    <div class="ads" id="ads">
+      <div class="ad-item">กำลังโหลด...</div>
+    </div>
+
+    <h2 id="history">รายการใช้จ่าย / เติมเงิน</h2>
+    <div class="card">
+      <div id="history-loading" style="font-size:13px; color:#888;">กำลังโหลด...</div>
+      <table class="history-table" id="history-table" style="display:none;">
+        <thead>
+          <tr><th>วันที่</th><th>ประเภท</th><th>รายการ</th><th>จำนวน (บาท)</th></tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <div id="history-empty" style="display:none; font-size:13px; color:#888;">ไม่มีรายการ</div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/member/dashboard" class="nav-item active">
+      <span class="icon">🏠</span>
+      <span>หน้าหลัก</span>
+    </a>
+    <a href="/member/dashboard#points" class="nav-item">
+      <span class="icon">⭐</span>
+      <span>คะแนนสะสม</span>
+    </a>
+    <a href="/member/scan" class="nav-item scan active">
+      <span class="icon">📷</span>
+      <span>สแกนจ่าย</span>
+    </a>
+    <a href="/member/dashboard#history" class="nav-item">
+      <span class="icon">📋</span>
+      <span>ประวัติ</span>
+    </a>
+    <a href="/member/dashboard#profile" class="nav-item">
+      <span class="icon">👤</span>
+      <span>ข้อมูลสมาชิก</span>
+    </a>
+  </nav>
+
+  <script>
+    const API = window.location.origin;
+    const token = localStorage.getItem('member_token');
+    if (!token) { window.location.href = '/member'; }
+
+    function logout() {
+      localStorage.removeItem('member_token');
+      localStorage.removeItem('member_id');
+      window.location.href = '/member';
+    }
+
+    async function loadMe() {
+      const r = await fetch(API + '/api/member/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (r.status === 401) { logout(); return; }
+      const d = await r.json();
+      document.getElementById('userName').textContent = (d.name || d.username || d.phone) + ' | ' + d.phone;
+      document.getElementById('balance').textContent = (d.balance != null ? d.balance : 0).toFixed(2) + ' บาท';
+      document.getElementById('points').textContent = (d.total_points != null ? d.total_points : 0);
+      document.getElementById('ecoupon').textContent = (d.e_coupon_balance != null ? d.e_coupon_balance : 0).toFixed(2) + ' บาท';
+      if (d.vouchers && d.vouchers.length) {
+        document.getElementById('vouchers').innerHTML = d.vouchers.map(v => '<div class="item">' + (v.name || 'คูปอง') + ' มูลค่า ' + v.value + '</div>').join('');
+      }
+      if (d.promotions && d.promotions.length) {
+        document.getElementById('promotions').innerHTML = d.promotions.map(p => '<div class="item">' + (p.title || 'โปรโมชั่น') + '</div>').join('');
+      }
+    }
+
+    async function loadHistory() {
+      const loading = document.getElementById('history-loading');
+      const table = document.getElementById('history-table');
+      const body = document.getElementById('history-body');
+      const empty = document.getElementById('history-empty');
+      try {
+        const r = await fetch(API + '/api/member/activities?limit=100', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.status === 401) { logout(); return; }
+        const list = await r.json();
+        loading.style.display = 'none';
+        if (!list || list.length === 0) {
+          table.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        table.style.display = 'table';
+        const typeLabel = { topup: 'เติมเงิน', payment: 'ใช้จ่าย', redeem: 'ซื้อ E-Coupon', earn_points: 'ได้แต้ม', use_voucher: 'ใช้คูปอง' };
+        body.innerHTML = list.map(a => {
+          const dateStr = a.created_at ? new Date(a.created_at).toLocaleString('th-TH') : '-';
+          const typeStr = typeLabel[a.activity_type] || a.activity_type || '';
+          const desc = (a.description || '').trim() || '-';
+          const amt = a.amount != null ? Number(a.amount).toFixed(2) : '-';
+          const isIn = a.activity_type === 'topup' || a.activity_type === 'redeem' || (a.amount != null && a.amount > 0);
+          const cls = isIn ? 'amount-in' : 'amount-out';
+          return '<tr><td>' + dateStr + '</td><td>' + typeStr + '</td><td>' + desc + '</td><td class="' + cls + '">' + amt + '</td></tr>';
+        }).join('');
+      } catch (e) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        empty.textContent = 'โหลดประวัติไม่สำเร็จ';
+      }
+    }
+
+    function trackAd(adFeedId, eventType) {
+      const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ad_feed_id: adFeedId, event_type: eventType }) };
+      if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+      fetch(API + '/api/member/ads/track', opts).catch(function() {});
+    }
+    async function loadAds() {
+      const r = await fetch(API + '/api/member/ads');
+      const list = await r.json();
+      if (list && list.length) {
+        document.getElementById('ads').innerHTML = list.map(a => {
+          const link = (a.link_url ? '<a href="' + a.link_url + '" target="_blank" rel="noopener" data-ad-id="' + a.id + '" class="ad-link">ดูเพิ่ม</a>' : '');
+          return '<div class="ad-item" data-ad-id="' + a.id + '"><strong>' + (a.title || '') + '</strong>' + (a.body ? '<p>' + a.body + '</p>' : '') + (a.image_url ? '<img src="' + a.image_url + '" alt="">' : '') + link + '</div>';
+        }).join('');
+        list.forEach(function(a) { trackAd(a.id, 'view'); });
+        document.getElementById('ads').querySelectorAll('.ad-link').forEach(function(el) {
+          el.addEventListener('click', function() { trackAd(parseInt(el.dataset.adId, 10), 'click'); });
+        });
+      } else {
+        document.getElementById('ads').innerHTML = '<div class="ad-item">ไม่มีโฆษณา</div>';
+      }
+    }
+
+    loadMe();
+    loadAds();
+    loadHistory();
+
+    // --- เติมเงิน: PromptPay / e-Wallet / บัตร (Stripe) ---
+    (function() {
+      const block = document.getElementById('topup-block');
+      const amountInput = document.getElementById('topup-amount');
+      const typeSelect = document.getElementById('topup-type');
+      const cardWrap = document.getElementById('topup-card-wrap');
+      const paymentElementWrap = document.getElementById('topup-payment-element');
+      const msgEl = document.getElementById('topup-msg');
+      const btnStart = document.getElementById('topup-btn-start');
+      const btnPay = document.getElementById('topup-btn-pay');
+      const btnCancel = document.getElementById('topup-btn-cancel');
+
+      let stripeInstance = null;
+      let cardElement = null;
+      let paymentElement = null;
+      let elementsInstance = null;
+      let clientSecret = null;
+      let currentPm = 'card';
+
+      function getPaymentMethod() {
+        const r = document.querySelector('input[name="pm"]:checked');
+        return (r && r.value) || 'card';
+      }
+
+      function setMsg(text, isError) {
+        msgEl.textContent = text || '';
+        msgEl.style.color = isError ? '#f88' : '#8f8';
+      }
+
+      function showPaymentUI(show, useCard) {
+        cardWrap.style.display = (show && useCard) ? 'block' : 'none';
+        paymentElementWrap.style.display = (show && !useCard) ? 'block' : 'none';
+        paymentElementWrap.innerHTML = '';
+        btnPay.style.display = show ? 'inline-block' : 'none';
+        btnCancel.style.display = show ? 'inline-block' : 'none';
+        btnStart.style.display = show ? 'none' : 'inline-block';
+        if (!show) { clientSecret = null; paymentElement = null; elementsInstance = null; }
+      }
+
+      btnStart.addEventListener('click', async function() {
+        const amount = parseFloat(amountInput.value);
+        if (!(amount >= 20)) { setMsg('กรอกจำนวนอย่างน้อย 20 บาท', true); return; }
+        currentPm = getPaymentMethod();
+        const intentType = typeSelect.value;
+        setMsg('กำลังสร้างการชำระ...');
+        try {
+          const r = await fetch(API + '/api/member/stripe/create-payment-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ amount: amount, intent_type: intentType, payment_method: currentPm })
+          });
+          const d = await r.json();
+          if (!r.ok) { setMsg(Array.isArray(d.detail) ? (d.detail[0] && d.detail[0].msg) || 'ผิดพลาด' : (d.detail || 'สร้างการชำระไม่สำเร็จ'), true); return; }
+          clientSecret = d.client_secret;
+          if (!clientSecret) { setMsg('ไม่มี client_secret', true); return; }
+          const pk = window.__stripePublishableKey;
+          if (!pk) { setMsg('ไม่พบ Stripe key โปรดรีเฟรช', true); return; }
+          if (!window.Stripe) { setMsg('โหลด Stripe.js ไม่สำเร็จ', true); return; }
+          if (!stripeInstance) stripeInstance = window.Stripe(pk);
+
+          if (currentPm === 'card') {
+            if (!cardElement) {
+              const elements = stripeInstance.elements();
+              cardElement = elements.create('card', { style: { base: { color: '#e4e6eb', fontSize: '16px' } } });
+              cardElement.mount('#topup-card-wrap');
+            }
+            showPaymentUI(true, true);
+            setMsg('กรอกข้อมูลบัตรด้านล่าง แล้วกดยืนยันชำระ');
+          } else {
+            // PromptPay หรือ TrueWallet: ใช้ Payment Element แสดง QR
+            const elements = stripeInstance.elements({ clientSecret: clientSecret });
+            paymentElement = elements.create('payment', { layout: 'tabs' });
+            paymentElement.mount('#topup-payment-element');
+            elementsInstance = elements;
+            showPaymentUI(true, false);
+            setMsg(currentPm === 'promptpay' ? 'สแกน QR ด้วยแอปธนาคาร (PromptPay)' : 'ดำเนินการผ่าน e-Wallet ด้านล่าง');
+          }
+        } catch (e) {
+          setMsg('เกิดข้อผิดพลาด: ' + e.message, true);
+        }
+      });
+
+      btnCancel.addEventListener('click', function() {
+        showPaymentUI(false);
+        if (paymentElement && paymentElementWrap) paymentElementWrap.innerHTML = '';
+        paymentElement = null;
+        elementsInstance = null;
+        setMsg('');
+      });
+
+      btnPay.addEventListener('click', async function() {
+        if (!clientSecret || !stripeInstance) return;
+        setMsg('กำลังยืนยันการชำระ...');
+        try {
+          if (currentPm === 'card' && cardElement) {
+            const { error } = await stripeInstance.confirmCardPayment(clientSecret, { payment_method: { card: cardElement } });
+            if (error) { setMsg(error.message || 'ชำระไม่สำเร็จ', true); return; }
+          } else if (elementsInstance && paymentElement) {
+            const returnUrl = window.location.origin + '/member/dashboard';
+            const { error } = await stripeInstance.confirmPayment({ elements: elementsInstance, clientSecret: clientSecret, confirmParams: { return_url: returnUrl } });
+            if (error) { setMsg(error.message || 'ชำระไม่สำเร็จ', true); return; }
+          }
+          setMsg('ชำระเงินสำเร็จ รอ Webhook อัปเดตยอด (หรือรีเฟรช)');
+          showPaymentUI(false);
+          paymentElementWrap.innerHTML = '';
+          paymentElement = null;
+          elementsInstance = null;
+          loadMe();
+          loadHistory();
+        } catch (e) {
+          setMsg('เกิดข้อผิดพลาด: ' + e.message, true);
+        }
+      });
+
+      fetch(API + '/api/member/stripe-config', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          const pk = (d && d.publishableKey) || '';
+          if (!pk) { block.querySelector('p').textContent = 'Stripe ยังไม่ได้ตั้งค่า (STRIPE_PUBLISHABLE_KEY)'; return; }
+          window.__stripePublishableKey = pk;
+          const s = document.createElement('script');
+          s.src = 'https://js.stripe.com/v3/';
+          s.async = true;
+          s.onload = function() { block.querySelector('p').textContent = 'เลือกวิธีชำระ: PromptPay, e-Wallet หรือ บัตรเครดิต/เดบิต'; };
+          document.head.appendChild(s);
+        })
+        .catch(function() { block.querySelector('p').textContent = 'โหลด Stripe config ไม่ได้'; });
+    })();
+  </script>
+</body>
+</html>

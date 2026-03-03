@@ -98,7 +98,37 @@ class CryptoTransactionStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class User(Base):
+    """ผู้ใช้สำหรับ Store POS - ล็อกอินก่อนเข้าใช้งาน"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(64), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    is_admin = Column(Boolean, default=False, nullable=False)  # ผู้ดูแลระดับ admin ขึ้นไป (ดูย้อนหลัง backup ได้)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user_stores = relationship("UserStore", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserStore(Base):
+    """สิทธิ์ผู้ใช้ต่อร้าน - user มีสิทธิ์เข้า store ใดบ้าง"""
+    __tablename__ = "user_store"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="user_stores")
+    store = relationship("Store", back_populates="user_stores")
+
+
 class Customer(Base):
+    """ลูกค้า/สมาชิก - รองรับทั้งลูกค้าเดิม (เฉพาะเบอร์) และสมาชิกออนไลน์ (username/email/รหัสผ่าน)"""
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -106,6 +136,11 @@ class Customer(Base):
     line_user_id = Column(String(100), unique=True, index=True, nullable=True)
     name = Column(String(255), nullable=True)
     promptpay_number = Column(String(20), nullable=True)
+    # สมาชิกออนไลน์: ชื่อผู้ใช้ 4 ตัวขึ้นไป, อีเมล (ถ้ามี), รหัสผ่าน
+    username = Column(String(64), unique=True, index=True, nullable=True)
+    email = Column(String(255), unique=True, index=True, nullable=True)
+    password_hash = Column(String(255), nullable=True)
+    total_points = Column(Float, default=0.0, nullable=False)  # แต้มสะสม
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -113,6 +148,10 @@ class Customer(Base):
     balances = relationship("CustomerBalance", back_populates="customer", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="customer", cascade="all, delete-orphan")
     refund_requests = relationship("RefundRequest", back_populates="customer", cascade="all, delete-orphan")
+    points_ledger = relationship("MemberPointsLedger", back_populates="customer", cascade="all, delete-orphan")
+    member_vouchers = relationship("MemberVoucher", back_populates="customer", cascade="all, delete-orphan")
+    e_coupons = relationship("ECoupon", back_populates="customer", foreign_keys="ECoupon.customer_id")
+    activities = relationship("MemberActivity", back_populates="customer", cascade="all, delete-orphan")
 
 
 class CustomerBalance(Base):
@@ -228,6 +267,7 @@ class Store(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    name_i18n = Column(Text, nullable=True)  # JSON: {"th":"ร้านอาหาร","en":"Restaurant"}
     tax_id = Column(String(20), nullable=True)
     crypto_enabled = Column(Boolean, default=False, nullable=False)
     contract_accepted = Column(Boolean, default=False, nullable=False)
@@ -270,8 +310,29 @@ class Store(Base):
     refund_requests = relationship("RefundRequest", back_populates="store")
     quick_amounts = relationship("StoreQuickAmount", back_populates="store", cascade="all, delete-orphan")
     menus = relationship("Menu", back_populates="store", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="store", cascade="all, delete-orphan")
     promptpay_back_transactions = relationship("PromptPayBackTransaction", back_populates="store")
     store_settlements = relationship("StoreSettlement", back_populates="store")
+    user_stores = relationship("UserStore", back_populates="store", cascade="all, delete-orphan")
+
+
+class Order(Base):
+    """
+    Order - เก็บคำสั่งซื้อของแต่ละร้าน (Store POS) สำหรับสืบค้นย้อนหลัง
+    ref2 ใน PromptPay QR = order.id เพื่อจับคู่เมื่อเงินเข้า
+    """
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    total_amount = Column(Float, nullable=False)
+    status = Column(String(20), default="pending", nullable=False)  # pending, paid, cancelled
+    items = Column(Text, nullable=True)  # JSON: [{ menu_id, name, qty, unit_price }]
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    store = relationship("Store", back_populates="orders")
 
 
 class RefundRequest(Base):
@@ -308,6 +369,136 @@ class RefundNotification(Base):
     customer = relationship("Customer")
 
 
+# ---------- ลูกค้าสมาชิกออนไลน์: แต้ม, คูปอง, อีคูปอง, โฆษณา, ประวัติ ----------
+
+class MemberPointsLedger(Base):
+    """สมุดแต้มสะสมลูกค้า"""
+    __tablename__ = "member_points_ledger"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    points_delta = Column(Float, nullable=False)  # บวกหรือลบ
+    balance_after = Column(Float, nullable=False)
+    reason = Column(String(100), nullable=True)  # purchase, promo, redeem, admin
+    ref_id = Column(Integer, nullable=True)  # order_id หรือ voucher_id ฯลฯ
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    customer = relationship("Customer", back_populates="points_ledger")
+
+
+class VoucherDefinition(Base):
+    """คำจำกัดความคูปอง/วoucher ที่ Admin กำหนด"""
+    __tablename__ = "voucher_definitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    voucher_type = Column(String(50), default="discount", nullable=False)  # discount, free_item, percent
+    value = Column(Float, nullable=False)  # จำนวนบาท หรือเปอร์เซ็น
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_to = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    store = relationship("Store", backref="voucher_definitions")
+    member_vouchers = relationship("MemberVoucher", back_populates="voucher_definition")
+
+
+class MemberVoucher(Base):
+    """คูปองที่ลูกค้าได้รับ/ใช้"""
+    __tablename__ = "member_vouchers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    voucher_definition_id = Column(Integer, ForeignKey("voucher_definitions.id"), nullable=False, index=True)
+    code = Column(String(64), nullable=True, index=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    customer = relationship("Customer", back_populates="member_vouchers")
+    voucher_definition = relationship("VoucherDefinition", back_populates="member_vouchers")
+
+
+class StorePromotion(Base):
+    """โปรโมชั่นร้านที่ Admin กำหนด แสดงในแอปสมาชิก"""
+    __tablename__ = "store_promotions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_to = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    store = relationship("Store", backref="store_promotions")
+
+
+class ECoupon(Base):
+    """อีคูปอง - ลูกค้าแลกด้วยเงินสด/PromptPay/บัตร/E-wallet แล้วนำไปจ่ายที่ร้านแทน PromptPay จริง"""
+    __tablename__ = "e_coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(64), unique=True, index=True, nullable=False)
+    amount = Column(Float, nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    status = Column(String(20), default="available", nullable=False)  # available, assigned, used
+    payment_method = Column(String(50), nullable=True)  # cash, promptpay, card, omise, stripe, ...
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
+    redeemed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    customer = relationship("Customer", back_populates="e_coupons", foreign_keys=[customer_id])
+    order = relationship("Order", backref="e_coupon_payments")
+    store = relationship("Store", backref="e_coupons")
+
+
+class AdFeed(Base):
+    """ฟีดโฆษณาแสดงในแอปสมาชิก - เลือกทุกร้าน (store_id=null) หรือเฉพาะร้านได้ ตั้งเวลา start_at/end_at ได้"""
+    __tablename__ = "ad_feeds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=True)
+    image_url = Column(String(512), nullable=True)
+    link_url = Column(String(512), nullable=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)  # null = ทุกร้าน
+    start_at = Column(DateTime(timezone=True), nullable=True)   # เริ่มแสดง
+    end_at = Column(DateTime(timezone=True), nullable=True)      # สิ้นสุดแสดง
+    sort_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AdImpression(Base):
+    """บันทึกการดู/กดโฆษณา สำหรับสรุปผลการตอบรับ"""
+    __tablename__ = "ad_impressions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ad_feed_id = Column(Integer, ForeignKey("ad_feeds.id"), nullable=False, index=True)
+    event_type = Column(String(20), nullable=False)  # view, click
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MemberActivity(Base):
+    """ประวัติการใช้งาน: เติมเงิน, จ่ายเงิน, ใช้คูปอง ฯลฯ"""
+    __tablename__ = "member_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    activity_type = Column(String(50), nullable=False)  # topup, payment, redeem, earn_points, use_voucher
+    amount = Column(Float, nullable=True)
+    description = Column(String(255), nullable=True)
+    ref_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    customer = relationship("Customer", back_populates="activities")
+
+
 class TaxInvoice(Base):
     __tablename__ = "tax_invoices"
 
@@ -329,10 +520,12 @@ class TaxInvoice(Base):
 
 
 class AuditLog(Base):
+    """Log ทุกการดำเนินการในระบบ เพื่อใช้เป็นหลักฐานอ้างอิง"""
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=True)
+    source = Column(String(50), nullable=True, index=True)  # admin, store_pos, member, system
     action = Column(String(100), nullable=False)
     table_name = Column(String(100), nullable=False)
     record_id = Column(Integer, nullable=True)
@@ -340,6 +533,23 @@ class AuditLog(Base):
     new_values = Column(Text, nullable=True)  # JSON
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmergencyBackupEntry(Base):
+    """รายการกรอกข้อมูลสำรอง กรณีไฟดับ/ระบบใช้งานไม่ได้ (บังคับ login admin เพื่อดูย้อนหลัง)"""
+    __tablename__ = "emergency_backup_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String(20), nullable=False)  # 'admin' | 'store_pos'
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
+    entry_type = Column(String(50), nullable=False)  # sale, exchange, topup, other
+    amount = Column(Float, nullable=False)
+    description = Column(Text, nullable=True)
+    entered_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    store = relationship("Store", backref="emergency_backup_entries")
+    entered_by = relationship("User", backref="emergency_backup_entries")
 
 
 class FoodCourtID(Base):
@@ -451,15 +661,37 @@ class Menu(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
-    name = Column(String(255), nullable=False)  # ชื่อสินค้า
-    description = Column(Text, nullable=True)  # คำอธิบายสินค้า
+    name = Column(String(255), nullable=False)  # ชื่อสินค้า (default/fallback)
+    name_i18n = Column(Text, nullable=True)  # JSON: {"th":"ต้มยำ","en":"Tom Yum","zh":"冬阴功"}
+    description = Column(Text, nullable=True)  # คำอธิบาย (default/fallback)
+    description_i18n = Column(Text, nullable=True)  # JSON: {"th":"...","en":"..."}
     unit_price = Column(Float, nullable=False)  # ราคาสินค้าต่อ Unit
+    image_url = Column(String(512), nullable=True)  # URL รูปสินค้า (จาก server/ภายนอก)
+    image_local = Column(String(255), nullable=True)  # path local เช่น menu_images/1_5.jpg
+    image_base64 = Column(Text, nullable=True)  # base64 รูปขนาด 480x640; MySQL ใช้ MEDIUMTEXT (migrate_image_base64_mediumtext)
+    barcode = Column(String(64), nullable=True, index=True)  # บาร์โค้ดสำหรับสแกนค้นหา
+    addon_options = Column(Text, nullable=True)  # JSON: [{ "name": "ไข่ดาว", "price": 10 }, { "name": "พิเศษ", "price": 20 }]
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     store = relationship("Store", back_populates="menus")
+    price_logs = relationship("MenuPriceLog", back_populates="menu", cascade="all, delete-orphan")
+
+
+class MenuPriceLog(Base):
+    """เก็บราคาเดิมของเมนู/add-on ณ วันที่แก้ไข เพื่ออ้างอิงในรายการย้อนหลัง"""
+    __tablename__ = "menu_price_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    menu_id = Column(Integer, ForeignKey("menus.id"), nullable=False, index=True)
+    unit_price = Column(Float, nullable=False)
+    addon_options_json = Column(Text, nullable=True)  # JSON ณ เวลาที่บันทึก
+    effective_at = Column(DateTime(timezone=True), server_default=func.now())
+    changed_by_user_id = Column(Integer, nullable=True)
+
+    menu = relationship("Menu", back_populates="price_logs")
 
 
 class PromptPayBackTransaction(Base):
@@ -568,3 +800,80 @@ class BankingProfile(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     store = relationship("Store", backref="banking_profile_store")
+
+
+class Locale(Base):
+    """ภาษาที่รองรับ: ไทย, อังกฤษ, ลาว, พม่า, กัมพูชา, มาลายู, ไทใหญ่, จีน, รัสเซีย"""
+    __tablename__ = "locales"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(10), unique=True, nullable=False, index=True)  # th, en, lo, my, kh, ms, shn, zh, ru
+    name = Column(String(64), nullable=False)  # ชื่อภาษาในภาษานั้น
+
+
+class Currency(Base):
+    """หน่วยเงินที่รองรับ พร้อมสัญลักษณ์"""
+    __tablename__ = "currencies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(10), unique=True, nullable=False, index=True)  # THB, USD, LAK, MMK, KHR, MYR, CNY, RUB
+    symbol = Column(String(16), nullable=False)  # ฿, $, ₭, K, ៛, RM, ¥, ₽
+    name = Column(String(64), nullable=False)  # Baht, Dollar, Kip, Kyat, Riel, Ringgit, Yuan, Ruble
+
+
+class AppSetting(Base):
+    """ตั้งค่าระบบ: ภาษา, หน่วยเงิน (key-value) - ใช้เป็น default เมื่อร้านไม่มีตั้งค่า"""
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(64), unique=True, nullable=False, index=True)
+    value = Column(String(255), nullable=True)
+
+
+class StoreLocaleSetting(Base):
+    """ตั้งค่าภาษา/หน่วยเงินต่อร้าน - จดจำตาม store_id"""
+    __tablename__ = "store_locale_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, unique=True, index=True)
+    locale = Column(String(10), nullable=False, default="th")
+    currency_code = Column(String(10), nullable=False, default="THB")
+    currency_symbol = Column(String(16), nullable=False, default="฿")
+    currency_name = Column(String(64), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    store = relationship("Store", backref="locale_setting")
+
+
+class Translation(Base):
+    """คำแปล UI ตามภาษา (legacy - ใช้ program_settings แทน)"""
+    __tablename__ = "translations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    locale = Column(String(10), nullable=False, index=True)
+    key = Column(String(128), nullable=False, index=True)
+    value = Column(Text, nullable=False)
+
+    __table_args__ = ({"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},)
+
+
+class ProgramSetting(Base):
+    """
+    Labels/ข้อความที่ใช้ใน Web Application - แต่ละ row คือ label key
+    แต่ละ column คือภาษาต่างๆ (th, en, lo, my, kh, ms, shn, zh, ru)
+    """
+    __tablename__ = "program_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    label_key = Column(String(128), unique=True, nullable=False, index=True)  # key เช่น barcode_placeholder, store_pos
+    label_th = Column(Text, nullable=True)   # ไทย
+    label_en = Column(Text, nullable=True)    # English
+    label_lo = Column(Text, nullable=True)    # ລາວ
+    label_my = Column(Text, nullable=True)    # မြန်မာ
+    label_kh = Column(Text, nullable=True)   # ខ្មែរ
+    label_ms = Column(Text, nullable=True)   # Melayu
+    label_shn = Column(Text, nullable=True)  # တႆး
+    label_zh = Column(Text, nullable=True)   # 中文
+    label_ru = Column(Text, nullable=True)   # Русский
+
+    __table_args__ = ({"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},)

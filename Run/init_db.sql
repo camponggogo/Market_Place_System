@@ -378,6 +378,44 @@ CREATE TABLE `stores` (
 INSERT INTO `stores` VALUES ('1', 'ร้านอาหารตัวอย่าง', '1234567890123', '0', '0', null, null, '0', '0', null, null, null, null, null, null, null, '2026-02-01 14:48:57', null);
 
 -- ----------------------------
+-- Table structure for users
+-- ----------------------------
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(64) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ix_users_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Records of users
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for user_store
+-- ----------------------------
+DROP TABLE IF EXISTS `user_store`;
+CREATE TABLE `user_store` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `store_id` int(11) NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ix_user_store_user_store` (`user_id`,`store_id`),
+  KEY `ix_user_store_store_id` (`store_id`),
+  CONSTRAINT `user_store_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `user_store_ibfk_2` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Records of user_store
+-- ----------------------------
+
+-- ----------------------------
 -- Table structure for store_quick_amounts
 -- ----------------------------
 DROP TABLE IF EXISTS `store_quick_amounts`;

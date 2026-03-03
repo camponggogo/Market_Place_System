@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import BACKEND_URL
+from app.config import BACKEND_URL, OMISE_PUBLIC_KEY, OMISE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 from app.database import get_db
 from app.services.settlement_service import (
     receive_back_transaction,
@@ -27,8 +27,14 @@ from app.services.settlement_service import (
 )
 from app.api.signage import set_signage_paid
 from app.api.admin import resolve_banking_profile_for_store
-from app.models import Store
+from app.services import scb_deeplink
+from app.models import Store, Order, Customer, CustomerBalance, MemberActivity, ECoupon
 from app.services import omise_promptpay, stripe_promptpay
+import hashlib
+import secrets
+import string
+import hmac as hmacc
+import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payment-callback", tags=["payment-callback"])
@@ -109,9 +115,76 @@ class SettlementNotifyRequest(BaseModel):
 
 class CreateGatewayQRRequest(BaseModel):
     amount: float  # บาท
+    order_id: Optional[int] = None  # ถ้ามี ส่ง ref2 ใน metadata ให้ webhook อัปเดต Order
+    order_lines: Optional[list] = None  # ถ้ามีและไม่มี order_id จะสร้าง Order แล้วใช้เป็น ref2
+
+
+class CreateChargeCardRequest(BaseModel):
+    amount: float  # บาท
+    token: str  # Omise card token จาก Omise.js
+    order_id: Optional[int] = None
 
 
 # --- Endpoints ---
+
+def _resolve_omise_keys(db: Session, store: Store) -> tuple:
+    """คืน (public_key, secret_key) – จาก BankingProfile ก่อน ถ้าไม่มีใช้ config.ini"""
+    profile = resolve_banking_profile_for_store(db, store)
+    if profile and getattr(profile, "provider_type", None) == "omise":
+        pk = getattr(profile, "omise_public_key", None) or ""
+        sk = getattr(profile, "omise_secret_key", None) or ""
+        if pk and sk:
+            return (pk, sk)
+    if OMISE_PUBLIC_KEY and OMISE_SECRET_KEY:
+        return (OMISE_PUBLIC_KEY, OMISE_SECRET_KEY)
+    return ("", "")
+
+
+def _resolve_scb_config(db: Session, store: Store) -> tuple:
+    """คืน (api_key, api_secret, callback_url) – จาก BankingProfile scb_deeplink หรือ Store"""
+    profile = resolve_banking_profile_for_store(db, store)
+    if profile and getattr(profile, "provider_type", None) == "scb_deeplink":
+        ak = getattr(profile, "scb_api_key", None) or ""
+        asec = getattr(profile, "scb_api_secret", None) or ""
+        cb = getattr(profile, "scb_callback_url", None) or ""
+        if ak and asec:
+            return (ak, asec, cb or f"{BACKEND_URL.rstrip('/')}/api/payment-callback/webhook")
+    if getattr(store, "scb_api_key", None) and getattr(store, "scb_api_secret", None):
+        cb = getattr(store, "scb_callback_url", None) or ""
+        return (
+            store.scb_api_key,
+            store.scb_api_secret,
+            cb or f"{BACKEND_URL.rstrip('/')}/api/payment-callback/webhook",
+        )
+    return ("", "", "")
+
+
+@router.get("/stores/{store_id}/gateway-info")
+async def get_gateway_info(store_id: int, db: Session = Depends(get_db)):
+    """
+    คืนค่า payment gateway ของร้าน (สำหรับ Store POS เลือกใช้ Omise / SCB / QR ธรรมดา)
+    - omise: ใช้ Omise API (ลำดับแรก)
+    - scb_deeplink: ใช้ SCB Partners API (PromptPay ผ่าน SCB Easy)
+    """
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    profile = resolve_banking_profile_for_store(db, store)
+    provider = getattr(profile, "provider_type", None) if profile else None
+    # ชี้ไป Omise ก่อน ถ้ามีการตั้งค่า (config.ini หรือ Banking Profile)
+    pk, _ = _resolve_omise_keys(db, store)
+    if pk:
+        return {"provider": "omise", "omise_public_key": pk}
+    ak, _, _ = _resolve_scb_config(db, store)
+    if ak:
+        return {"provider": "scb_deeplink"}
+    if provider:
+        out = {"provider": provider}
+        if provider == "omise":
+            out["omise_public_key"] = getattr(profile, "omise_public_key", None) or ""
+        return out
+    return {"provider": None}
+
 
 @router.post("/stores/{store_id}/create-gateway-qr")
 async def create_gateway_qr(
@@ -128,7 +201,8 @@ async def create_gateway_qr(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
     profile = resolve_banking_profile_for_store(db, store)
-    if not profile:
+    has_scb_store = getattr(store, "scb_api_key", None) and getattr(store, "scb_api_secret", None)
+    if not profile and not has_scb_store:
         raise HTTPException(status_code=400, detail="No payment gateway profile for this store")
     ref1 = getattr(store, "token", None) or ""
     if not ref1:
@@ -136,6 +210,23 @@ async def create_gateway_qr(
     amount_satang = int(round(body.amount * 100))
     if amount_satang < 1:
         raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    order_id_for_ref2 = body.order_id
+    if order_id_for_ref2 is None and body.order_lines:
+        order = Order(
+            store_id=store_id,
+            total_amount=body.amount,
+            status="pending",
+            items=json.dumps(body.order_lines, ensure_ascii=False),
+        )
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+        order_id_for_ref2 = order.id
+    metadata = {"ref1": ref1, "store_id": str(store_id)}
+    if order_id_for_ref2 is not None:
+        metadata["ref2"] = str(order_id_for_ref2)
+
     provider = getattr(profile, "provider_type", None)
     if provider == "omise":
         sk = getattr(profile, "omise_secret_key", None)
@@ -145,7 +236,7 @@ async def create_gateway_qr(
             charge = omise_promptpay.create_charge_promptpay(
                 secret_key=sk,
                 amount_satang=amount_satang,
-                metadata={"ref1": ref1, "store_id": str(store_id)},
+                metadata=metadata,
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -163,6 +254,7 @@ async def create_gateway_qr(
         return {
             "provider": "omise",
             "charge_id": charge.get("id"),
+            "order_id": order_id_for_ref2,
             "amount": body.amount,
             "qr_image": qr_base64,
             "status": charge.get("status"),
@@ -205,10 +297,119 @@ async def create_gateway_qr(
             "amount": body.amount,
             "status": pi.get("status"),
         }
+    if provider == "scb_deeplink" or (not profile and getattr(store, "scb_api_key", None)):
+        ak, asec, callback_url = _resolve_scb_config(db, store)
+        if not ak or not asec:
+            raise HTTPException(status_code=400, detail="SCB API Key/Secret ไม่ได้ตั้งค่า (Store หรือ Banking Profile)")
+        bid = getattr(store, "biller_id", None) or getattr(store, "tax_id", None)
+        biller_id = None
+        if bid:
+            b = "".join(c for c in str(bid) if c.isdigit())
+            if b:
+                biller_id = (b + "99" if len(b) <= 13 else b)[:15].zfill(15)
+        try:
+            access_token = scb_deeplink.get_oauth_token(api_key=ak, api_secret=asec)
+            result = scb_deeplink.create_deeplink_transaction(
+                access_token=access_token,
+                api_key=ak,
+                payment_amount=body.amount,
+                ref1=ref1,
+                ref2=str(order_id_for_ref2) if order_id_for_ref2 else None,
+                account_to=biller_id or None,
+                callback_url=callback_url or f"{BACKEND_URL.rstrip('/')}/api/payment-callback/webhook",
+                merchant_name=getattr(store, "name", None) or "Store",
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        data = result.get("data") or result
+        qr_image = data.get("qrCode") or data.get("qr_code")
+        deeplink_url = data.get("deeplinkUrl") or data.get("deeplink_url")
+        if not qr_image and deeplink_url:
+            import qrcode
+            import base64
+            buf = qrcode.make(deeplink_url)
+            import io
+            bio = io.BytesIO()
+            buf.save(bio, format="PNG")
+            qr_image = "data:image/png;base64," + base64.b64encode(bio.getvalue()).decode()
+        return {
+            "provider": "scb_deeplink",
+            "order_id": order_id_for_ref2,
+            "amount": body.amount,
+            "qr_image": qr_image,
+            "deeplink_url": deeplink_url,
+            "status": "pending",
+        }
     raise HTTPException(
         status_code=400,
-        detail=f"Gateway {provider or 'default'} use existing /api/stores/{{id}}/generate-promptpay-qr for SCB/K Bank",
+        detail=f"Gateway {provider or 'default'} use existing /api/stores/{{id}}/generate-promptpay-qr for K Bank",
     )
+
+
+@router.post("/stores/{store_id}/charge-card")
+async def create_charge_card(
+    store_id: int,
+    body: CreateChargeCardRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    สร้าง Omise Charge แบบบัตร (Credit/Debit) สำหรับ Store POS
+    token จาก Omise.js (เก็บบัตรแล้วได้ token)
+    """
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    pk, sk = _resolve_omise_keys(db, store)
+    if not sk:
+        raise HTTPException(status_code=400, detail="Omise secret key not configured (ตั้งค่าที่ config.ini หรือ Banking Profile)")
+    ref1 = getattr(store, "token", None) or ""
+    amount_satang = int(round(body.amount * 100))
+    if amount_satang < 2000:
+        raise HTTPException(status_code=400, detail="Omise card minimum 20 THB")
+    metadata = {"ref1": ref1, "store_id": str(store_id)}
+    if body.order_id is not None:
+        metadata["ref2"] = str(body.order_id)
+    try:
+        charge = omise_promptpay.create_charge_card(
+            secret_key=sk,
+            amount_satang=amount_satang,
+            card_token=body.token,
+            metadata=metadata,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "charge_id": charge.get("id"),
+        "status": charge.get("status"),
+        "amount": body.amount,
+        "authorizer_uri": charge.get("authorize_uri"),
+    }
+
+
+@router.get("/stores/{store_id}/charge-status/{charge_id}")
+async def get_charge_status(
+    store_id: int,
+    charge_id: str,
+    db: Session = Depends(get_db),
+):
+    """ดึงสถานะ charge จาก Omise (สำหรับ poll หลังสร้าง charge บัตร/QR)"""
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    pk, sk = _resolve_omise_keys(db, store)
+    if not sk:
+        raise HTTPException(status_code=400, detail="Omise secret key not configured")
+    try:
+        charge = omise_promptpay.get_charge(secret_key=sk, charge_id=charge_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    amount_satang = int(charge.get("amount") or 0)
+    return {
+        "charge_id": charge.get("id"),
+        "status": charge.get("status"),
+        "amount": amount_satang / 100.0,
+        "paid": charge.get("paid", False),
+    }
 
 
 @router.get("/webhook/links")
@@ -358,14 +559,17 @@ async def webhook_omise_receive(request: Request, db: Session = Depends(get_db))
     charge = data if isinstance(data, dict) and data.get("object") == "charge" else data.get("charge") or data
     if not charge or charge.get("status") != "successful":
         return {"received": True}
-    ref1 = (charge.get("metadata") or {}).get("ref1") or ""
+    meta = charge.get("metadata") or {}
+    ref1 = meta.get("ref1") or ""
+    ref2 = meta.get("ref2")
+    ref3 = meta.get("ref3")
     amount_satang = int(charge.get("amount") or 0)
     amount_baht = amount_satang / 100.0
     if not ref1:
         logger.warning("Omise webhook: charge %s has no metadata.ref1", charge.get("id"))
         return {"received": True}
-    logger.info("Omise webhook: charge.complete ref1=%s amount=%.2f", ref1[:20], amount_baht)
-    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, raw_payload=body)
+    logger.info("Omise webhook: charge.complete ref1=%s amount=%.2f ref2=%s", ref1[:20], amount_baht, ref2)
+    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, ref2=ref2, ref3=ref3, raw_payload=body)
     return await post_back_transaction(payload=payload, db=db)
 
 
@@ -375,15 +579,39 @@ async def webhook_stripe_health():
     return {"status": "ok", "message": "Stripe webhook is ready", "provider": "stripe"}
 
 
+def _verify_stripe_signature(payload_body: bytes, sig_header: str, secret: str) -> bool:
+    """Verify Stripe-Signature (v1 = HMAC-SHA256 of timestamp.payload)."""
+    if not sig_header or not secret:
+        return True
+    parts = {}
+    for p in sig_header.split(","):
+        if "=" in p:
+            k, v = p.strip().split("=", 1)
+            parts[k.strip()] = v.strip()
+    t = parts.get("t") or ""
+    v1 = parts.get("v1") or ""
+    if not t or not v1:
+        return False
+    msg = f"{t}.{payload_body.decode('utf-8', errors='replace')}"
+    expected = hmacc.new(secret.encode("utf-8"), msg.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmacc.compare_digest(expected, v1)
+
+
 @router.post("/webhook/stripe")
 async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)):
     """
     Webhook จาก Stripe (payment_intent.succeeded)
     ต้องส่ง metadata.ref1 (store token) ตอนสร้าง PaymentIntent
+    ถ้ามี STRIPE_WEBHOOK_SECRET จะตรวจสอบลายเซ็น (ใช้กับ ngrok / production)
     อ้างอิง: https://docs.stripe.com/webhooks
     """
+    payload_body = await request.body()
+    sig_header = request.headers.get("Stripe-Signature") or ""
+    if STRIPE_WEBHOOK_SECRET and not _verify_stripe_signature(payload_body, sig_header, STRIPE_WEBHOOK_SECRET):
+        logger.warning("Stripe webhook: invalid signature")
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
     try:
-        body = await request.json()
+        body = json.loads(payload_body)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
     if not isinstance(body, dict):
@@ -392,11 +620,70 @@ async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)
     if ev_type != "payment_intent.succeeded":
         return {"received": True}
     data = body.get("data", {}).get("object") or {}
-    ref1 = (data.get("metadata") or {}).get("ref1") or ""
+    meta = data.get("metadata") or {}
+    ref1 = meta.get("ref1") or ""
+    customer_id_raw = meta.get("customer_id")
+    intent_type = meta.get("type") or ""
     amount_satang = int(data.get("amount") or 0)
     amount_baht = amount_satang / 100.0
+
+    # Member: เติมเงิน (member_topup) หรือซื้อ E-Coupon (member_ecoupon)
+    if customer_id_raw and intent_type in ("member_topup", "member_ecoupon"):
+        try:
+            customer_id = int(customer_id_raw)
+        except (ValueError, TypeError):
+            customer_id = None
+        if customer_id:
+            customer = db.query(Customer).filter(Customer.id == customer_id).first()
+            if customer:
+                if intent_type == "member_topup":
+                    bal = db.query(CustomerBalance).filter(CustomerBalance.customer_id == customer_id).first()
+                    if not bal:
+                        bal = CustomerBalance(customer_id=customer_id, balance=0.0)
+                        db.add(bal)
+                    bal.balance = (bal.balance or 0) + amount_baht
+                    db.add(bal)
+                    act = MemberActivity(
+                        customer_id=customer_id,
+                        activity_type="topup",
+                        amount=amount_baht,
+                        description=f"เติมเงินผ่าน Stripe {amount_baht:.2f} บาท",
+                    )
+                    db.add(act)
+                    db.commit()
+                    logger.info("Stripe webhook: member_topup customer_id=%s +%.2f balance=%.2f", customer_id, amount_baht, bal.balance)
+                else:  # member_ecoupon
+                    def _gen_ecode(prefix="EC", length=10):
+                        return prefix + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(length))
+                    code = _gen_ecode()
+                    while db.query(ECoupon).filter(ECoupon.code == code).first():
+                        code = _gen_ecode()
+                    paid_at = datetime.utcnow()
+                    ec = ECoupon(
+                        code=code,
+                        amount=amount_baht,
+                        customer_id=customer_id,
+                        status="assigned",
+                        payment_method="stripe",
+                        paid_at=paid_at,
+                    )
+                    db.add(ec)
+                    act = MemberActivity(
+                        customer_id=customer_id,
+                        activity_type="redeem",
+                        amount=amount_baht,
+                        description=f"ซื้อ E-Coupon {amount_baht:.2f} บาท (Stripe)",
+                        ref_id=ec.id,
+                    )
+                    db.add(act)
+                    db.commit()
+                    logger.info("Stripe webhook: member_ecoupon customer_id=%s amount=%.2f code=%s", customer_id, amount_baht, code)
+            else:
+                logger.warning("Stripe webhook: member intent customer_id=%s not found", customer_id)
+        return {"received": True}
+
     if not ref1:
-        logger.warning("Stripe webhook: payment_intent %s has no metadata.ref1", data.get("id"))
+        logger.warning("Stripe webhook: payment_intent %s has no metadata.ref1 or member metadata", data.get("id"))
         return {"received": True}
     logger.info("Stripe webhook: payment_intent.succeeded ref1=%s amount=%.2f", ref1[:20], amount_baht)
     payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, raw_payload=body)

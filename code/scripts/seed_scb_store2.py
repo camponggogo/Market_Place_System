@@ -1,10 +1,11 @@
 """
-ใส่ข้อมูล SCB PromptPay App (จาก scb.note) เข้า store_id=2
-- เพิ่มคอลัมน์ scb_* ในตาราง stores ถ้ายังไม่มี (MySQL/MariaDB)
-- อัปเดต store id=2 ด้วย API Key, API Secret, Callback URL
+ใส่ข้อมูล SCB PromptPay App (จาก scb.note) เข้า store
+- App: QR-PromptPay-1
+- API Key: l79417b2c08a8c42b9b7d5c51210c01dbc
+- API Secret: 9e96ab1086634cf4b7e4001ffec50908
 
-รันจากโฟลเดอร์ code: python scripts/seed_scb_store2.py
-หรือจาก project root: python code/scripts/seed_scb_store2.py
+รัน: python code/scripts/seed_scb_store2.py [store_id]
+หรือ: python code/scripts/seed_scb_store2.py 1  (สำหรับ store 1 = ใช้กับ launch?store_id=1)
 """
 import sys
 from pathlib import Path
@@ -14,15 +15,18 @@ code_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(code_dir))
 
 from sqlalchemy import text
+
+from app.config import BACKEND_URL
 from app.database import engine, SessionLocal
 from app.models import Store
 
-# ค่าจาก scb.note สำหรับ store 2
+# ค่าจาก scb.note / config.ini สำหรับ store 2
 STORE_ID = 2
 SCB_APP_NAME = "QR-PromptPay-1"
 SCB_API_KEY = "l79417b2c08a8c42b9b7d5c51210c01dbc"
 SCB_API_SECRET = "9e96ab1086634cf4b7e4001ffec50908"
-SCB_CALLBACK_URL = "http://150.95.85.185/webhook"
+# Callback URL จาก config.ini BACKEND_URL หรือใช้ค่าเมื่อใช้ ngrok
+SCB_CALLBACK_URL = None  # None = ใช้ BACKEND_URL + /api/payment-callback/webhook
 
 
 def add_columns_if_missing(conn):
@@ -47,7 +51,8 @@ def add_columns_if_missing(conn):
 
 
 def main():
-    print("Seed SCB config for store_id =", STORE_ID)
+    store_id = int(sys.argv[1]) if len(sys.argv) > 1 else STORE_ID
+    print("Seed SCB config for store_id =", store_id)
 
     # เพิ่มคอลัมน์ถ้ายังไม่มี
     with engine.connect() as conn:
@@ -55,17 +60,17 @@ def main():
 
     db = SessionLocal()
     try:
-        store = db.query(Store).filter(Store.id == STORE_ID).first()
+        store = db.query(Store).filter(Store.id == store_id).first()
         if not store:
-            print(f"ไม่พบ store id={STORE_ID} ในฐานข้อมูล สร้างร้านก่อนหรือเปลี่ยน STORE_ID")
+            print(f"ไม่พบ store id={store_id} ในฐานข้อมูล สร้างร้านก่อนหรือเปลี่ยน store_id")
             return 1
         store.scb_app_name = SCB_APP_NAME
         store.scb_api_key = SCB_API_KEY
         store.scb_api_secret = SCB_API_SECRET
-        store.scb_callback_url = SCB_CALLBACK_URL
+        store.scb_callback_url = SCB_CALLBACK_URL or f"{BACKEND_URL.rstrip('/')}/api/payment-callback/webhook"
         db.commit()
-        print(f"อัปเดต store id={STORE_ID} (name={store.name}) ด้วย SCB App:", SCB_APP_NAME)
-        print("  scb_callback_url =", SCB_CALLBACK_URL)
+        print(f"อัปเดต store id={store_id} (name={store.name}) ด้วย SCB App:", SCB_APP_NAME)
+        print("  scb_callback_url =", store.scb_callback_url)
         return 0
     finally:
         db.close()

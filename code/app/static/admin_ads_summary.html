@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สรุปผลการตอบรับโฆษณา - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
+    .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .filters input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .filters button { padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; color: #1f3a8a; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .bar span { display: block; height: 100%; background: #2563eb; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <h1>สรุปผลการตอบรับโฆษณา (Views / Clicks)</h1>
+  </div>
+  <div class="card">
+    <h2>ช่วงวันที่</h2>
+    <div class="filters">
+      <label>จาก <input type="date" id="from-date"></label>
+      <label>ถึง <input type="date" id="to-date"></label>
+      <button type="button" id="btn-load">โหลด</button>
+    </div>
+    <div id="loading" style="display:none;">กำลังโหลด...</div>
+    <table id="summary-table" style="display:none;">
+      <thead><tr><th>โฆษณา</th><th class="num">จำนวน View</th><th class="num">จำนวน Click</th><th>อัตรากด (CTR)</th></tr></thead>
+      <tbody id="summary-body"></tbody>
+    </table>
+    <p id="no-data" style="display:none; color:#64748b;">ไม่มีข้อมูลหรือยังไม่มี ad_impressions</p>
+  </div>
+
+  <script>
+    const API = window.location.origin + '/api';
+    function getDefaultDates() {
+      const d = new Date();
+      const to = d.toISOString().slice(0, 10);
+      d.setMonth(d.getMonth() - 1);
+      const from = d.toISOString().slice(0, 10);
+      return { from, to };
+    }
+    const def = getDefaultDates();
+    document.getElementById('from-date').value = def.from;
+    document.getElementById('to-date').value = def.to;
+
+    async function load() {
+      const from = document.getElementById('from-date').value;
+      const to = document.getElementById('to-date').value;
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('summary-table').style.display = 'none';
+      document.getElementById('no-data').style.display = 'none';
+      try {
+        let url = API + '/admin/ads/summary?limit=100';
+        if (from) url += '&from_date=' + encodeURIComponent(from);
+        if (to) url += '&to_date=' + encodeURIComponent(to);
+        const r = await fetch(url);
+        const data = await r.json();
+        document.getElementById('loading').style.display = 'none';
+        const items = data.items || [];
+        if (!items.length) {
+          document.getElementById('no-data').style.display = 'block';
+          return;
+        }
+        const maxViews = Math.max(...items.map(i => i.views || 0), 1);
+        document.getElementById('summary-table').style.display = 'table';
+        document.getElementById('summary-body').innerHTML = items.map(i => {
+          const views = i.views || 0;
+          const clicks = i.clicks || 0;
+          const ctr = views ? ((clicks / views) * 100).toFixed(2) + '%' : '-';
+          const pct = maxViews ? (views / maxViews * 100) : 0;
+          return '<tr><td>' + (i.title || 'โฆษณา #' + i.ad_id) + '</td><td class="num">' + views + '</td><td class="num">' + clicks + '</td><td>' + ctr + '<div class="bar"><span style="width:' + pct + '%"></span></div></td></tr>';
+        }).join('');
+      } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('no-data').textContent = 'โหลดไม่สำเร็จ';
+        document.getElementById('no-data').style.display = 'block';
+      }
+    }
+    document.getElementById('btn-load').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>

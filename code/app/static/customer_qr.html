@@ -228,13 +228,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>🍽️ Food Court ID QR Code</h1>
-        
+        <h1>🍽️ <span data-i18n="customer_qr_title">Food Court ID QR Code</span></h1>
+        <div style="margin-bottom:15px;font-size:14px;">
+            <a href="?locale=th" style="color:#667eea;margin:0 6px;">ไทย</a>
+            <a href="?locale=en" style="color:#667eea;margin:0 6px;">EN</a>
+            <a href="?locale=zh" style="color:#667eea;margin:0 6px;">中文</a>
+        </div>
         <div id="alert-container"></div>
         
         <div class="input-section">
             <div class="input-group">
-                <label>กรอก Food Court ID</label>
+                <label data-i18n="foodcourt_id_label">กรอก Food Court ID</label>
                 <input 
                     type="text" 
                     id="foodcourt-id-input" 
@@ -243,7 +247,7 @@
                     autofocus
                 >
             </div>
-            <button class="btn" onclick="loadQRCode()" id="load-btn">📱 สร้าง QR Code</button>
+            <button class="btn" onclick="loadQRCode()" id="load-btn">📱 <span data-i18n="create_qr_btn">สร้าง QR Code</span></button>
         </div>
         
         <div id="qr-display" style="display: none;">
@@ -255,46 +259,61 @@
             </div>
             
             <div class="balance-info">
-                <div class="balance-label">ยอดเงินคงเหลือ</div>
+                <div class="balance-label" data-i18n="balance_label">ยอดเงินคงเหลือ</div>
                 <div class="balance-amount" id="balance-amount">0.00</div>
                 <div class="info-item">
-                    <label>จำนวนเงินเริ่มต้น:</label>
+                    <label data-i18n="initial_amount">จำนวนเงินเริ่มต้น:</label>
                     <span id="initial-amount">0.00</span> บาท
                 </div>
                 <div class="info-item">
-                    <label>วิธีชำระเงิน:</label>
+                    <label data-i18n="payment_method">วิธีชำระเงิน:</label>
                     <span id="payment-method">-</span>
                 </div>
                 <div class="info-item">
-                    <label>สถานะ:</label>
+                    <label data-i18n="status">สถานะ:</label>
                     <span id="status">-</span>
                 </div>
             </div>
         </div>
         
         <div class="instructions">
-            <h3>📋 วิธีใช้งาน:</h3>
+            <h3>📋 <span data-i18n="how_to_use">วิธีใช้งาน:</span></h3>
             <ol>
-                <li>กรอก Food Court ID ของคุณ</li>
-                <li>กดปุ่ม "สร้าง QR Code"</li>
-                <li>แสดง QR Code ให้ร้านค้าสแกน</li>
-                <li>ร้านค้าจะหักยอดเงินตามจำนวนที่กำหนด</li>
+                <li data-i18n="how_to_1">กรอก Food Court ID ของคุณ</li>
+                <li data-i18n="how_to_2">กดปุ่ม "สร้าง QR Code"</li>
+                <li data-i18n="how_to_3">แสดง QR Code ให้ร้านค้าสแกน</li>
+                <li data-i18n="how_to_4">ร้านค้าจะหักยอดเงินตามจำนวนที่กำหนด</li>
             </ol>
         </div>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p style="margin-top: 10px;">กำลังโหลดข้อมูล...</p>
+            <p style="margin-top: 10px;" data-i18n="loading_text">กำลังโหลดข้อมูล...</p>
         </div>
     </div>
     
     <script>
-        // Get API URL from window location or use default
         const API_BASE_URL = (window.location.origin || 'http://localhost:8000') + '/api';
+        const LOCALE_API = (window.location.origin || 'http://localhost:8000') + '/api/locale-settings';
+        window.localeSettings = window.localeSettings || { translations: {}, currency_symbol: '\u0e3f' };
+        function t(key) { return (localeSettings.translations && localeSettings.translations[key]) || key; }
+        function applyLocaleUI() { document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); }); }
+        function loadLocaleSettings() {
+            var loc = new URLSearchParams(window.location.search).get('locale') || '';
+            return fetch(LOCALE_API + (loc ? '?locale=' + encodeURIComponent(loc) : ''), { cache: 'no-store' })
+                .then(function(r){ return r.ok ? r.json() : {}; })
+                .then(function(d){
+                    localeSettings.translations = d.translations || {};
+                    localeSettings.currency_symbol = d.currency_symbol || '\u0e3f';
+                    applyLocaleUI();
+                })
+                .catch(function(){ applyLocaleUI(); });
+        }
         let qrcodeInstance = null;
         
         console.log('API Base URL:', API_BASE_URL);
         
+        loadLocaleSettings();
         // Allow Enter key to trigger load QR Code
         document.getElementById('foodcourt-id-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {

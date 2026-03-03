@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>จอที่ 2 - QR Payment & Digital Signage</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+
         html, body { margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -15,95 +17,160 @@
             width: 100vw;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
             overflow: hidden;
         }
-        .screen {
-            width: 100%;
-            max-width: 900px;
-            text-align: center;
-            padding: 40px;
-        }
-        /* Digital Signage (default) */
-        .signage-mode .welcome {
-            font-size: clamp(2rem, 6vw, 4rem);
+
+        /* หัวข้อ: สื่อโฆษณาของร้าน + {ชื่อร้าน} */
+        .signage-header {
+            flex-shrink: 0;
+            padding: 12px 24px;
+            background: rgba(0,0,0,0.4);
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
             font-weight: 700;
-            margin-bottom: 20px;
-            animation: fadeIn 1s ease;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
         }
-        .signage-mode .sub {
-            font-size: clamp(1.2rem, 3vw, 2rem);
-            opacity: 0.9;
+
+        /* Layout 50/50 */
+        .signage-split {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            min-height: 0;
+            overflow: hidden;
         }
-        /* QR Payment mode */
-        .qr-mode { display: none; }
-        .qr-mode.active { display: block; animation: fadeIn 0.5s ease; }
-        .qr-mode h2 {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
-            margin-bottom: 20px;
+
+        /* ซ้าย 50%: Video (foreground) */
+        .signage-video-section {
+            flex: 0 0 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            padding: 16px;
+            min-width: 0;
         }
-        .qr-mode .qr-wrap {
-            background: #fff;
+        .signage-video-section video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* ขวา 50%: QR + รายการสินค้า (background) */
+        .signage-right-section {
+            flex: 0 0 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             padding: 24px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.25);
+            min-width: 0;
         }
-        .qr-mode .qr-wrap .qr-banner {
-            display: block;
-            width: clamp(200px, 38vw, 300px);
-            height: auto;
+
+        .signage-right-section .qr-wrap {
+            background: #fff;
+            padding: 20px;
+            border-radius: 16px;
             margin-bottom: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
-        .qr-mode .qr-wrap img#signage-qr {
+        .signage-right-section .qr-wrap img.qr-banner {
             display: block;
-            width: clamp(220px, 40vw, 320px);
+            width: clamp(140px, 18vw, 200px);
             height: auto;
+            margin-bottom: 12px;
         }
-        .qr-mode .amount {
-            font-size: clamp(2rem, 6vw, 3.5rem);
+        .signage-right-section .qr-wrap img#signage-qr {
+            display: block;
+            width: clamp(160px, 22vw, 260px);
+            height: auto;
+            min-width: 120px;
+            min-height: 120px;
+            background: #f8f9fa;
+        }
+        .signage-right-section .amount {
+            font-size: clamp(1.6rem, 4vw, 2.5rem);
             font-weight: 700;
             color: #28a745;
+            margin-bottom: 16px;
         }
-        /* Paid mode */
-        .paid-mode { display: none; }
-        .paid-mode.active { display: block; animation: fadeIn 0.5s ease; }
-        .paid-mode .message {
+        .signage-right-section .product-list {
+            text-align: left;
+            font-size: clamp(0.95rem, 2vw, 1.2rem);
+            max-height: 25vh;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 320px;
+            padding: 12px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+        }
+        .signage-right-section .product-list .product-item {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+        .signage-right-section .product-list .product-item:last-child { border-bottom: none; }
+        .signage-right-section .idle-msg {
+            font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+            opacity: 0.9;
+        }
+
+        /* Paid mode - full overlay */
+        .paid-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.5s ease;
+        }
+        .paid-overlay.active { display: flex; }
+        .paid-overlay .message {
             font-size: clamp(2rem, 5vw, 3.5rem);
             font-weight: 700;
             color: #28a745;
             margin-bottom: 16px;
         }
-        .paid-mode .amount {
+        .paid-overlay .amount {
             font-size: clamp(1.8rem, 4vw, 2.5rem);
             opacity: 0.95;
         }
-        .signage-mode { display: none; }
-        .signage-mode.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="screen">
-        <div id="signage-mode" class="signage-mode active">
-            <div class="welcome">ยินดีต้อนรับ</div>
-            <div class="sub">รอการชำระเงินผ่าน PromptPay</div>
+    <div class="signage-header" id="signage-header">สื่อโฆษณาของร้าน</div>
+
+    <div class="signage-split">
+        <!-- ซ้าย 50%: Video (foreground) -->
+        <div class="signage-video-section">
+            <video id="signage-video" muted playsinline loop autoplay></video>
         </div>
-        <div id="qr-mode" class="qr-mode">
-            <h2>สแกนเพื่อชำระเงิน</h2>
-            <div class="qr-wrap">
-                <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
-                <img id="signage-qr" src="" alt="QR Code">
+
+        <!-- ขวา 50%: QR + รายการสินค้า (background) -->
+        <div class="signage-right-section">
+            <div id="qr-block" style="display:none;">
+                <div class="qr-wrap">
+                    <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
+                    <img id="signage-qr" src="" alt="QR Code">
+                </div>
+                <div class="amount" id="signage-amount">0.00 บาท</div>
             </div>
-            <div class="amount" id="signage-amount">0.00 บาท</div>
-        </div>
-        <div id="paid-mode" class="paid-mode">
-            <div class="message">ได้รับเงินเรียบร้อยแล้ว</div>
-            <div class="amount" id="paid-amount">0.00 บาท</div>
+            <div id="idle-block" class="idle-msg">รอการชำระเงินผ่าน PromptPay</div>
+            <div class="product-list" id="product-list"></div>
         </div>
     </div>
+
+    <!-- Paid overlay -->
+    <div class="paid-overlay" id="paid-overlay">
+        <div class="message">ได้รับเงินเรียบร้อยแล้ว</div>
+        <div class="amount" id="paid-amount">0.00 บาท</div>
+    </div>
+
     <script>
         const API_BASE = window.location.origin + '/api';
         const urlParams = new URLSearchParams(window.location.search);
@@ -111,12 +178,56 @@
         let pollInterval = null;
         let paidShownAt = null;
         const PAID_DISPLAY_MS = 5000;
+        let signageVideoUrl = '';
+        let storeName = '';
 
-        function showMode(mode) {
-            document.getElementById('signage-mode').classList.remove('active');
-            document.getElementById('qr-mode').classList.remove('active');
-            document.getElementById('paid-mode').classList.remove('active');
-            document.getElementById(mode + '-mode').classList.add('active');
+        function updateHeader() {
+            const h = document.getElementById('signage-header');
+            h.textContent = 'สื่อโฆษณาของร้าน' + (storeName ? ' + ' + storeName : '');
+        }
+
+        function showQRMode(qrImage, amount, orderItems) {
+            document.getElementById('qr-block').style.display = 'block';
+            document.getElementById('idle-block').style.display = 'none';
+            var qrEl = document.getElementById('signage-qr');
+            if (qrImage && (qrImage.startsWith('data:') || qrImage.startsWith('http'))) {
+                qrEl.src = qrImage;
+                qrEl.style.visibility = 'visible';
+            } else {
+                qrEl.src = '';
+                qrEl.style.visibility = qrImage ? 'visible' : 'hidden';
+            }
+            document.getElementById('signage-amount').textContent = parseFloat(amount || 0).toFixed(2) + ' บาท';
+            renderProductList(orderItems || []);
+        }
+
+        function showIdleMode() {
+            document.getElementById('qr-block').style.display = 'none';
+            document.getElementById('idle-block').style.display = 'block';
+            document.getElementById('product-list').innerHTML = '';
+        }
+
+        function renderProductList(items) {
+            const el = document.getElementById('product-list');
+            if (!items || items.length === 0) {
+                el.innerHTML = '';
+                return;
+            }
+            el.innerHTML = items.map(function(it) {
+                const name = it.name || '-';
+                const qty = it.qty || 1;
+                const total = (it.line_total != null ? it.line_total : (it.unit_price || 0) * qty);
+                return '<div class="product-item">' + name + ' x' + qty + ' = ' + total.toFixed(2) + ' บาท</div>';
+            }).join('');
+        }
+
+        function showPaidMode(amount) {
+            document.getElementById('paid-overlay').classList.add('active');
+            document.getElementById('paid-amount').textContent = parseFloat(amount || 0).toFixed(2) + ' บาท';
+        }
+
+        function hidePaidMode() {
+            document.getElementById('paid-overlay').classList.remove('active');
         }
 
         function speakPaymentReceived(amount) {
@@ -128,13 +239,34 @@
             window.speechSynthesis.speak(u);
         }
 
+        async function loadSignageMedia() {
+            try {
+                const res = await fetch(API_BASE + '/signage/media');
+                const data = await res.json();
+                const items = data.items || [];
+                const videoItem = items.find(function(it) { return it.type === 'video'; });
+                const videoEl = document.getElementById('signage-video');
+                if (videoItem && videoItem.url) {
+                    signageVideoUrl = videoItem.url.startsWith('http') ? videoItem.url : (window.location.origin + videoItem.url);
+                    videoEl.src = signageVideoUrl;
+                    videoEl.muted = true;
+                    videoEl.playsInline = true;
+                    videoEl.loop = true;
+                    videoEl.play().catch(function() {});
+                }
+            } catch (e) { console.warn('Signage media load', e); }
+        }
+
         async function poll() {
             try {
                 const res = await fetch(API_BASE + '/signage/display?store_id=' + storeId);
                 const data = await res.json();
+
+                if (data.store_name) storeName = data.store_name;
+                updateHeader();
+
                 if (data.status === 'paid') {
-                    showMode('paid');
-                    document.getElementById('paid-amount').textContent = parseFloat(data.amount || 0).toFixed(2) + ' บาท';
+                    showPaidMode(data.amount);
                     if (!paidShownAt) {
                         paidShownAt = Date.now();
                         speakPaymentReceived(data.amount);
@@ -142,27 +274,33 @@
                     if (Date.now() - paidShownAt >= PAID_DISPLAY_MS) {
                         await fetch(API_BASE + '/signage/ack-paid?store_id=' + storeId, { method: 'POST' });
                         paidShownAt = null;
-                        showMode('signage');
+                        hidePaidMode();
+                        showIdleMode();
                     }
                     return;
                 }
                 if (data.status === 'waiting_payment' && data.qr_image) {
                     paidShownAt = null;
-                    showMode('qr');
-                    document.getElementById('signage-qr').src = data.qr_image;
-                    document.getElementById('signage-amount').textContent = parseFloat(data.amount || 0).toFixed(2) + ' บาท';
+                    hidePaidMode();
+                    showQRMode(data.qr_image, data.amount, data.order_items);
                     return;
                 }
+                if (data.status === 'waiting_payment' && !data.qr_image) {
+                    console.warn('Signage: waiting_payment but no qr_image', data);
+                }
                 paidShownAt = null;
-                showMode('signage');
+                hidePaidMode();
+                showIdleMode();
             } catch (e) { console.warn('Signage poll', e); }
         }
 
         function startPolling() {
             if (pollInterval) return;
+            loadSignageMedia();
             poll();
-            pollInterval = setInterval(poll, 2000);
+            pollInterval = setInterval(poll, 1000);
         }
+
         (function tryFullscreen() {
             if (new URLSearchParams(window.location.search).get('fullscreen') !== '1') return;
             function goFullscreen() {
@@ -174,6 +312,7 @@
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() { setTimeout(goFullscreen, 400); });
             else setTimeout(goFullscreen, 400);
         })();
+
         document.addEventListener('DOMContentLoaded', startPolling);
     </script>
 </body>

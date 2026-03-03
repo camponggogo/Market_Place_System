@@ -1,16 +1,19 @@
 """
 Store API - ระบบจัดการร้านค้า
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+import json
 from app.database import get_db
-from app.models import Store, Menu
+from app.models import Store, Menu, Order, StoreLocaleSetting
+from app.utils.i18n import resolve_i18n
 from app.utils.store_token import generate_store_token
 from app.services.promptpay import (
     generate_promptpay_qr_image,
-    generate_promptpay_credit_transfer_image
+    generate_promptpay_qr_content,
+    generate_promptpay_credit_transfer_image,
 )
 from app.services.promptpay_bot_standard import (
     generate_bot_standard_qr_362,
@@ -84,10 +87,19 @@ async def create_store(store: StoreCreate, db: Session = Depends(get_db)):
     )
 
 
+def _get_store_locale(db: Session, store_id: int) -> str:
+    row = db.query(StoreLocaleSetting).filter(StoreLocaleSetting.store_id == store_id).first()
+    return row.locale if row else "th"
+
+
 @router.get("/{store_id}")
-async def get_store(store_id: int, db: Session = Depends(get_db)):
+async def get_store(
+    store_id: int,
+    locale: Optional[str] = Query(None, description="ภาษา - ไม่ระบุใช้ตามร้าน"),
+    db: Session = Depends(get_db)
+):
     """
-    ดึงข้อมูลร้านค้า
+    ดึงข้อมูลร้านค้า (name ตาม locale)
     """
     try:
         from app.models import Profile, Event
@@ -95,6 +107,10 @@ async def get_store(store_id: int, db: Session = Depends(get_db)):
         store = db.query(Store).filter(Store.id == store_id).first()
         if not store:
             raise HTTPException(status_code=404, detail="Store not found")
+        
+        loc = locale or _get_store_locale(db, store_id)
+        name_i18n = getattr(store, "name_i18n", None)
+        store_name = resolve_i18n(name_i18n, store.name, loc) or store.name
         
         # Get profile and event names if available
         profile_name = None
@@ -118,7 +134,7 @@ async def get_store(store_id: int, db: Session = Depends(get_db)):
         
         return {
             "id": store.id,
-            "name": store.name,
+            "name": store_name,
             "tax_id": store.tax_id,
             "crypto_enabled": store.crypto_enabled,
             "contract_accepted": store.contract_accepted,
@@ -196,10 +212,17 @@ async def update_store(
     }
 
 
+class OrderLineItem(BaseModel):
+    menu_id: int
+    name: str
+    qty: int
+    unit_price: float
+
+
 class GeneratePromptPayQRRequest(BaseModel):
-    menu_id: Optional[int] = None
-    ref3: Optional[str] = None  # remark
     amount: float  # Total Price
+    order_lines: Optional[list] = None  # [{ menu_id, name, qty, unit_price }] สำหรับเก็บ order และใช้ ref2=order_id
+    ref3: Optional[str] = None  # remark
     promptpay_mobile: Optional[str] = None  # สำหรับ Tag29 (Credit Transfer)
     promptpay_national_id: Optional[str] = None  # สำหรับ Tag29 (Credit Transfer)
 
@@ -208,14 +231,16 @@ class GeneratePromptPayQRRequest(BaseModel):
 async def generate_promptpay_qr(
     store_id: int,
     request: GeneratePromptPayQRRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    debug: bool = Query(False, description="เมื่อเปิด จะส่ง qr_content_tag30 กลับมาเพื่อตรวจสอบ/ดีบัก"),
 ):
     """
     สร้าง PromptPay QR Code (Tag30 - Bill Payment)
-    
-    - biller_id: store.biller_id (ถ้ามี) ไม่เช่นนั้น tax_id + "99"
-    - ref1: store.token (20 หลัก)
-    - ref2: menu.id (ถ้ามี)
+    ใช้ logic เดียวกับ Run/qr_code_web.py หน้า /qr-code?store_id=X&amount=... (ที่สแกนผ่านแล้ว)
+
+    - biller_id: ควรเป็น Biller ID ที่ธนาคารออกให้ (store.biller_id); ถ้าไม่มี ใช้ tax_id + "99" เป็น fallback
+    - ref1: ตัวเลขเท่านั้น 20 หลัก (จาก store.token แค่ตัวเลข หรือ store.id ปัดศูนย์) ให้สแกนได้
+    - ref2: order_id (สร้าง Order เก็บรายการแล้วใช้ id เป็น ref2 สำหรับสืบค้นย้อนหลัง)
     - ref3: remark (ถ้ามี)
     - amount: Total Price
     """
@@ -224,52 +249,65 @@ async def generate_promptpay_qr(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
 
-    # biller_id = store.biller_id หรือจาก tax_id + "99"
+    # biller_id ต้องเป็นเลขที่ธนาคารออกให้ (ลงทะเบียน Bill Payment) จึงจะจ่ายเงินได้; ถ้าไม่มี ใช้ tax_id+"99" เป็น fallback
     if getattr(store, "biller_id", None) and store.biller_id.strip():
-        biller_id = "".join(filter(str.isdigit, store.biller_id))[:15].zfill(15)
+        b = "".join(filter(str.isdigit, store.biller_id))
+        if len(b) == 15:
+            biller_id = b
+        elif len(b) == 13:
+            biller_id = b + "99"
+        else:
+            biller_id = b.zfill(15)[:15]
     else:
         if not store.tax_id:
             raise HTTPException(status_code=400, detail="Store tax_id or biller_id is required for PromptPay QR Code")
         tax_id_clean = "".join(filter(str.isdigit, store.tax_id))
         if not tax_id_clean:
             raise HTTPException(status_code=400, detail="Store tax_id must contain at least one digit")
-        biller_id = (tax_id_clean + "99")
-        if len(biller_id) < 15:
-            biller_id = biller_id.zfill(15)
-        elif len(biller_id) > 15:
-            biller_id = biller_id[:15]
+        tax_id_13 = (tax_id_clean.zfill(13))[:13]
+        biller_id = tax_id_13 + "99"
 
-    # ref1 = store.token (20 หลัก)
-    if getattr(store, "token", None) and store.token:
-        ref1 = store.token
+    # ref1 สำหรับ Tag30 ควรเป็นตัวเลขเท่านั้น (แอปธนาคารส่วนใหญ่รับเฉพาะ numeric) ให้ตรงกับรูปแบบที่ SCAN PASS
+    _token = (getattr(store, "token", None) or "").strip()
+    _digits_only = "".join(c for c in _token if c.isdigit())
+    if _digits_only and len(_digits_only) >= 1:
+        ref1 = _digits_only.zfill(20)[:20]
     else:
-        ref1 = str(store.id)
-    
-    # ref2 = menu.id (ถ้ามี)
-    ref2 = None
-    if request.menu_id:
-        menu = db.query(Menu).filter(Menu.id == request.menu_id, Menu.store_id == store_id).first()
-        if not menu:
-            raise HTTPException(status_code=404, detail="Menu not found")
-        ref2 = str(menu.id)
-    
-    # ref3 = remark (ถ้ามี)
-    ref3 = request.ref3
+        ref1 = (str(store.id) or "").zfill(20)[:20]
+
+    # สร้าง Order เก็บรายการแล้วใช้ order.id เป็น ref2 (สำหรับสืบค้นย้อนหลังและจับคู่เมื่อเงินเข้า)
+    order_lines = request.order_lines or []
+    order = Order(
+        store_id=store_id,
+        total_amount=request.amount,
+        status="pending",
+        items=json.dumps(order_lines, ensure_ascii=False) if order_lines else None,
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    # ref2 = order_id ใน QR เป็นตัวเลข 10 หลัก (ปัดศูนย์) เพื่อให้ธนาคารยอมรับได้ดี; callback จะส่ง ref2 กลับมา (อาจมี leading zero) ใช้ int(ref2) จับคู่ Order
+    ref2 = str(order.id).zfill(10)[:25]
+    ref3 = (request.ref3 or "").strip() or None
+    if ref3:
+        ref3 = ref3[:27]
 
     # amount = Total Price
     amount = request.amount
     tax_id_clean = "".join(filter(str.isdigit, store.tax_id or ""))
 
-    # สร้าง QR Code ทั้ง Tag29 และ Tag30 (static + dynamic)
+    # สร้าง QR Code Tag30 (มี ref2=order_id, ref3 ตามที่ส่งมา)
     try:
-        # Tag30 Static - Bill Payment (ไม่มี amount, สำหรับสแกนแล้วกรอกจำนวน)
+        # Tag30 Static - Bill Payment (ไม่มี amount)
         qr_image_tag30_static = generate_promptpay_qr_image(
             biller_id=biller_id,
             ref1=ref1,
             ref2=ref2,
             ref3=ref3,
             amount=None,
-            size=300
+            merchant_name="NA",
+            merchant_city="BANGKOK",
+            size=300,
         )
         # Tag30 Dynamic - Bill Payment (มี amount)
         qr_image_tag30 = generate_promptpay_qr_image(
@@ -278,7 +316,9 @@ async def generate_promptpay_qr(
             ref2=ref2,
             ref3=ref3,
             amount=amount,
-            size=300
+            merchant_name="NA",
+            merchant_city="BANGKOK",
+            size=300,
         )
         
         # Tag29 - Credit Transfer (ถ้ามี mobile หรือ national_id)
@@ -322,19 +362,111 @@ async def generate_promptpay_qr(
             except Exception as e:
                 pass
         
-        return {
-            "qr_code_tag30_static": qr_image_tag30_static,  # Tag30 ไม่มี amount (จาก store.biller_id, store.token)
-            "qr_code_tag30": qr_image_tag30,  # Tag30 มี amount (Dynamic)
-            "qr_code_tag29": qr_image_tag29,  # Credit Transfer (อาจเป็น None)
-            "tag29_type": tag29_type,  # "mobile", "national_id", "national_id_from_tax", หรือ None
-            "biller_id": biller_id,
-            "ref1": ref1,
+        out = {
+            "qr_code_tag30_static": qr_image_tag30_static,
+            "qr_code_tag30": qr_image_tag30,
+            "qr_code_tag29": qr_image_tag29,
+            "tag29_type": tag29_type,
+            "order_id": order.id,
             "ref2": ref2,
             "ref3": ref3,
-            "amount": amount
+            "biller_id": biller_id,
+            "ref1": ref1,
+            "amount": amount,
+            "biller_id_note": "15 หลัก = เลขประจำตัวผู้เสียภาษี 13 หลัก + suffix 99",
         }
+        if debug:
+            qr_content_tag30 = generate_promptpay_qr_content(
+                biller_id=biller_id,
+                ref1=ref1,
+                ref2=ref2,
+                ref3=ref3,
+                amount=amount,
+                merchant_name="NA",
+                merchant_city="BANGKOK",
+            )
+            out["qr_content_tag30"] = qr_content_tag30
+        return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating QR Code: {str(e)}")
+
+
+class CreateOrderRequest(BaseModel):
+    amount: float
+    order_lines: Optional[list] = None  # [{ menu_id, name, qty, unit_price }]
+
+
+@router.post("/{store_id}/orders")
+async def create_store_order(
+    store_id: int,
+    body: CreateOrderRequest,
+    db: Session = Depends(get_db),
+):
+    """สร้าง Order เฉพาะ (สำหรับ Gateway เช่น Omise Credit/Debit) คืน order_id"""
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    order = Order(
+        store_id=store_id,
+        total_amount=body.amount,
+        status="pending",
+        items=json.dumps(body.order_lines or [], ensure_ascii=False),
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return {"order_id": order.id}
+
+
+@router.get("/{store_id}/orders")
+async def list_store_orders(
+    store_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    status: Optional[str] = Query(None, description="pending, paid, cancelled"),
+    db: Session = Depends(get_db),
+):
+    """รายการ order ของร้าน (สำหรับสืบค้นย้อนหลัง)"""
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    q = db.query(Order).filter(Order.store_id == store_id)
+    if status:
+        q = q.filter(Order.status == status)
+    orders = q.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
+    return [
+        {
+            "id": o.id,
+            "store_id": o.store_id,
+            "total_amount": o.total_amount,
+            "status": o.status,
+            "items": json.loads(o.items) if o.items else [],
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "paid_at": o.paid_at.isoformat() if o.paid_at else None,
+        }
+        for o in orders
+    ]
+
+
+@router.get("/{store_id}/orders/{order_id}")
+async def get_store_order(
+    store_id: int,
+    order_id: int,
+    db: Session = Depends(get_db),
+):
+    """ดึง order ตาม id (สำหรับสืบค้นย้อนหลัง)"""
+    order = db.query(Order).filter(Order.id == order_id, Order.store_id == store_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {
+        "id": order.id,
+        "store_id": order.store_id,
+        "total_amount": order.total_amount,
+        "status": order.status,
+        "items": json.loads(order.items) if order.items else [],
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+    }
 
 
 class GenerateBOTStandardQRRequest(BaseModel):
@@ -371,26 +503,31 @@ async def generate_bot_standard_qr(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
 
-    # biller_id = store.biller_id หรือจาก tax_id + "99"
+    # biller_id ต้องเป็นเลขที่ธนาคารออกให้ (ลงทะเบียน Bill Payment) จึงจะจ่ายเงินได้; ถ้าไม่มี ใช้ tax_id+"99" เป็น fallback
     if getattr(store, "biller_id", None) and store.biller_id.strip():
-        biller_id = "".join(filter(str.isdigit, store.biller_id))[:15].zfill(15)
+        b = "".join(filter(str.isdigit, store.biller_id))
+        if len(b) == 15:
+            biller_id = b
+        elif len(b) == 13:
+            biller_id = b + "99"
+        else:
+            biller_id = b.zfill(15)[:15]
     else:
         if not store.tax_id:
             raise HTTPException(status_code=400, detail="Store tax_id or biller_id is required for PromptPay QR Code")
         tax_id_clean = "".join(filter(str.isdigit, store.tax_id))
         if not tax_id_clean:
             raise HTTPException(status_code=400, detail="Store tax_id must contain at least one digit")
-        biller_id = (tax_id_clean + "99")
-        if len(biller_id) < 15:
-            biller_id = biller_id.zfill(15)
-        elif len(biller_id) > 15:
-            biller_id = biller_id[:15]
+        tax_id_13 = (tax_id_clean.zfill(13))[:13]
+        biller_id = tax_id_13 + "99"
 
-    # ref1 = store.token (20 หลัก)
-    if getattr(store, "token", None) and store.token:
-        ref1 = store.token
+    # ref1 สำหรับ Tag30 ควรเป็นตัวเลขเท่านั้น (แอปธนาคารส่วนใหญ่รับเฉพาะ numeric)
+    _token = (getattr(store, "token", None) or "").strip()
+    _digits_only = "".join(c for c in _token if c.isdigit())
+    if _digits_only and len(_digits_only) >= 1:
+        ref1 = _digits_only.zfill(20)[:20]
     else:
-        ref1 = str(store.id)
+        ref1 = (str(store.id) or "").zfill(20)[:20]
 
     tax_id_clean = "".join(filter(str.isdigit, store.tax_id or ""))
     

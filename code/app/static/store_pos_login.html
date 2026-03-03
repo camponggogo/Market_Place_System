@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เข้าสู่ระบบ - Store POS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+
+        * { font-family: 'TH Sarabun New', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: linear-gradient(135deg, #1a1d23 0%, #252830 100%);
+            color: #e4e6eb;
+            font-size: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: #2d323b;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid #3d434d;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            color: #28a745;
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 18px;
+            color: #b0b5bd;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 18px;
+            border: 2px solid #444;
+            border-radius: 10px;
+            background: #1e2128;
+            color: #fff;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+
+        .form-group input::placeholder {
+            color: #6c757d;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            font-size: 22px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .alert-error {
+            background: #721c24;
+            color: #f8d7da;
+        }
+
+        .alert-success {
+            background: #155724;
+            color: #d4edda;
+        }
+
+        .alert-info {
+            background: #0c5460;
+            color: #d1ecf1;
+        }
+
+        .store-select {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #444;
+        }
+
+        .store-select label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+            color: #b0b5bd;
+        }
+
+        .store-select select {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 18px;
+            border: 2px solid #444;
+            border-radius: 10px;
+            background: #1e2128;
+            color: #fff;
+        }
+
+        .store-select select:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <h1>🏪 Store POS</h1>
+            <p>เข้าสู่ระบบก่อนใช้งาน</p>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <form id="login-form" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label for="username">ชื่อผู้ใช้</label>
+                <input type="text" id="username" name="username" placeholder="กรอกชื่อผู้ใช้" required autocomplete="username" autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">รหัสผ่าน</label>
+                <input type="password" id="password" name="password" placeholder="กรอกรหัสผ่าน" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-login" id="btn-login">เข้าสู่ระบบ</button>
+        </form>
+
+        <div class="store-select" id="store-select-wrap" style="display: none;">
+            <label for="store-select">เลือกร้านที่ต้องการเข้าใช้งาน</label>
+            <select id="store-select"></select>
+            <button type="button" class="btn-login" id="btn-go-pos" style="margin-top: 12px;">ไปยัง Store POS</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(msg, type) {
+            const c = document.getElementById('alert-container');
+            c.innerHTML = '<div class="alert alert-' + (type || 'error') + '">' + msg + '</div>';
+        }
+
+        function clearAlert() {
+            document.getElementById('alert-container').innerHTML = '';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            clearAlert();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-login');
+
+            if (!username || !password) {
+                showAlert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+                return false;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'กำลังเข้าสู่ระบบ...';
+
+            try {
+                const res = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    showAlert(data.detail || 'เข้าสู่ระบบไม่สำเร็จ');
+                    btn.disabled = false;
+                    btn.textContent = 'เข้าสู่ระบบ';
+                    return false;
+                }
+
+                if (data.stores && data.stores.length > 0) {
+                    const next = new URLSearchParams(window.location.search).get('next') || '/store-pos';
+                    const sep = next.includes('?') ? '&' : '?';
+
+                    if (data.stores.length === 1) {
+                        window.location.href = next + sep + 'store_id=' + data.stores[0].id;
+                        return false;
+                    }
+
+                    const wrap = document.getElementById('store-select-wrap');
+                    const sel = document.getElementById('store-select');
+                    const btnGo = document.getElementById('btn-go-pos');
+
+                    sel.innerHTML = data.stores.map(s => '<option value="' + s.id + '">' + s.name + ' (#' + s.id + ')</option>').join('');
+                    wrap.style.display = 'block';
+                    document.getElementById('login-form').style.display = 'none';
+
+                    btnGo.onclick = function() {
+                        const storeId = sel.value;
+                        window.location.href = next + sep + 'store_id=' + storeId;
+                    };
+                } else {
+                    showAlert('ไม่พบสิทธิ์เข้าถึงร้าน กรุณาติดต่อผู้ดูแลระบบ', 'error');
+                }
+            } catch (err) {
+                showAlert('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่สามารถเชื่อมต่อได้'));
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'เข้าสู่ระบบ';
+            return false;
+        }
+    </script>
+</body>
+</html>

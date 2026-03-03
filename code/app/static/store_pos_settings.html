@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่า Store POS - Food Court</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        * { font-family: 'TH Sarabun New', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1d23; color: #e4e6eb; font-size: 18px; min-height: 100vh; }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 { font-size: 22px; }
+        .header a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .header a:hover { background: rgba(255,255,255,0.3); }
+        .container { max-width: 640px; margin: 24px auto; padding: 0 20px; }
+        .card {
+            background: #252830;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 20px;
+            color: #28a745;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #aaa;
+            font-size: 15px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #1e2128;
+            color: #fff;
+            font-size: 16px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+        .form-group small { color: #888; font-size: 13px; margin-top: 4px; display: block; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .checkbox-group input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #28a745; color: white; }
+        .btn-primary:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-test { background: #007bff; color: white; margin-right: 8px; margin-bottom: 8px; }
+        .btn-test:hover { background: #0056b3; }
+        .actions { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .test-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #333; }
+        .test-section h3 { font-size: 16px; color: #28a745; margin-bottom: 12px; }
+        .alert { padding: 12px; border-radius: 8px; margin: 12px 0; }
+        .alert-success { background: #155724; color: #d4edda; }
+        .alert-error { background: #721c24; color: #f8d7da; }
+        .alert-info { background: #0c5460; color: #d1ecf1; }
+        #print-test-area { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚙️ <span data-i18n="settings_title">ตั้งค่า Store POS</span></h1>
+        <a href="/store-pos" id="link-back-pos">← <span data-i18n="back_to_pos">กลับไป Store POS</span></a>
+    </div>
+    <div class="container">
+        <div id="alert-container"></div>
+        <div class="card">
+            <h2>เครื่องพิมพ์ Thermal</h2>
+            <div class="form-group">
+                <label>ไดรเวอร์ / ประเภทเครื่องพิมพ์</label>
+                <select id="thermal_printer_driver">
+                    <option value="ESC/POS">ESC/POS</option>
+                    <option value="Star">Star</option>
+                    <option value="Epson">Epson</option>
+                    <option value="Other">อื่นๆ</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>ชื่อเครื่องพิมพ์</label>
+                <input type="text" id="thermal_printer_name" placeholder="ตามที่แสดงใน Windows (การตั้งค่า > อุปกรณ์ > เครื่องพิมพ์)">
+                <small>เว้นว่างถ้าใช้พอร์ตโดยตรง</small>
+            </div>
+            <div class="form-group">
+                <label>พอร์ตเครื่องพิมพ์</label>
+                <input type="text" id="thermal_printer_port" placeholder="เช่น COM1, LPT1, USB001 หรือ IP:9100">
+            </div>
+            <div class="form-group">
+                <label>ความกว้างกระดาษ (มม.)</label>
+                <select id="thermal_paper_width_mm">
+                    <option value="58">58 mm</option>
+                    <option value="80">80 mm</option>
+                </select>
+            </div>
+        </div>
+        <div class="card">
+            <h2>เครื่องอ่าน QR Code</h2>
+            <div class="form-group">
+                <label>พอร์ต / อุปกรณ์อ่าน QR</label>
+                <input type="text" id="qr_reader_port" placeholder="เช่น COM3 หรือ device id">
+                <small>เครื่องอ่าน QR ที่ต่อ USB มักแสดงเป็น COM port ใน Device Manager</small>
+            </div>
+        </div>
+        <div class="card">
+            <h2>เครื่อง EDC รูดบัตร</h2>
+            <div class="form-group">
+                <label>พอร์ต EDC</label>
+                <input type="text" id="edc_reader_port" placeholder="เช่น COM4 หรือ IP:port ตามที่ผู้ผลิตกำหนด">
+            </div>
+        </div>
+        <div class="card">
+            <h2>วิธีการชำระเงิน</h2>
+            <p style="color:#aaa;font-size:14px;margin-bottom:12px;">เลือกวิธีชำระที่แสดงบน Store POS (ต้องมีอย่างน้อย 1 วิธี)</p>
+            <div class="checkbox-group">
+                <input type="checkbox" id="payment_promptpay_enabled" checked>
+                <label for="payment_promptpay_enabled">📱 PromptPay</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="payment_credit_debit_enabled" checked>
+                <label for="payment_credit_debit_enabled">💳 Credit/Debit</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="payment_cash_enabled" checked>
+                <label for="payment_cash_enabled">💵 เงินสด</label>
+            </div>
+        </div>
+        <div class="card">
+            <h2><span data-i18n="language">ภาษา</span> และ <span data-i18n="currency">หน่วยเงิน</span></h2>
+            <div class="form-group">
+                <label data-i18n="language">ภาษา</label>
+                <select id="locale">
+                    <option value="th">ไทย</option>
+                    <option value="en">English</option>
+                    <option value="lo">ລາວ (Lao)</option>
+                    <option value="my">မြန်မာ (Myanmar)</option>
+                    <option value="kh">ខ្មែរ (Khmer)</option>
+                    <option value="ms">Melayu (Malay)</option>
+                    <option value="shn">တႆး (Shan)</option>
+                    <option value="zh">中文 (Chinese)</option>
+                    <option value="ru">Русский (Russian)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-i18n="currency">หน่วยเงิน</label>
+                <select id="currency_code">
+                    <option value="THB">฿ Baht (บาท)</option>
+                    <option value="USD">$ Dollar</option>
+                    <option value="LAK">₭ Kip</option>
+                    <option value="MMK">K Kyat</option>
+                    <option value="KHR">៛ Riel</option>
+                    <option value="MYR">RM Ringgit</option>
+                    <option value="CNY">¥ Yuan</option>
+                    <option value="RUB">₽ Ruble</option>
+                </select>
+            </div>
+        </div>
+        <div class="card">
+            <h2>การแสดงผลเมนู</h2>
+            <div class="form-group">
+                <label data-i18n="menu_columns_label">จำนวนคอลัมน์เมนูต่อหน้า</label>
+                <select id="menu_columns">
+                    <option value="2">2 คอลัมน์</option>
+                    <option value="3">3 คอลัมน์</option>
+                    <option value="4">4 คอลัมน์</option>
+                    <option value="5">5 คอลัมน์</option>
+                    <option value="6">6 คอลัมน์</option>
+                    <option value="7">7 คอลัมน์</option>
+                    <option value="8">8 คอลัมน์</option>
+                </select>
+                <small data-i18n="menu_columns_desc">จำนวนเมนูที่แสดงต่อแถวบน Store POS (Desktop)</small>
+            </div>
+        </div>
+        <div class="card">
+            <h2>รูปภาพเมนู</h2>
+            <div class="form-group">
+                <label data-i18n="menu_image_priority_label">ลำดับการเลือกแหล่งรูป (local, server, base64)</label>
+                <select id="menu_image_priority">
+                    <option value="local,server,base64" data-i18n="menu_image_priority_local_first">Local ก่อน → Server → Base64</option>
+                    <option value="server,local,base64" data-i18n="menu_image_priority_server_first">Server ก่อน → Local → Base64</option>
+                    <option value="base64,local,server" data-i18n="menu_image_priority_base64_first">Base64 ก่อน → Local → Server</option>
+                </select>
+                <small data-i18n="menu_image_source_desc">Local = ไฟล์ดาวน์โหลดไว้ในเครื่อง, Server = image_url, Base64 = ใน DB</small>
+            </div>
+        </div>
+        <div class="card">
+            <div class="actions">
+                <button class="btn btn-primary" onclick="saveSettings()">💾 <span data-i18n="save_settings">บันทึกการตั้งค่า</span></button>
+            </div>
+            <p style="color:#888;font-size:13px;margin-top:12px;" data-i18n="print_note">หมายเหตุ: การพิมพ์จาก Browser จะแสดงหน้าต่างพิมพ์หนึ่งครั้ง (ไม่สามารถส่งตรงไปเครื่องพิมพ์โดยไม่ถามได้) แนะนำให้ตั้งเครื่องพิมพ์ Thermal เป็นเครื่องพิมพ์หลักใน Windows เพื่อกดพิมพ์ได้เร็ว</p>
+            <div class="test-section">
+                <h3>ปุ่มทดสอบ</h3>
+                <button class="btn btn-test" onclick="testPrinter()">🖨️ ทดสอบเครื่องพิมพ์</button>
+                <button class="btn btn-test" onclick="testQRReader()">📷 ทดสอบเครื่องอ่าน QR</button>
+                <button class="btn btn-test" onclick="testEDC()">💳 ทดสอบ EDC รูดบัตร</button>
+            </div>
+        </div>
+    </div>
+    <div id="print-test-area">
+        <div style="width:80mm; padding:8px; font-size:12px;">
+            <div style="text-align:center; font-weight:bold;">--- ทดสอบเครื่องพิมพ์ ---</div>
+            <div style="margin-top:8px;">Store POS Thermal Test</div>
+            <div>วันที่: <span id="print-test-date"></span></div>
+            <div style="margin-top:12px;">หากพิมพ์หน้านี้ได้ แสดงว่าเชื่อมต่อเครื่องพิมพ์ถูกต้อง</div>
+        </div>
+    </div>
+    <script>
+        const API = window.location.origin + '/api/pos-settings';
+        const LOCALE_API = window.location.origin + '/api/locale-settings';
+        let currentStoreId = null;
+        function showAlert(msg, type) {
+            const c = document.getElementById('alert-container');
+            c.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+            setTimeout(function() { c.innerHTML = ''; }, 5000);
+        }
+        async function loadSettings() {
+            try {
+                const res = await fetch(API);
+                const data = await res.json();
+                document.getElementById('thermal_printer_driver').value = data.thermal_printer_driver || 'ESC/POS';
+                document.getElementById('thermal_printer_name').value = data.thermal_printer_name || '';
+                document.getElementById('thermal_printer_port').value = data.thermal_printer_port || '';
+                document.getElementById('qr_reader_port').value = data.qr_reader_port || '';
+                document.getElementById('edc_reader_port').value = data.edc_reader_port || '';
+                document.getElementById('thermal_paper_width_mm').value = String(data.thermal_paper_width_mm || 80);
+                document.getElementById('menu_columns').value = String(data.menu_columns || 6);
+                document.getElementById('menu_image_priority').value = data.menu_image_priority || 'local,server,base64';
+                document.getElementById('payment_promptpay_enabled').checked = data.payment_promptpay_enabled !== false;
+                document.getElementById('payment_credit_debit_enabled').checked = data.payment_credit_debit_enabled !== false;
+                document.getElementById('payment_cash_enabled').checked = data.payment_cash_enabled !== false;
+            } catch (e) {
+                showAlert('โหลดการตั้งค่าไม่สำเร็จ: ' + e.message, 'error');
+            }
+            try {
+                const locRes = await fetch(LOCALE_API + '?store_id=' + (currentStoreId || 1), { cache: 'no-store' });
+                if (locRes.ok) {
+                    const loc = await locRes.json();
+                    document.getElementById('locale').value = loc.locale || 'th';
+                    document.getElementById('currency_code').value = loc.currency_code || 'THB';
+                    window.localeSettings = { translations: loc.translations || {} };
+                    applyLocaleUI();
+                }
+            } catch (e) {}
+        }
+        async function saveSettings() {
+            var pp = document.getElementById('payment_promptpay_enabled').checked;
+            var cd = document.getElementById('payment_credit_debit_enabled').checked;
+            var cash = document.getElementById('payment_cash_enabled').checked;
+            if (!pp && !cd && !cash) {
+                showAlert('ต้องเลือกวิธีการชำระอย่างน้อย 1 วิธี', 'error');
+                return;
+            }
+            const body = {
+                thermal_printer_driver: document.getElementById('thermal_printer_driver').value,
+                thermal_printer_name: document.getElementById('thermal_printer_name').value.trim(),
+                thermal_printer_port: document.getElementById('thermal_printer_port').value.trim(),
+                qr_reader_port: document.getElementById('qr_reader_port').value.trim(),
+                edc_reader_port: document.getElementById('edc_reader_port').value.trim(),
+                thermal_paper_width_mm: parseInt(document.getElementById('thermal_paper_width_mm').value, 10),
+                menu_columns: parseInt(document.getElementById('menu_columns').value, 10),
+                menu_image_priority: document.getElementById('menu_image_priority').value,
+                payment_promptpay_enabled: document.getElementById('payment_promptpay_enabled').checked,
+                payment_credit_debit_enabled: document.getElementById('payment_credit_debit_enabled').checked,
+                payment_cash_enabled: document.getElementById('payment_cash_enabled').checked
+            };
+            try {
+                const res = await fetch(API, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
+                var locRes = await fetch(LOCALE_API, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        locale: document.getElementById('locale').value,
+                        currency_code: document.getElementById('currency_code').value,
+                        store_id: parseInt(currentStoreId || 1, 10)
+                    })
+                });
+                if (locRes.ok) {
+                    var locData = await locRes.json();
+                    window.localeSettings = { translations: locData.translations || {} };
+                    applyLocaleUI();
+                }
+                showAlert('บันทึกการตั้งค่าเรียบร้อย – ภาษาจะใช้กับทุกหน้าที่เกี่ยวกับร้านนี้', 'success');
+            } catch (e) {
+                showAlert('บันทึกไม่สำเร็จ: ' + e.message, 'error');
+            }
+        }
+        function testPrinter() {
+            document.getElementById('print-test-date').textContent = new Date().toLocaleString('th-TH');
+            const area = document.getElementById('print-test-area');
+            area.style.display = 'block';
+            window.print();
+            area.style.display = 'none';
+            fetch(API + '/test-printer', { method: 'POST' }).catch(function() {});
+            showAlert('เปิดหน้าพิมพ์แล้ว – เลือกเครื่องพิมพ์ Thermal แล้วกดพิมพ์', 'info');
+        }
+        async function testQRReader() {
+            try {
+                const res = await fetch(API + '/test-qr-reader', { method: 'POST' });
+                const data = await res.json();
+                showAlert(data.message || 'ให้ไปที่หน้า Store POS แล้วสแกนที่ช่องบาร์โค้ด', 'info');
+            } catch (e) {
+                showAlert('ให้ไปที่หน้า Store POS แล้วสแกน QR/บาร์โค้ดที่ช่อง "พิมพ์หรือสแกนบาร์โค้ด"', 'info');
+            }
+        }
+        async function testEDC() {
+            try {
+                const res = await fetch(API + '/test-edc', { method: 'POST' });
+                const data = await res.json();
+                showAlert(data.message || 'ตั้งค่า EDC บันทึกแล้ว – ลองรูดบัตรที่เครื่อง EDC', 'info');
+            } catch (e) {
+                showAlert('ตั้งค่า EDC บันทึกแล้ว – ให้ลองรูดบัตรทดสอบที่เครื่อง EDC (ต้องมี driver ที่เครื่อง POS)', 'info');
+            }
+        }
+        function t(key) { return (window.localeSettings && window.localeSettings.translations[key]) || key; }
+        function applyLocaleUI() {
+            document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            currentStoreId = new URLSearchParams(window.location.search).get('store_id') || 1;
+            var linkBack = document.getElementById('link-back-pos');
+            if (linkBack) linkBack.href = '/store-pos?store_id=' + currentStoreId;
+            window.localeSettings = window.localeSettings || { translations: {} };
+            loadSettings();
+        });
+    </script>
+</body>
+</html>

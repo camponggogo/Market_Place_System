@@ -30,3 +30,13 @@ wheels/
 .coverage
 htmlcov/
 .pytest_cache/
+# POS settings overrides (per-machine)
+code/app/data/
+
+# IDE / local
+.cursor/
+
+# Optional local assets (uncomment to ignore)
+# *.png
+# *.pptx
+# videos/

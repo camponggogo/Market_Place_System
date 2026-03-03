@@ -521,7 +521,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🍽️ Food Court - ลูกค้า</h1>
+            <h1>🍽️ <span data-i18n="customer_title">Food Court - ลูกค้า</span></h1>
+            <div style="margin-top:8px;font-size:14px;opacity:0.9;">
+                <a href="?locale=th" style="color:white;margin:0 6px;">ไทย</a>
+                <a href="?locale=en" style="color:white;margin:0 6px;">EN</a>
+                <a href="?locale=zh" style="color:white;margin:0 6px;">中文</a>
+            </div>
         </div>
         
         <!-- Login/Register Section -->
@@ -529,17 +534,17 @@
             <div id="alert-container"></div>
             
             <div class="tabs" style="margin: -30px -30px 30px -30px;">
-                <div class="tab active" onclick="showAuthTab('login')">เข้าสู่ระบบ</div>
-                <div class="tab" onclick="showAuthTab('register')">ลงทะเบียน</div>
+                <div class="tab active" onclick="showAuthTab('login')" data-i18n="login_tab">เข้าสู่ระบบ</div>
+                <div class="tab" onclick="showAuthTab('register')" data-i18n="register_tab">ลงทะเบียน</div>
             </div>
             
             <!-- Login Tab -->
             <div id="login-tab" class="tab-content active">
                 <div class="form-group">
-                    <label>เบอร์โทรศัพท์</label>
+                    <label data-i18n="phone_label">เบอร์โทรศัพท์</label>
                     <input type="tel" id="login-phone" placeholder="0812345678" autocomplete="off">
                 </div>
-                <button class="btn" onclick="login()">เข้าสู่ระบบ</button>
+                <button class="btn" onclick="login()"><span data-i18n="login_btn">เข้าสู่ระบบ</span></button>
             </div>
             
             <!-- Register Tab -->
@@ -578,7 +583,7 @@
             <!-- Balance Tab -->
             <div id="balance-tab" class="tab-content">
                 <div class="balance-card">
-                    <div class="balance-label">ยอดเงินคงเหลือรวม</div>
+                    <div class="balance-label" data-i18n="balance_label">ยอดเงินคงเหลือรวม</div>
                     <div class="balance-amount" id="total-balance">0.00</div>
                 </div>
                 
@@ -610,7 +615,7 @@
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p style="margin-top: 10px;">กำลังโหลดข้อมูล...</p>
+            <p style="margin-top: 10px;" data-i18n="loading_text">กำลังโหลดข้อมูล...</p>
         </div>
     </div>
     
@@ -681,6 +686,21 @@
     
     <script>
         const API_BASE_URL = window.location.origin + '/api';
+        const LOCALE_API = window.location.origin + '/api/locale-settings';
+        window.localeSettings = window.localeSettings || { translations: {}, currency_symbol: '\u0e3f' };
+        function t(key) { return (localeSettings.translations && localeSettings.translations[key]) || key; }
+        function applyLocaleUI() { document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); }); }
+        function loadLocaleSettings() {
+            var loc = new URLSearchParams(window.location.search).get('locale') || '';
+            return fetch(LOCALE_API + (loc ? '?locale=' + encodeURIComponent(loc) : ''), { cache: 'no-store' })
+                .then(function(r){ return r.ok ? r.json() : {}; })
+                .then(function(d){
+                    localeSettings.translations = d.translations || {};
+                    localeSettings.currency_symbol = d.currency_symbol || '\u0e3f';
+                    applyLocaleUI();
+                })
+                .catch(function(){ applyLocaleUI(); });
+        }
         let currentCustomer = null;
         let qrcodeInstances = {};
         let selectedTopupFCId = null;
@@ -688,6 +708,7 @@
         
         // Health check and auto login on page load
         window.addEventListener('DOMContentLoaded', async function() {
+            await loadLocaleSettings();
             try {
                 const healthResponse = await fetch(window.location.origin + '/health');
                 if (!healthResponse.ok) {

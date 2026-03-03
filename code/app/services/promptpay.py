@@ -176,10 +176,11 @@ def generate_promptpay_qr_content(
     
     merchant_info += format_tag("01", biller_id_clean)
     
-    # Reference 1 (Required) - ต้องไม่ว่าง
-    if not ref1:
+    # Reference 1 (Required) - ต้องไม่ว่าง, ตัดช่องว่างหัวท้าย
+    ref1_str = (str(ref1) or "").strip()
+    if not ref1_str:
         raise ValueError("Reference 1 (ref1) is required")
-    ref1_clean = str(ref1)[:20]
+    ref1_clean = ref1_str[:20]
     merchant_info += format_tag("02", ref1_clean)
     
     # Reference 2 (Optional)

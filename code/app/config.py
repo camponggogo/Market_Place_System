@@ -105,6 +105,17 @@ STRIPE_WEBHOOK_SECRET = get_config("STRIPE", "STRIPE_WEBHOOK_SECRET", fallback="
 # Apple Pay – ใช้ผ่าน Stripe (https://docs.stripe.com/payments/apple-pay)
 APPLE_PAY_ENABLED = get_config("APPLE_PAY", "APPLE_PAY_ENABLED", fallback=True, env_var="APPLE_PAY_ENABLED", env_type=bool)
 
+# POS / Store POS Hardware (Thermal printer, QR reader, EDC)
+POS_THERMAL_PRINTER_DRIVER = get_config("POS", "THERMAL_PRINTER_DRIVER", fallback="ESC/POS", env_var="POS_THERMAL_PRINTER_DRIVER")
+POS_THERMAL_PRINTER_NAME = get_config("POS", "THERMAL_PRINTER_NAME", fallback="", env_var="POS_THERMAL_PRINTER_NAME")
+POS_THERMAL_PRINTER_PORT = get_config("POS", "THERMAL_PRINTER_PORT", fallback="", env_var="POS_THERMAL_PRINTER_PORT")
+POS_QR_READER_PORT = get_config("POS", "QR_READER_PORT", fallback="", env_var="POS_QR_READER_PORT")
+POS_EDC_READER_PORT = get_config("POS", "EDC_READER_PORT", fallback="", env_var="POS_EDC_READER_PORT")
+POS_THERMAL_PAPER_WIDTH_MM = get_config("POS", "THERMAL_PAPER_WIDTH_MM", fallback=80, env_var="POS_THERMAL_PAPER_WIDTH_MM", env_type=int)
+POS_PAYMENT_PROMPTPAY_ENABLED = get_config("POS", "PAYMENT_PROMPTPAY_ENABLED", fallback=True, env_var="POS_PAYMENT_PROMPTPAY_ENABLED", env_type=bool)
+POS_PAYMENT_CREDIT_DEBIT_ENABLED = get_config("POS", "PAYMENT_CREDIT_DEBIT_ENABLED", fallback=True, env_var="POS_PAYMENT_CREDIT_DEBIT_ENABLED", env_type=bool)
+POS_PAYMENT_CASH_ENABLED = get_config("POS", "PAYMENT_CASH_ENABLED", fallback=True, env_var="POS_PAYMENT_CASH_ENABLED", env_type=bool)
+
 # Notification Configuration
 LINE_OA_CHANNEL_ACCESS_TOKEN = get_config("NOTIFICATION", "LINE_OA_CHANNEL_ACCESS_TOKEN", fallback="", env_var="LINE_OA_CHANNEL_ACCESS_TOKEN")
 LINE_OA_CHANNEL_SECRET = get_config("NOTIFICATION", "LINE_OA_CHANNEL_SECRET", fallback="", env_var="LINE_OA_CHANNEL_SECRET")

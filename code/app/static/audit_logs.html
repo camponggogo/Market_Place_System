@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs - หลักฐานการใช้งานระบบ</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #1a1d23; color: #e4e6eb; margin: 0; padding: 20px; }
+    .card { background: #2d323b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    h1 { color: #28a745; font-size: 20px; margin-bottom: 16px; }
+    .back { display: inline-block; margin-bottom: 16px; color: #28a745; text-decoration: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #444; word-break: break-all; }
+    th { color: #28a745; }
+    select { padding: 8px; background: #1e2128; border: 1px solid #444; border-radius: 6px; color: #e4e6eb; margin-right: 8px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <a href="/admin" class="back">← กลับ Admin</a>
+  <div class="card">
+    <h1>Audit Logs - ทุกการดำเนินการในระบบ</h1>
+    <p style="font-size:13px; color:#888;">เฉพาะผู้ดูแลระดับ admin ขึ้นไป</p>
+    <div>
+      <select id="sourceFilter"><option value="">ทุกแหล่ง</option><option value="admin">admin</option><option value="store_pos">store_pos</option><option value="system">system</option></select>
+      <select id="tableFilter"><option value="">ทุกตาราง</option></select>
+      <button id="btnLoad" style="padding:8px 16px; background:#28a745; color:#fff; border:none; border-radius:6px; cursor:pointer;">โหลด</button>
+    </div>
+    <div id="loading">กำลังโหลด...</div>
+    <table id="logTable" style="display:none;">
+      <thead><tr><th>เวลา</th><th>แหล่ง</th><th>การกระทำ</th><th>ตาราง</th><th>record_id</th><th>user_id</th><th>old/new</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+  <script>
+    const API = window.location.origin;
+    async function load() {
+      const src = document.getElementById('sourceFilter').value;
+      const tbl = document.getElementById('tableFilter').value;
+      let url = API + '/api/audit-logs?limit=300';
+      if (src) url += '&source=' + encodeURIComponent(src);
+      if (tbl) url += '&table_name=' + encodeURIComponent(tbl);
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.status === 403 || res.status === 401) { document.getElementById('loading').textContent = 'ไม่มีสิทธิ์ (เฉพาะ Admin)'; return; }
+      const data = await res.json();
+      document.getElementById('loading').style.display = 'none';
+      if (!data.items || !data.items.length) { document.getElementById('loading').textContent = 'ไม่มีรายการ'; document.getElementById('loading').style.display = 'block'; return; }
+      document.getElementById('logTable').style.display = 'table';
+      const tables = [...new Set(data.items.map(i => i.table_name))].filter(Boolean).sort();
+      const tableSel = document.getElementById('tableFilter');
+      if (tableSel.options.length <= 1) { tables.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; tableSel.appendChild(o); }); }
+      document.getElementById('logBody').innerHTML = data.items.map(i => '<tr><td>' + (i.created_at || '') + '</td><td>' + (i.source || '') + '</td><td>' + (i.action || '') + '</td><td>' + (i.table_name || '') + '</td><td>' + (i.record_id ?? '') + '</td><td>' + (i.user_id ?? '') + '</td><td>' + (i.old_values || '') + ' → ' + (i.new_values || '') + '</td></tr>').join('');
+    }
+    document.getElementById('btnLoad').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>

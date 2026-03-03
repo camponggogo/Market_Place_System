@@ -7,1173 +7,1306 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
         
-        * {
-            font-family: 'TH Sarabun New', sans-serif;
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { font-family: 'TH Sarabun New', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
         
-        body {
-            background: #f5f5f5;
-            font-size: 22px;
-        }
+        body { background: #1a1d23; color: #e4e6eb; font-size: 20px; min-height: 100vh; }
         
         .store-header {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             padding: 10px 16px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
-            flex-wrap: nowrap;
             align-items: center;
             gap: 16px;
+            flex-wrap: wrap;
+        }
+        .store-header h1 { font-size: 24px; }
+        .store-info { display: flex; gap: 12px; flex-wrap: wrap; }
+        .store-info span { font-size: 18px; opacity: 0.95; }
+        
+        /* หน้าต่างหลัก: สินค้า | Order */
+        .pos-window {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 0;
+            height: calc(100vh - 52px);
+            overflow: hidden;
+        }
+        @media (max-width: 900px) {
+            .pos-window { grid-template-columns: 1fr; height: auto; overflow: visible; }
+            .product-grid-section { height: auto; overflow: visible; }
+            .product-grid-scroll { overflow: visible; min-height: 0; }
+            .order-section { height: auto; overflow: visible; }
         }
         
-        .store-header h1 {
+        /* กริดสินค้า (ซ้าย) - scroll แยกเฉพาะเมนู */
+        .product-grid-section {
+            background: #252830;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 52px);
+            overflow: hidden;
+        }
+        .product-grid-section h2 {
             font-size: 22px;
+            color: #28a745;
             margin: 0;
-            white-space: nowrap;
+            padding: 16px 16px 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #28a745;
+            flex-shrink: 0;
+        }
+        .product-grid-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 16px;
+            padding-top: 12px;
+        }
+        /* Desktop: 4 columns | Mobile: 1 column */
+        .product-grid {
+            display: grid;
+            gap: 12px;
+        }
+        @media (max-width: 768px) {
+            .product-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (min-width: 769px) {
+            .product-grid {
+                grid-template-columns: repeat(6, minmax(120px, 1fr));
+            }
+        }
+        .product-card {
+            background: #2d323b;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .product-card:hover {
+            border-color: #28a745;
+            transform: translateY(-2px);
+        }
+        .product-card .img-wrap {
+            aspect-ratio: 1;
+            background: #1a1d23;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .product-card .img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-card .img-wrap .placeholder {
+            font-size: 36px;
+            opacity: 0.3;
+        }
+        .product-card .info {
+            padding: 10px;
+        }
+        .product-card .name { font-size: 19px; font-weight: bold; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .product-card .price { font-size: 22px; color: #28a745; }
+        
+        /* Order List (ขวา) */
+        .order-section {
+            background: #1e2128;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 52px);
+            overflow: hidden;
+        }
+        .order-section h2 {
+            font-size: 22px;
+            color: #28a745;
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
             flex-shrink: 0;
         }
         
-        .store-info {
+        /* ช่อง Barcode + จำนวน ด้านบน Order */
+        .order-toolbar {
+            padding: 12px 16px;
             display: flex;
-            flex-wrap: nowrap;
-            align-items: stretch;
-            gap: 10px;
-            margin: 0;
-            flex: 1;
-            min-width: 0;
+            gap: 8px;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
         }
-        
-        .store-info-item {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 6px 10px;
-            border-radius: 6px;
-            flex: 1 1 0;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .store-info-item label {
-            display: block;
-            font-size: 12px;
-            opacity: 0.9;
-            margin-bottom: 2px;
-            line-height: 1.2;
-        }
-        
-        .store-info-item .value {
-            font-size: 14px;
-            font-weight: bold;
-            line-height: 1.3;
-        }
-        
-        /* Mobile Portrait - Compact Store Header but keep large fonts */
-        @media (max-width: 768px) and (orientation: portrait) {
-            body {
-                font-size: 20px;
-            }
-            
-            .store-header {
-                padding: 8px 10px;
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-            
-            .store-header h1 {
-                font-size: 18px;
-                width: 100%;
-            }
-            
-            .store-info {
-                flex-wrap: wrap;
-                gap: 6px;
-                width: 100%;
-            }
-            
-            .store-info-item {
-                flex: 1 1 calc(33.333% - 6px);
-                min-width: 80px;
-                padding: 5px 6px;
-            }
-            
-            .store-info-item label {
-                font-size: 11px;
-                margin-bottom: 1px;
-            }
-            
-            .store-info-item .value {
-                font-size: 12px;
-            }
-            
-            .container {
-                margin: 10px auto;
-                padding: 0 10px;
-            }
-            
-            .card {
-                padding: 15px;
-                margin-bottom: 15px;
-            }
-            
-            .card h2 {
-                font-size: 24px;
-                margin-bottom: 15px;
-                padding-bottom: 8px;
-            }
-            
-            .form-group {
-                margin-bottom: 15px;
-            }
-            
-            .form-group label {
-                font-size: 20px;
-                margin-bottom: 8px;
-            }
-            
-            .form-group input {
-                padding: 18px;
-                font-size: 22px;
-            }
-            
-            #amount-input {
-                font-size: 42px !important;
-            }
-            
-            .quick-amount-buttons {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 10px;
-                margin-bottom: 15px;
-            }
-            
-            .quick-amount-btn {
-                padding: 15px;
-                font-size: 18px;
-                min-height: 55px;
-            }
-            
-            .btn {
-                padding: 18px 20px;
-                font-size: 22px;
-                margin-bottom: 10px;
-                min-height: 60px;
-            }
-            
-            .qr-scanner-area {
-                padding: 18px;
-                margin-bottom: 18px;
-            }
-            
-            .qr-scanner-area p {
-                font-size: 18px;
-            }
-            
-            .balance-display {
-                padding: 25px;
-                margin-bottom: 18px;
-            }
-            
-            .balance-label {
-                font-size: 20px;
-            }
-            
-            .balance-amount {
-                font-size: 48px;
-            }
-            
-            .balance-info {
-                font-size: 18px;
-            }
-            
-            .transaction-history {
-                margin-top: 20px;
-            }
-            
-            .transaction-item-amount {
-                font-size: 22px;
-            }
-            
-            .transaction-item-details {
-                font-size: 16px;
-            }
-        }
-        
-        .container {
-            max-width: 98%;
-            width: 100%;
-            margin: 30px auto;
-            padding: 0 12px;
-        }
-        @media (min-width: 1600px) {
-            .container {
-                max-width: 1600px;
-                padding: 0 20px;
-            }
-        }
-        
-        /* ขั้นตอนที่ 1–3 เรียงแนวนอน ถ้าเกินขอบให้ wrap ลงแถวใหม่ */
-        .steps-row {
-            display: flex;
-            flex-wrap: wrap;
-            flex-direction: row;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .steps-row .card {
-            flex: 1 1 320px;
-            min-width: min(320px, 100%);
-            margin-bottom: 0;
-        }
-        @media (max-width: 768px) {
-            .steps-row .card {
-                flex: 1 1 100%;
-                min-width: 100%;
-            }
-        }
-        
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .card h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 32px;
-            border-bottom: 3px solid #28a745;
-            padding-bottom: 10px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 10px;
-            color: #555;
-            font-weight: bold;
-            font-size: 22px;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 20px;
-            border: 3px solid #ddd;
+        .order-toolbar input {
+            padding: 10px 12px;
+            border: 2px solid #444;
             border-radius: 8px;
-            font-size: 24px;
-            transition: border-color 0.3s;
+            background: #252830;
+            color: #fff;
+            font-size: 20px;
         }
+        .order-toolbar input::placeholder { color: #888; }
+        .order-toolbar input#barcode-input { flex: 1; }
+        .order-toolbar input#add-qty-input { width: 70px; text-align: center; }
         
-        .form-group input:focus {
-            outline: none;
-            border-color: #28a745;
+        /* รายการ Order - scroll แยก */
+        .order-list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 12px;
         }
-        
-        .btn {
-            padding: 20px 30px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 24px;
-            font-weight: bold;
-            transition: all 0.3s;
-            width: 100%;
-            margin-bottom: 10px;
-            min-height: 60px;
+        .order-item {
+            display: grid;
+            grid-template-columns: 1fr 60px 70px 40px;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 12px;
+            background: #252830;
+            border-radius: 8px;
+            margin-bottom: 8px;
         }
-        
-        .btn-primary {
-            background: #007bff;
-            color: white;
+        .order-item .name { font-size: 19px; }
+        .order-item .qty-input {
+            width: 54px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1e2128;
+            color: #fff;
+            font-size: 18px;
         }
-        
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #218838;
-        }
-        
-        .btn-danger {
+        .order-item .line-total { color: #28a745; font-weight: bold; font-size: 19px; }
+        .order-item .btn-remove {
             background: #dc3545;
             color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .balance-display {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .balance-display.show {
-            display: block;
-        }
-        
-        .balance-label {
-            font-size: 24px;
-            opacity: 0.9;
-            margin-bottom: 15px;
-        }
-        
-        .balance-amount {
-            font-size: 64px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        
-        .balance-info {
-            font-size: 20px;
-            opacity: 0.9;
-            line-height: 1.6;
-        }
-        
-        .amount-input-group {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .amount-input-group input {
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 18px;
-        }
-        
-        .quick-amount-buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .quick-amount-btn {
-            padding: 18px;
-            border: 3px solid #ddd;
-            border-radius: 10px;
-            background: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 22px;
-            font-weight: bold;
-            transition: all 0.3s;
-            min-height: 60px;
+            font-size: 16px;
         }
+        .order-empty { text-align: center; color: #666; padding: 24px; }
         
-        .quick-amount-btn:hover {
-            background: #f8f9fa;
-            border-color: #28a745;
-        }
-        
-        .alert {
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            display: none;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        
-        .alert.show {
-            display: block;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .transaction-history {
-            margin-top: 30px;
-        }
-        
-        .transaction-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid #28a745;
-        }
-        
-        .transaction-item-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        
-        .transaction-item-amount {
-            font-size: 26px;
+        .order-total {
+            padding: 12px 16px;
+            background: #252830;
+            border-bottom: 2px solid #28a745;
+            font-size: 28px;
             font-weight: bold;
             color: #28a745;
+            flex-shrink: 0;
         }
         
-        .transaction-item-details {
+        .order-actions {
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .payment-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            width: 100%;
+        }
+        .payment-row .btn-pay {
+            flex: 1;
+            min-width: 80px;
+            min-height: 56px;
+            padding: 14px 12px;
+            border: none;
+            border-radius: 12px;
             font-size: 18px;
-            color: #666;
-        }
-        
-        .loading {
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
             text-align: center;
-            padding: 20px;
-            display: none;
         }
-        
-        .loading.show {
-            display: block;
-        }
-        
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #28a745;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .qr-scanner-area {
-            border: 2px dashed #28a745;
+        .btn-pay-promptpay { background: #007bff; color: white; }
+        .btn-pay-promptpay:hover:not(:disabled) { background: #0056b3; }
+        .btn-pay-card { background: #6f42c1; color: white; }
+        .btn-pay-card:hover:not(:disabled) { background: #5a32a3; }
+        .btn-pay-cash { background: #28a745; color: white; }
+        .btn-pay-cash:hover:not(:disabled) { background: #218838; }
+        .order-actions .btn {
+            padding: 14px 20px;
+            border: none;
             border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-            background: #f8f9fa;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn:disabled { background: #444; cursor: not-allowed; opacity: 0.6; }
+        .wait-timer { font-size: 20px; color: #ffc107; margin: 12px 0; }
+        .qr-modal-details { text-align: left; font-size: 15px; max-height: 120px; overflow-y: auto; margin: 12px 0; padding: 8px; background: #1e2128; border-radius: 8px; }
         
-        .qr-scanner-area p {
-            color: #666;
-            margin-bottom: 10px;
-            font-size: 20px;
-        }
-        
-        #qr-video {
-            background: #000;
-            border-radius: 8px;
-        }
-        
-        #qr-scanner-container {
-            text-align: center;
-            margin: 15px 0;
-        }
-        
-        /* Summary Popup Modal */
-        .summary-modal {
+        /* QR Display (modal) - ปิดได้เสมอ */
+        .qr-modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
             z-index: 1000;
             justify-content: center;
             align-items: center;
         }
-        
-        .summary-modal.show {
-            display: flex;
-        }
-        
-        .summary-modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
+        .qr-modal.show { display: flex; }
+        .qr-modal-content {
+            background: #252830;
+            border-radius: 16px;
+            padding: 24px;
             max-width: 500px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
+            position: relative;
+            z-index: 1001;
+            pointer-events: auto;
         }
+        .qr-modal-content img { max-width: 100%; border-radius: 8px; }
+        .qr-modal-content .amount { font-size: 28px; color: #28a745; margin: 16px 0; }
+        .qr-modal-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .qr-modal-actions .btn { pointer-events: auto; cursor: pointer; }
+        /* Cash modal */
+        .cash-modal .cash-change { font-size: 42px; font-weight: bold; color: #28a745; margin: 20px 0; letter-spacing: 2px; }
+        .cash-modal input.cash-received { font-size: 28px; text-align: center; padding: 16px; width: 100%; max-width: 240px; margin: 12px auto; }
+        /* Credit/Debit waiting modal */
+        .card-wait-modal .wait-message { font-size: 20px; margin: 16px 0; }
         
-        @keyframes slideIn {
-            from {
-                transform: scale(0.8);
-                opacity: 0;
-            }
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
+        /* Food Court ID (สำหรับหักยอด) */
+        .fc-section {
+            padding: 12px 16px;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
         }
-        
-        .summary-modal-title {
-            font-size: 32px;
-            color: #28a745;
-            margin-bottom: 30px;
-            font-weight: bold;
-        }
-        
-        .summary-modal-item {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        
-        .summary-modal-label {
+        .fc-section input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #252830;
+            color: #fff;
             font-size: 20px;
-            color: #666;
             margin-bottom: 8px;
         }
         
-        .summary-modal-value {
-            font-size: 36px;
-            font-weight: bold;
-            color: #333;
+        /* Print styles - Thermal: ขอบน้อย กระดาษจบหลังข้อความ (ไม่เหลือว่างท้าย) */
+        @media print {
+            @page { size: 80mm auto; margin: 0; }
+            body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body.printing .pos-window,
+            body.printing .store-header,
+            body.printing #alert-container,
+            body.printing .qr-modal,
+            body.printing #card-wait-modal,
+            body.printing #cash-modal { display: none !important; }
+            .print-area.print-active {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm !important;
+                max-width: 80mm !important;
+                min-height: auto !important;
+                height: auto !important;
+                font-size: 19px;
+                font-weight: 800;
+                padding: 2mm 3mm;
+                margin: 0;
+                background: white;
+                color: #000;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+            .print-area.print-active img { max-width: 74mm !important; height: auto; }
+            .print-area.print-active * { max-width: 100% !important; font-weight: 800; }
+            .print-area.print-active .thermal-content { margin: 0; padding: 0; font-weight: 800; }
         }
         
-        .summary-modal-amount {
-            color: #28a745;
-        }
-        
-        .summary-modal-balance {
-            color: #007bff;
-        }
-        
-        .summary-modal-footer {
-            margin-top: 30px;
-            font-size: 18px;
-            color: #666;
-        }
-        
-        /* Edit Quick Amount Modal */
-        .edit-amount-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1001;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .edit-amount-modal.show {
-            display: flex;
-        }
-        
-        .edit-amount-modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        }
-        
-        .edit-amount-modal-title {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-        
-        .edit-amount-input {
-            width: 100%;
-            padding: 20px;
-            border: 3px solid #ddd;
-            border-radius: 10px;
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .edit-amount-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .edit-amount-btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .edit-amount-btn-cancel {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .edit-amount-btn-save {
-            background: #28a745;
-            color: white;
-        }
-        
-        /* Numeric Keypad */
-        .numeric-keypad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            max-height: 500px;
-        }
-        
-        .numeric-keypad.hidden {
-            max-height: 0;
-            margin-top: 0;
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .keypad-btn {
-            padding: 25px;
-            border: 3px solid #ddd;
-            border-radius: 12px;
-            background: white;
-            cursor: pointer;
-            font-size: 36px;
-            font-weight: bold;
-            transition: all 0.2s;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-            min-height: 70px;
-        }
-        
-        .keypad-btn:active {
-            background: #28a745;
-            color: white;
-            border-color: #28a745;
-            transform: scale(0.95);
-        }
-        
-        .keypad-btn:hover {
-            background: #f8f9fa;
-            border-color: #28a745;
-        }
-        
-        .keypad-btn.clear {
-            background: #dc3545;
-            color: white;
-            border-color: #dc3545;
-        }
-        
-        .keypad-btn.clear:active {
-            background: #c82333;
-        }
-        
-        .keypad-btn.enter {
-            background: #28a745;
-            color: white;
-            border-color: #28a745;
-            grid-column: span 2;
-        }
-        
-        .keypad-btn.enter:active {
-            background: #218838;
-        }
-        
-        .keypad-btn.zero {
-            grid-column: span 1;
-        }
-        
-        /* Mobile Portrait - Adjust keypad but keep large */
-        @media (max-width: 768px) and (orientation: portrait) {
-            .numeric-keypad {
-                gap: 10px;
-                margin-top: 15px;
-            }
-            
-            .keypad-btn {
-                padding: 20px;
-                font-size: 32px;
-                min-height: 65px;
-            }
-            
-            .summary-modal-content {
-                padding: 30px;
-            }
-            
-            .summary-modal-title {
-                font-size: 28px;
-            }
-            
-            .summary-modal-value {
-                font-size: 32px;
-            }
-        }
-        
-        /* Tablet - Medium sizes */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            body {
-                font-size: 24px;
-            }
-            
-            .store-header h1 {
-                font-size: 24px;
-            }
-            
-            .card h2 {
-                font-size: 36px;
-            }
-            
-            .form-group label {
-                font-size: 24px;
-            }
-            
-            .form-group input {
-                font-size: 28px;
-                padding: 22px;
-            }
-            
-            #amount-input {
-                font-size: 52px !important;
-            }
-            
-            .btn {
-                font-size: 26px;
-                padding: 22px 30px;
-                min-height: 70px;
-            }
-            
-            .quick-amount-btn {
-                font-size: 24px;
-                padding: 20px;
-                min-height: 65px;
-            }
-            
-            .keypad-btn {
-                font-size: 40px;
-                padding: 28px;
-                min-height: 80px;
-            }
-            
-            .balance-amount {
-                font-size: 72px;
-            }
-        }
-        
-        /* Large Desktop - Extra large for accessibility */
-        @media (min-width: 1025px) {
-            body {
-                font-size: 24px;
-            }
-            
-            .store-header h1 {
-                font-size: 26px;
-            }
-            
-            .card h2 {
-                font-size: 38px;
-            }
-            
-            .form-group label {
-                font-size: 26px;
-            }
-            
-            .form-group input {
-                font-size: 30px;
-                padding: 24px;
-            }
-            
-            #amount-input {
-                font-size: 56px !important;
-            }
-            
-            .btn {
-                font-size: 28px;
-                padding: 24px 35px;
-                min-height: 75px;
-            }
-            
-            .quick-amount-btn {
-                font-size: 26px;
-                padding: 22px;
-                min-height: 70px;
-            }
-            
-            .keypad-btn {
-                font-size: 44px;
-                padding: 30px;
-                min-height: 85px;
-            }
-            
-            .balance-amount {
-                font-size: 80px;
-            }
-        }
+        .alert { padding: 12px; border-radius: 8px; margin: 8px 0; }
+        .alert-success { background: #155724; color: #d4edda; }
+        .alert-error { background: #721c24; color: #f8d7da; }
+        .alert-info { background: #0c5460; color: #d1ecf1; }
     </style>
-    <!-- QR Code Scanner Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+    <script src="https://cdn.omise.co/omise.js"></script>
 </head>
 <body>
     <div class="store-header">
-        <h1>🏪 Store POS System</h1>
-        <div class="store-info" id="store-info">
-            <div class="store-info-item">
-                <label>ชื่อร้าน</label>
-                <div class="value" id="store-name">-</div>
+        <h1>🏪 <span data-i18n="store_pos">Store POS</span></h1>
+        <div class="store-info">
+            <span id="store-name">-</span>
+            <span>| Store #<span id="store-id">-</span></span>
+        </div>
+        <a href="/store-pos-settings" id="link-settings" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">⚙️ <span data-i18n="settings">ตั้งค่า</span></a>
+        <a href="/store-menus?store_id=1" id="link-menus" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">📋 <span data-i18n="manage_menu">จัดการเมนู</span></a>
+        <a href="/store-pos-login" onclick="logoutAndRedirect(event)" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">🚪 ออกจากระบบ</a>
+    </div>
+    
+    <div class="pos-window">
+        <!-- ซ้าย: กริดสินค้า (scroll แยกเฉพาะเมนู) -->
+        <div class="product-grid-section">
+            <h2>📦 <span data-i18n="products_services">รายการสินค้าและบริการ</span></h2>
+            <div class="product-grid-scroll">
+                <div class="product-grid" id="product-grid">
+                    <!-- Product cards will be rendered here -->
+                </div>
             </div>
-            <div class="store-info-item">
-                <label>Store ID</label>
-                <div class="value" id="store-id">-</div>
+        </div>
+        
+        <!-- ขวา: Order List -->
+        <div class="order-section">
+            <h2>🛒 <span data-i18n="order_list">รายการสั่งซื้อ</span></h2>
+            <div class="order-total" id="order-total"></div>
+            
+            <div class="order-toolbar">
+                <input type="text" id="barcode-input" placeholder="พิมพ์หรือสแกนบาร์โค้ด" autocomplete="off" autofocus>
+                <input type="number" id="add-qty-input" value="1" min="1" max="999" title="จำนวน">
             </div>
-            <div class="store-info-item">
-                <label>Tax ID</label>
-                <div class="value" id="store-tax-id">-</div>
+            
+            <div class="order-list" id="order-list">
+                <div class="order-empty" id="order-empty" data-i18n="no_items">ยังไม่มีรายการ</div>
+                <div id="order-items"></div>
             </div>
-            <div class="store-info-item">
-                <label>สถานะ</label>
-                <div class="value" id="store-status">-</div>
+            
+            <div class="order-actions">
+                <div class="payment-row">
+                    <button type="button" class="btn-pay btn-pay-promptpay" id="btn-promptpay" onclick="startPromptPay()" disabled>📱 <span data-i18n="promptpay">PromptPay</span></button>
+                    <button type="button" class="btn-pay btn-pay-card" id="btn-credit-debit" onclick="startCreditDebit()" disabled>💳 <span data-i18n="credit_debit">Credit/Debit</span></button>
+                    <button type="button" class="btn-pay btn-pay-cash" id="btn-cash" onclick="openCashModal()" disabled>💵 <span data-i18n="cash">เงินสด</span></button>
+                </div>
+                <button class="btn btn-secondary" id="btn-print-order" onclick="printOrderWithQR()" disabled>🖨️ <span data-i18n="print_order_qr">พิมพ์ Order + QR</span></button>
+                <button class="btn btn-success" id="btn-print-receipt" onclick="printReceipt()" disabled>🖨️ <span data-i18n="print_receipt">พิมพ์ใบรับเงิน (หลังได้รับเงิน)</span></button>
+                <button class="btn btn-secondary" onclick="clearOrder()">🔄 <span data-i18n="clear_items">ล้างรายการ</span></button>
             </div>
-            <div class="store-info-item">
-                <label>ตำแหน่ง</label>
-                <div class="value" id="store-location">-</div>
-            </div>
-            <div class="store-info-item">
-                <label>Profile</label>
-                <div class="value" id="store-profile">-</div>
-            </div>
-            <div class="store-info-item">
-                <label>Event</label>
-                <div class="value" id="store-event">-</div>
+            
+            <div class="fc-section">
+                <input type="text" id="foodcourt-id-input" placeholder="สแกนหรือกรอก Food Court ID (หักยอด)">
+                <button class="btn btn-success" style="width:100%;" id="btn-process-payment" onclick="processPayment()" disabled>💳 <span data-i18n="deduct_amount">หักยอดเงิน</span></button>
             </div>
         </div>
     </div>
     
-    <div class="container">
-        <div id="alert-container"></div>
-        
-        <div class="steps-row">
-        <div class="card">
-            <h2>ขั้นตอนที่ 1: ใส่จำนวนเงินที่ต้องการหัก</h2>
-            
-            <div class="form-group">
-                <label>จำนวนเงิน (บาท)</label>
-                <input 
-                    type="text" 
-                    id="amount-input" 
-                    placeholder="0.00"
-                    autocomplete="off"
-                    autofocus
-                    readonly
-                    style="text-align: center; font-size: 48px; font-weight: bold; background: #f8f9fa; cursor: pointer;"
-                    onclick="showKeypadForEdit()"
-                >
-            </div>
-            
-            <div class="quick-amount-buttons" id="quick-amount-buttons">
-                <!-- Quick amount buttons will be loaded from API -->
-            </div>
-            
-            <!-- Numeric Keypad -->
-            <div class="numeric-keypad" id="numeric-keypad">
-                <button class="keypad-btn" onclick="keypadInput('1')">1</button>
-                <button class="keypad-btn" onclick="keypadInput('2')">2</button>
-                <button class="keypad-btn" onclick="keypadInput('3')">3</button>
-                <button class="keypad-btn" onclick="keypadInput('4')">4</button>
-                <button class="keypad-btn" onclick="keypadInput('5')">5</button>
-                <button class="keypad-btn" onclick="keypadInput('6')">6</button>
-                <button class="keypad-btn" onclick="keypadInput('7')">7</button>
-                <button class="keypad-btn" onclick="keypadInput('8')">8</button>
-                <button class="keypad-btn" onclick="keypadInput('9')">9</button>
-                <button class="keypad-btn" onclick="keypadInput('.')">.</button>
-                <button class="keypad-btn" onclick="keypadInput('0')">0</button>
-                <button class="keypad-btn clear" onclick="clearAmount()">ลบ</button>
-                <button class="keypad-btn enter" onclick="confirmAmount()" style="grid-column: span 3; margin-top: 10px;">✓ ยืนยัน</button>
+    <div id="alert-container"></div>
+    
+    <!-- QR Modal (PromptPay) - รอ API Success แล้วแสดง QR + รายการ + เวลารอ -->
+    <div class="qr-modal" id="qr-modal" onclick="if(event.target===this) closeQRModal();">
+        <div class="qr-modal-content" onclick="event.stopPropagation();">
+            <p>สแกน QR เพื่อชำระเงิน (PromptPay)</p>
+            <div id="qr-modal-details" class="qr-modal-details"></div>
+            <img id="qr-modal-image" src="" alt="QR">
+            <div class="amount" id="qr-modal-amount">0.00 บาท</div>
+            <div id="qr-modal-order-id" class="text-muted" style="font-size:14px;margin-bottom:4px;"></div>
+            <div class="wait-timer" id="qr-wait-timer">รอชำระเงิน...</div>
+            <div class="qr-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeQRModal()">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" id="qr-btn-refresh" onclick="refreshPromptPayQR()">เรียกข้อมูล</button>
+                <button type="button" class="btn btn-secondary" onclick="doPrintQRAndClose()">พิมพ์ QR</button>
             </div>
         </div>
-        
-        <div class="card">
-            <h2>ขั้นตอนที่ 2: ข้อมูลสำหรับ PromptPay QR Code</h2>
-            
-            <div class="form-group">
-                <label>เลือกรายการสินค้า (Menu)</label>
-                <select id="menu-select" class="form-group input" style="padding: 20px; border: 3px solid #ddd; border-radius: 8px; font-size: 24px; width: 100%;">
-                    <option value="">-- เลือกรายการสินค้า --</option>
-                </select>
+    </div>
+
+    <!-- Credit/Debit: เลือก EDC หรือ Omise -->
+    <div class="qr-modal" id="card-wait-modal" onclick="if(event.target===this) closeCardWaitModal();">
+        <div class="qr-modal-content card-wait-modal" onclick="event.stopPropagation();">
+            <p>💳 Credit/Debit</p>
+            <!-- ขั้นตอน 1: เลือกวิธีชำระเงิน -->
+            <div id="card-choice-step">
+                <p class="wait-message" style="margin-bottom:16px;">เลือกวิธีชำระเงิน</p>
+                <div class="amount" id="card-wait-amount" style="margin-bottom:16px;">0.00 บาท</div>
+                <div style="display:flex; flex-direction:column; gap:12px; max-width:280px; margin:0 auto;">
+                    <button type="button" class="btn btn-primary" style="width:100%; padding:14px; font-size:18px;" onclick="chooseCardMethod('edc')">💳 รูดบัตรที่เครื่อง EDC</button>
+                    <button type="button" class="btn btn-primary" id="card-btn-omise" style="width:100%; padding:14px; font-size:18px;" onclick="chooseCardMethod('omise')">🌐 กรอกบัตร (Omise)</button>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label>หมายเหตุ (Remark)</label>
-                <input 
-                    type="text" 
-                    id="remark-input" 
-                    placeholder="กรอกหมายเหตุ (ถ้ามี)"
-                    autocomplete="off"
-                    style="padding: 20px; border: 3px solid #ddd; border-radius: 8px; font-size: 24px; width: 100%;"
-                >
+            <!-- ขั้นตอน 2a: รอ EDC -->
+            <div id="card-edc-step" style="display:none;">
+                <div id="card-edc-wait" class="wait-message">กำลังรอ EDC ยืนยันการชำระเงิน... กรุณารูดบัตรที่เครื่อง</div>
+                <div class="amount" id="card-edc-amount">0.00 บาท</div>
+                <div class="wait-timer" id="card-wait-timer">รอการยืนยัน...</div>
+                <div class="qr-modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCardWaitModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-primary" id="card-btn-refresh" onclick="cardCallRefresh()">เรียกข้อมูล EDC</button>
+                    <button type="button" class="btn btn-success" onclick="confirmEDCPaid()">✅ ยืนยันได้รับเงินแล้ว</button>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label>PromptPay Mobile (สำหรับ Tag29 - Credit Transfer)</label>
-                <input 
-                    type="text" 
-                    id="promptpay-mobile-input" 
-                    placeholder="0812345678 (10 หลัก) - ไม่บังคับ"
-                    autocomplete="off"
-                    maxlength="10"
-                    style="padding: 20px; border: 3px solid #ddd; border-radius: 8px; font-size: 24px; width: 100%;"
-                >
-                <small style="color: #666; font-size: 18px;">กรอกเบอร์โทรศัพท์ 10 หลัก เพื่อสร้าง QR Code แบบ Tag29 (Credit Transfer)</small>
-            </div>
-            
-            <div class="form-group">
-                <label>ราคารวม (Total Price) - บาท</label>
-                <input 
-                    type="text" 
-                    id="total-price-input" 
-                    placeholder="0.00"
-                    autocomplete="off"
-                    readonly
-                    style="text-align: center; font-size: 48px; font-weight: bold; background: #f8f9fa; cursor: pointer; padding: 20px; border: 3px solid #ddd; border-radius: 8px;"
-                    onclick="showKeypadForTotalPrice()"
-                >
-            </div>
-            
-            <button class="btn btn-primary" onclick="generatePromptPayQR()" id="generate-qr-btn" disabled>📱 สร้าง PromptPay QR Code</button>
-            
-            <div id="qr-code-display" style="display: none; margin-top: 20px;">
-                <div id="qr-code-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <!-- Tag30 - Bill Payment (Static + Dynamic จาก store.biller_id, store.token) -->
-                    <div style="text-align: center;">
-                        <h3 style="margin-bottom: 15px; font-size: 24px; color: #28a745;">Tag30 - Bill Payment</h3>
-                        <p style="font-size: 18px; color: #666; margin-bottom: 10px;">สำหรับธุรกิจ (biller_id + ref1 จาก DB)</p>
-                        <div style="margin-bottom: 20px;">
-                            <p style="font-size: 16px; color: #555; margin-bottom: 8px;">Static - ไม่ระบุจำนวน (สแกนแล้วกรอก)</p>
-                            <img id="qr-code-image-tag30-static" src="" alt="PromptPay QR Tag30 Static" style="max-width: 100%; border: 2px solid #28a745; border-radius: 10px; padding: 10px; background: white;">
-                        </div>
-                        <div>
-                            <p style="font-size: 16px; color: #555; margin-bottom: 8px;">Dynamic - ระบุจำนวน (สแกนแล้วจ่ายเลย)</p>
-                            <img id="qr-code-image-tag30" src="" alt="PromptPay QR Code Tag30 Dynamic" style="max-width: 100%; border: 2px solid #1e7e34; border-radius: 10px; padding: 10px; background: white;">
-                        </div>
+            <!-- ขั้นตอน 2b: กรอกบัตร Omise -->
+            <div id="card-omise-step" style="display:none;">
+                <div id="card-omise-form" style="text-align:left; max-width:320px; margin:0 auto;">
+                    <p class="wait-message">กรอกข้อมูลบัตร (Omise)</p>
+                    <div id="card-omise-status" style="font-size:14px; color:#28a745; margin:6px 0; min-height:20px;"></div>
+                    <input type="text" id="omise-card-number" placeholder="หมายเลขบัตร" maxlength="19" style="width:100%; padding:10px; margin:6px 0; font-size:18px; border-radius:8px; border:2px solid #444; background:#252830; color:#fff;">
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="omise-exp-month" placeholder="MM" maxlength="2" style="width:60px; padding:10px; margin:6px 0; border-radius:8px; border:2px solid #444; background:#252830; color:#fff;">
+                        <input type="text" id="omise-exp-year" placeholder="YY" maxlength="2" style="width:60px; padding:10px; margin:6px 0; border-radius:8px; border:2px solid #444; background:#252830; color:#fff;">
+                        <input type="text" id="omise-security-code" placeholder="CVV" maxlength="4" style="width:70px; padding:10px; margin:6px 0; border-radius:8px; border:2px solid #444; background:#252830; color:#fff;">
                     </div>
-                    
-                    <!-- Tag29 - Credit Transfer -->
-                    <div style="text-align: center;">
-                        <h3 style="margin-bottom: 15px; font-size: 24px; color: #007bff;">Tag29 - Credit Transfer</h3>
-                        <p style="font-size: 18px; color: #666; margin-bottom: 10px;">สำหรับบุคคลธรรมดา</p>
-                        <div id="qr-code-tag29-container">
-                            <img id="qr-code-image-tag29" src="" alt="PromptPay QR Code Tag29" style="max-width: 100%; border: 3px solid #007bff; border-radius: 10px; padding: 10px; background: white; display: none;">
-                            <p id="qr-code-tag29-message" style="font-size: 18px; color: #999; padding: 20px;">กรุณากรอก PromptPay Mobile เพื่อสร้าง QR Code Tag29</p>
-                        </div>
-                    </div>
+                    <input type="text" id="omise-card-name" placeholder="ชื่อบนบัตร" style="width:100%; padding:10px; margin:6px 0; border-radius:8px; border:2px solid #444; background:#252830; color:#fff;">
+                    <button type="button" class="btn btn-success" onclick="submitOmiseCard()" style="width:100%; margin-top:12px;">ชำระด้วยบัตร</button>
                 </div>
-                <p style="margin-top: 15px; font-size: 20px; color: #666; text-align: center;">ให้ลูกค้าสแกน QR Code เพื่อชำระเงิน</p>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button type="button" class="btn btn-secondary" onclick="cancelPayment()" style="background: #6c757d; color: #fff; border: none; padding: 14px 28px; font-size: 20px; border-radius: 8px; cursor: pointer;">ยกเลิก – ทำรายการใหม่</button>
+                <div class="qr-modal-actions" style="margin-top:12px;">
+                    <button type="button" class="btn btn-secondary" onclick="backToCardChoice()">← กลับ</button>
                 </div>
             </div>
-            
-            <style>
-                /* Mobile responsive for QR Code display */
-                @media (max-width: 768px) {
-                    #qr-code-grid {
-                        grid-template-columns: 1fr !important;
-                        gap: 20px !important;
-                    }
-                    
-                    #qr-code-display h3 {
-                        font-size: 20px !important;
-                    }
-                    
-                    #qr-code-display p {
-                        font-size: 16px !important;
-                    }
-                }
-            </style>
-        </div>
-        
-        <div class="card">
-            <h2>ขั้นตอนที่ 3: สแกนหรือกรอก Food Court ID</h2>
-            
-            <div class="qr-scanner-area">
-                <p>📷 สแกน QR Code หรือกรอกรหัส Food Court ID</p>
-                <div style="margin-bottom: 15px;">
-                    <button class="btn btn-primary" onclick="startQRScanner()" id="start-scanner-btn" style="margin-bottom: 10px;">📷 เปิดกล้องสแกน QR Code</button>
-                    <button class="btn btn-primary" onclick="stopQRScanner()" id="stop-scanner-btn" style="display: none; margin-bottom: 10px;">⏹️ ปิดกล้อง</button>
-                </div>
-                <div id="qr-scanner-container" style="display: none; margin-bottom: 15px;">
-                    <video id="qr-video" width="100%" style="border-radius: 8px; max-width: 400px;"></video>
-                </div>
-                <div class="form-group">
-                    <input 
-                        type="text" 
-                        id="foodcourt-id-input" 
-                        placeholder="FC-20241201-12345 หรือสแกน QR Code"
-                        autocomplete="off"
-                    >
-                </div>
-            </div>
-            
-            <button class="btn btn-success" onclick="processPayment()" id="process-payment-btn" disabled>💳 หักยอดเงิน</button>
-            <button class="btn btn-danger" onclick="clearAll()" style="margin-top: 10px;">🔄 ล้างข้อมูล</button>
-        </div>
-        </div>
-        <!-- end .steps-row -->
-        
-        <div class="balance-display" id="balance-display" style="display: none;">
-            <div class="balance-label">ยอดเงินคงเหลือ</div>
-            <div class="balance-amount" id="balance-amount">0.00</div>
-            <div class="balance-info">
-                <div>Food Court ID: <strong id="display-fc-id">-</strong></div>
-                <div>จำนวนเงินเริ่มต้น: <strong id="display-initial-amount">0.00</strong> บาท</div>
-                <div>วิธีชำระเงิน: <strong id="display-payment-method">-</strong></div>
-            </div>
-        </div>
-        
-        <div class="card transaction-history">
-            <h2>ประวัติการทำรายการ</h2>
-            <div id="transaction-history-list">
-                <p style="text-align: center; color: #666; padding: 20px;">ยังไม่มีรายการ</p>
-            </div>
-        </div>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p style="margin-top: 10px;">กำลังประมวลผล...</p>
         </div>
     </div>
-    
-    <!-- Summary Modal -->
-    <div class="summary-modal" id="summary-modal">
-        <div class="summary-modal-content">
-            <div class="summary-modal-title">✅ หักยอดเงินสำเร็จ</div>
-            <div class="summary-modal-item">
-                <div class="summary-modal-label">จำนวนเงินที่หัก</div>
-                <div class="summary-modal-value summary-modal-amount" id="summary-amount">0.00 บาท</div>
+
+    <!-- Add-on modal - เลือกท็อปปิ้ง/พิเศษ/เพิ่มเติม -->
+    <div class="qr-modal" id="addon-modal" onclick="if(event.target===this) closeAddonModal();">
+        <div class="qr-modal-content" onclick="event.stopPropagation();" style="max-width:360px;">
+            <p id="addon-modal-title">เลือกเพิ่มเติม</p>
+            <div class="addon-custom-row" style="display:flex;align-items:center;gap:10px;padding:10px;background:#2d323b;border-radius:8px;margin-bottom:12px;">
+                <label style="flex:1;font-size:14px;" data-i18n="custom_addon_label">เมนูพิเศษกำหนดราคาเอง</label>
+                <input type="number" id="addon-custom-price" min="0" step="0.01" placeholder="0" style="width:90px;padding:8px 10px;border-radius:6px;border:2px solid #444;background:#252830;color:#fff;font-size:16px;">
             </div>
-            <div class="summary-modal-item">
-                <div class="summary-modal-label">ยอดเงินคงเหลือ</div>
-                <div class="summary-modal-value summary-modal-balance" id="summary-balance">0.00 บาท</div>
+            <div id="addon-modal-options" style="display:flex;flex-direction:column;gap:8px;margin:16px 0;max-height:240px;overflow-y:auto;"></div>
+            <div class="qr-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeAddonModal()"><span data-i18n="cancel">ยกเลิก</span></button>
+                <button type="button" class="btn btn-success" id="addon-confirm-btn" onclick="confirmAddWithAddons()"><span data-i18n="add_to_order">เพิ่มลงรายการ</span></button>
             </div>
-            <div class="summary-modal-item">
-                <div class="summary-modal-label">Food Court ID</div>
-                <div class="summary-modal-value" id="summary-fc-id" style="font-size: 24px;">-</div>
-            </div>
-            <div class="summary-modal-footer">กำลังกลับไปหน้าหลัก...</div>
         </div>
     </div>
-    
-    <!-- Edit Quick Amount Modal -->
-    <div class="edit-amount-modal" id="edit-amount-modal">
-        <div class="edit-amount-modal-content">
-            <div class="edit-amount-modal-title">แก้ไขราคาด่วน</div>
-            <input 
-                type="number" 
-                id="edit-amount-input" 
-                class="edit-amount-input" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-            >
-            <div class="edit-amount-buttons">
-                <button class="edit-amount-btn edit-amount-btn-cancel" onclick="closeEditAmountModal()">ยกเลิก</button>
-                <button class="edit-amount-btn edit-amount-btn-save" onclick="saveQuickAmount()">บันทึก</button>
+
+    <!-- Cash modal - จำนวนเงินที่รับ / เงินทอน -->
+    <div class="qr-modal" id="cash-modal" onclick="if(event.target===this) closeCashModal();">
+        <div class="qr-modal-content cash-modal" onclick="event.stopPropagation();">
+            <p>💵 รับเงินสด</p>
+            <div style="font-size:20px;margin:8px 0;"><span data-i18n="total">รวม</span> <strong id="cash-total-display">0.00</strong></div>
+            <label style="display:block;margin-top:12px;">จำนวนเงินที่รับ</label>
+            <input type="number" id="cash-received-input" class="cash-received" min="0" step="0.01" placeholder="0.00">
+            <div style="margin:12px 0;"><span data-i18n="change">เงินทอน</span></div>
+            <div class="cash-change" id="cash-change-display">0.00</div>
+            <div class="qr-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeCashModal()"><span data-i18n="cancel">ยกเลิก</span></button>
+                <button type="button" class="btn btn-success" id="cash-confirm-btn" onclick="confirmCashReceived()"><span data-i18n="pay_cash">รับเงินแล้ว และดำเนินการต่อ</span></button>
             </div>
         </div>
     </div>
     
+    <!-- Hidden print area -->
+    <div id="print-order-area" class="print-area" style="display:none;"></div>
+    <div id="print-receipt-area" class="print-area" style="display:none;"></div>
+
     <script>
         const API_BASE_URL = window.location.origin + '/api';
+        let currentStoreId = null;
+        let menus = [];
+        let orderItems = [];  // [{ menu, qty, addons: [{ name, price }] }]
+        let pendingAddonMenu = null;
+        let addonModalOptions = [];  // รายการ addon ที่แสดงใน modal
+        let lastPaidPollTime = null;
+        let announcedPaidIds = new Set();
+        let recentPaidPollInterval = null;
+        let currentQRImage = null;
+        let currentQRAmount = 0;
+        let gatewayInfo = { provider: null, omise_public_key: '' };
+        let currentOmiseChargeId = null;
+        let paymentSettings = { payment_promptpay_enabled: true, payment_credit_debit_enabled: true, payment_cash_enabled: true, menu_columns: 6 };
+        let localeSettings = { currency_symbol: '\u0e3f', translations: {} };
+
+        function t(key) { return localeSettings.translations[key] || key; }
+        function formatMoney(n) { return (typeof n === 'number' ? n.toFixed(2) : parseFloat(n || 0).toFixed(2)) + ' ' + (localeSettings.currency_symbol || '\u0e3f'); }
+
         (function tryFullscreen() {
             if (new URLSearchParams(window.location.search).get('fullscreen') !== '1') return;
             function goFullscreen() {
                 var el = document.documentElement;
                 if (el.requestFullscreen) el.requestFullscreen().catch(function() {});
-                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                else if (el.msRequestFullscreen) el.msRequestFullscreen();
             }
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() { setTimeout(goFullscreen, 300); });
             else setTimeout(goFullscreen, 300);
-            document.addEventListener('click', function once() { goFullscreen(); document.removeEventListener('click', once); });
         })();
-        let currentStoreId = null;
-        let currentFoodCourtId = null;
-        let currentBalance = 0;
-        let transactionHistory = [];
-        let qrScannerStream = null;
-        let qrScannerInterval = null;
-        let amountConfirmed = false;
-        let quickAmounts = [];
-        let editingQuickAmountId = null;
-        let longPressTimer = null;
-        let menus = [];
-        let totalPriceConfirmed = false;
-        let announcedPaidIds = new Set();
-        let lastPaidPollTime = null;
-        let recentPaidPollInterval = null;
 
-        function speakPaymentReceived(amount) {
-            if (!('speechSynthesis' in window)) return;
-            const text = 'เงินเข้าแล้ว ' + (typeof amount === 'number' ? amount.toFixed(0) : amount) + ' บาท ขอบคุณครับ';
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'th-TH';
-            u.rate = 0.9;
-            window.speechSynthesis.speak(u);
+        function showAlert(msg, type) {
+            const c = document.getElementById('alert-container');
+            c.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+            setTimeout(() => c.innerHTML = '', 4000);
         }
 
-        async function pollRecentPaid() {
-            if (!currentStoreId) return;
+        function logoutAndRedirect(e) {
+            e.preventDefault();
+            fetch(API_BASE_URL + '/auth/logout', { method: 'POST', credentials: 'include' })
+                .then(function() { window.location.href = '/store-pos-login'; })
+                .catch(function() { window.location.href = '/store-pos-login'; });
+        }
+
+        function focusBarcodeInput() {
+            var modal = document.getElementById('qr-modal');
+            var el = document.getElementById('barcode-input');
+            if (el && (!modal || !modal.classList.contains('show'))) {
+                el.focus();
+            }
+        }
+
+        function loadGatewayInfo(storeId) {
+            fetch(API_BASE_URL + '/payment-callback/stores/' + storeId + '/gateway-info')
+                .then(function(r){ return r.ok ? r.json() : {}; })
+                .then(function(d){ gatewayInfo = d; if (d.omise_public_key && typeof Omise !== 'undefined') Omise.setPublicKey(d.omise_public_key); })
+                .catch(function(){ gatewayInfo = { provider: null }; });
+        }
+
+        function loadLocaleSettings() {
+            var sid = currentStoreId || new URLSearchParams(window.location.search).get('store_id') || 1;
+            var linkSettings = document.getElementById('link-settings');
+            if (linkSettings) linkSettings.href = '/store-pos-settings?store_id=' + sid;
+            return fetch(API_BASE_URL + '/locale-settings?store_id=' + sid, { cache: 'no-store' })
+                .then(function(r){ return r.ok ? r.json() : {}; })
+                .then(function(d){
+                    localeSettings.currency_symbol = d.currency_symbol || '\u0e3f';
+                    localeSettings.translations = d.translations || {};
+                    applyLocaleUI();
+                })
+                .catch(function(){ applyLocaleUI(); });
+        }
+        function applyLocaleUI() {
+            document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+            var b = document.getElementById('barcode-input'); if (b) b.placeholder = t('barcode_placeholder');
+            var fc = document.getElementById('foodcourt-id-input'); if (fc) fc.placeholder = t('foodcourt_id_placeholder');
+            if (typeof renderOrderList === 'function') renderOrderList();
+        }
+        function loadPosSettings() {
+            fetch(API_BASE_URL + '/pos-settings')
+                .then(function(r){ return r.ok ? r.json() : {}; })
+                .then(function(d){
+                    paymentSettings.payment_promptpay_enabled = d.payment_promptpay_enabled !== false;
+                    paymentSettings.payment_credit_debit_enabled = d.payment_credit_debit_enabled !== false;
+                    paymentSettings.payment_cash_enabled = d.payment_cash_enabled !== false;
+                    var cols = parseInt(d.menu_columns, 10);
+                    paymentSettings.menu_columns = (cols >= 2 && cols <= 8) ? cols : 6;
+                    applyPaymentButtonVisibility();
+                    applyMenuColumns();
+                })
+                .catch(function(){ applyPaymentButtonVisibility(); applyMenuColumns(); });
+        }
+        function applyMenuColumns() {
+            var grid = document.getElementById('product-grid');
+            if (!grid) return;
+            var cols = paymentSettings.menu_columns || 6;
+            var mq = window.matchMedia('(min-width: 769px)');
+            if (mq.matches) {
+                grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(100px, 1fr))';
+            } else {
+                grid.style.gridTemplateColumns = '';
+            }
+        }
+
+        function applyPaymentButtonVisibility() {
+            var pp = document.getElementById('btn-promptpay');
+            var cd = document.getElementById('btn-credit-debit');
+            var cash = document.getElementById('btn-cash');
+            if (pp) pp.style.display = paymentSettings.payment_promptpay_enabled ? '' : 'none';
+            if (cd) cd.style.display = paymentSettings.payment_credit_debit_enabled ? '' : 'none';
+            if (cash) cash.style.display = paymentSettings.payment_cash_enabled ? '' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var storeId = new URLSearchParams(window.location.search).get('store_id') || 1;
+            loadLocaleSettings().then(function() {
+                loadStoreInfo(storeId);
+                loadMenus(storeId);
+                loadGatewayInfo(storeId);
+                loadPosSettings();
+                startRecentPaidPolling();
+                setTimeout(focusBarcodeInput, 300);
+            });
+
+            document.getElementById('barcode-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addByBarcode();
+            });
+            window.addEventListener('focus', function() { setTimeout(focusBarcodeInput, 50); });
+            window.addEventListener('resize', function() { applyMenuColumns(); });
+        });
+
+        async function loadStoreInfo(storeId) {
             try {
-                const since = lastPaidPollTime ? lastPaidPollTime : new Date(Date.now() - 60000).toISOString().slice(0, 19);
-                const res = await fetch(`${API_BASE_URL}/payment-callback/stores/${currentStoreId}/recent-paid?since=${encodeURIComponent(since)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                const items = data.items || [];
-                for (const item of items) {
-                    if (announcedPaidIds.has(item.id)) continue;
-                    announcedPaidIds.add(item.id);
-                    showAlert('จ่ายเงินเรียบร้อยแล้ว ' + parseFloat(item.amount).toFixed(2) + ' บาท', 'success');
-                    speakPaymentReceived(item.amount);
+                const res = await fetch(`${API_BASE_URL}/stores/${storeId}`);
+                if (!res.ok) throw new Error('Store not found');
+                const store = await res.json();
+                currentStoreId = store.id;
+                document.getElementById('store-name').textContent = store.name || '-';
+                document.getElementById('store-id').textContent = store.id;
+                var linkMenus = document.getElementById('link-menus');
+                if (linkMenus) linkMenus.href = '/store-menus?store_id=' + store.id;
+                var linkSettings = document.getElementById('link-settings');
+                if (linkSettings) linkSettings.href = '/store-pos-settings?store_id=' + store.id;
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
+        }
+
+        async function loadMenus(storeId) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/menus/store/${storeId}`);
+                if (!res.ok) { menus = []; renderProductGrid(); return; }
+                menus = await res.json();
+                renderProductGrid();
+            } catch (e) {
+                menus = [];
+                renderProductGrid();
+            }
+        }
+
+        function renderProductGrid() {
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+            const active = menus.filter(m => m.is_active !== false);
+            active.forEach(menu => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.onclick = () => addToOrderClick(menu);
+                const imgUrl = menu.image_src || menu.image_url || '';
+                card.innerHTML = `
+                    <div class="img-wrap">
+                        ${imgUrl ? '<img src="' + imgUrl + '" alt="" onerror="this.parentElement.innerHTML=\'<span class=placeholder>📦</span>\'">' : '<span class="placeholder">📦</span>'}
+                    </div>
+                    <div class="info">
+                        <div class="name">${escapeHtml(menu.name)}</div>
+                        <div class="price">${formatMoney(menu.unit_price || 0)}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function addToOrderClick(menu) {
+            var addons = parseAddonOptions(menu.addon_options);
+            if (addons && addons.length > 0) {
+                pendingAddonMenu = menu;
+                openAddonModal(menu, addons);
+            } else {
+                addToOrder(menu, 1, []);
+            }
+        }
+        function addToOrder(menu, qty, addons) {
+            qty = qty || parseInt(document.getElementById('add-qty-input').value) || 1;
+            addons = addons || [];
+            var addonKey = JSON.stringify(addons.map(function(a){ return a.name + ':' + a.price; }).sort());
+            var existing = orderItems.find(function(o){
+                if (o.menu.id !== menu.id) return false;
+                var okey = JSON.stringify((o.addons||[]).map(function(a){ return a.name + ':' + a.price; }).sort());
+                return okey === addonKey;
+            });
+            if (existing) existing.qty += qty;
+            else orderItems.push({ menu: menu, qty: qty, addons: addons });
+            renderOrderList();
+            setTimeout(focusBarcodeInput, 50);
+        }
+        function parseAddonOptions(jsonStr) {
+            if (!jsonStr || !jsonStr.trim()) return null;
+            try {
+                var arr = JSON.parse(jsonStr);
+                return Array.isArray(arr) ? arr.filter(function(a){ return a && (a.name || a.name === ''); }) : null;
+            } catch(e){ return null; }
+        }
+        function openAddonModal(menu, addons) {
+            pendingAddonMenu = menu;
+            addonModalOptions = addons;
+            document.getElementById('addon-modal-title').textContent = menu.name + ' - ' + t('select_addons');
+            var customPriceEl = document.getElementById('addon-custom-price');
+            if (customPriceEl) customPriceEl.value = '';
+            var container = document.getElementById('addon-modal-options');
+            container.innerHTML = '';
+            addons.forEach(function(opt, i){
+                var price = parseFloat(opt.price) || 0;
+                var label = opt.name + (price > 0 ? ' (+' + formatMoney(price) + ')' : '');
+                var imgSrc = '';
+                if (opt.image_base64) imgSrc = 'data:image/jpeg;base64,' + opt.image_base64;
+                else if (opt.image_url && /^https?:\/\//i.test(opt.image_url)) imgSrc = opt.image_url;
+                var imgHtml = imgSrc ? '<img src="' + imgSrc.replace(/"/g, '&quot;') + '" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#1a1d23;" onerror="this.style.display=\'none\'">' : '';
+                var div = document.createElement('label');
+                div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px;background:#2d323b;border-radius:8px;cursor:pointer;';
+                div.innerHTML = '<input type="checkbox" class="addon-opt" data-idx="' + i + '"> ' + imgHtml + '<span>' + escapeHtml(label) + '</span>';
+                container.appendChild(div);
+            });
+            document.getElementById('addon-modal').classList.add('show');
+        }
+        function closeAddonModal() {
+            document.getElementById('addon-modal').classList.remove('show');
+            pendingAddonMenu = null;
+        }
+        function confirmAddWithAddons() {
+            if (!pendingAddonMenu) { closeAddonModal(); return; }
+            var qty = parseInt(document.getElementById('add-qty-input').value) || 1;
+            var selected = [];
+            var customPriceEl = document.getElementById('addon-custom-price');
+            var customPrice = customPriceEl ? parseFloat(customPriceEl.value) || 0 : 0;
+            if (customPrice > 0) {
+                selected.push({ name: t('custom_addon_label') || 'เมนูพิเศษกำหนดราคาเอง', price: customPrice });
+            }
+            document.querySelectorAll('.addon-opt:checked').forEach(function(cb){
+                var idx = parseInt(cb.dataset.idx, 10);
+                if (addonModalOptions[idx]) {
+                    var opt = addonModalOptions[idx];
+                    selected.push({ name: opt.name, price: parseFloat(opt.price) || 0 });
                 }
-                if (items.length > 0 && items[0].paid_at) lastPaidPollTime = items[0].paid_at;
-            } catch (e) { console.warn('pollRecentPaid', e); }
+            });
+            if (customPriceEl) customPriceEl.value = '';
+            addToOrder(pendingAddonMenu, qty, selected);
+            closeAddonModal();
+        }
+
+        async function addByBarcode() {
+            const bar = document.getElementById('barcode-input').value.trim();
+            if (!bar || !currentStoreId) return;
+            const qty = parseInt(document.getElementById('add-qty-input').value) || 1;
+            try {
+                const res = await fetch(`${API_BASE_URL}/menus/store/${currentStoreId}/by-barcode/${encodeURIComponent(bar)}`);
+                if (!res.ok) {
+                    showAlert('ไม่พบสินค้าสำหรับบาร์โค้ด/รหัส: ' + bar, 'error');
+                    return;
+                }
+                const menu = await res.json();
+                const addons = parseAddonOptions(menu.addon_options);
+                if (addons && addons.length > 0) {
+                    pendingAddonMenu = menu;
+                    openAddonModal(menu, addons);
+                    document.getElementById('add-qty-input').value = qty;
+                } else {
+                    addToOrder(menu, qty, []);
+                }
+                renderOrderList();
+                document.getElementById('barcode-input').value = '';
+                if (!pendingAddonMenu) focusBarcodeInput();
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+                focusBarcodeInput();
+            }
+        }
+
+        function renderOrderList() {
+            const container = document.getElementById('order-items');
+            const empty = document.getElementById('order-empty');
+            const totalEl = document.getElementById('order-total');
+            container.innerHTML = '';
+            if (orderItems.length === 0) {
+                empty.style.display = 'block';
+                totalEl.textContent = t('total') + ': ' + formatMoney(0);
+                document.getElementById('btn-promptpay').disabled = true;
+                document.getElementById('btn-credit-debit').disabled = true;
+                document.getElementById('btn-cash').disabled = true;
+                document.getElementById('btn-print-order').disabled = true;
+                document.getElementById('btn-print-receipt').disabled = true;
+                document.getElementById('btn-process-payment').disabled = true;
+                applyPaymentButtonVisibility();
+                return;
+            }
+            empty.style.display = 'none';
+            document.getElementById('btn-print-order').disabled = false;
+            let total = 0;
+            orderItems.forEach((item, idx) => {
+                const addonSum = (item.addons || []).reduce((s, a) => s + (parseFloat(a.price) || 0), 0);
+                const unitPrice = item.menu.unit_price + addonSum;
+                const lineTotal = unitPrice * item.qty;
+                total += lineTotal;
+                const addonText = (item.addons && item.addons.length > 0) ? ' <span style="font-size:14px;color:#888;">(' + item.addons.map(a => a.name + (a.price > 0 ? ' +' + a.price : '')).join(', ') + ')</span>' : '';
+                const div = document.createElement('div');
+                div.className = 'order-item';
+                div.innerHTML = `
+                    <span class="name">${escapeHtml(item.menu.name)}${addonText}</span>
+                    <input type="number" class="qty-input" value="${item.qty}" min="1" data-idx="${idx}" onchange="updateQty(${idx}, this.value)">
+                    <span class="line-total">${lineTotal.toFixed(2)}</span>
+                    <button class="btn-remove" onclick="removeOrderItem(${idx})">×</button>
+                `;
+                container.appendChild(div);
+            });
+            totalEl.textContent = t('total') + ': ' + formatMoney(total);
+            document.getElementById('btn-promptpay').disabled = false;
+            document.getElementById('btn-credit-debit').disabled = false;
+            document.getElementById('btn-cash').disabled = false;
+            applyPaymentButtonVisibility();
+            document.getElementById('btn-print-receipt').disabled = false;
+            document.getElementById('btn-process-payment').disabled = !document.getElementById('foodcourt-id-input').value.trim();
+        }
+
+        function updateQty(idx, val) {
+            const q = parseInt(val);
+            if (isNaN(q) || q < 1) return;
+            orderItems[idx].qty = q;
+            renderOrderList();
+        }
+
+        function removeOrderItem(idx) {
+            orderItems.splice(idx, 1);
+            renderOrderList();
+        }
+
+        function getOrderTotal() {
+            return orderItems.reduce((s, o) => {
+                const addonSum = (o.addons || []).reduce((a, x) => a + (parseFloat(x.price) || 0), 0);
+                return s + (o.menu.unit_price + addonSum) * o.qty;
+            }, 0);
+        }
+
+        function getOrderLines() {
+            return orderItems.map(o => {
+                const addonSum = (o.addons || []).reduce((a, x) => a + (parseFloat(x.price) || 0), 0);
+                const unitPrice = o.menu.unit_price + addonSum;
+                const lineTotal = unitPrice * o.qty;
+                const nameWithAddons = o.menu.name + ((o.addons && o.addons.length > 0) ? ' (' + o.addons.map(a => a.name + (a.price > 0 ? ' +' + a.price : '')).join(', ') + ')' : '');
+                return {
+                    menu_id: o.menu.id,
+                    name: nameWithAddons,
+                    qty: o.qty,
+                    unit_price: unitPrice,
+                    line_total: lineTotal,
+                    addons: o.addons || []
+                };
+            });
+        }
+
+        var currentOrderId = null;
+        var qrWaitTimerInterval = null;
+        var cardWaitTimerInterval = null;
+
+        function startPromptPay() {
+            var total = getOrderTotal();
+            if (total <= 0 || !currentStoreId) return;
+            var orderLines = getOrderLines().map(function(l){ return { menu_id: l.menu_id, name: l.name, qty: l.qty, unit_price: l.unit_price }; });
+            document.getElementById('qr-modal-image').src = '';
+            document.getElementById('qr-modal-amount').textContent = formatMoney(total);
+            document.getElementById('qr-modal-details').innerHTML = 'กำลังสร้าง QR...';
+            document.getElementById('qr-wait-timer').textContent = 'รอ API...';
+            document.getElementById('qr-modal').classList.add('show');
+            if (qrWaitTimerInterval) clearInterval(qrWaitTimerInterval);
+            var startTime = Date.now();
+            qrWaitTimerInterval = setInterval(function() {
+                var sec = Math.floor((Date.now() - startTime) / 1000);
+                var el = document.getElementById('qr-wait-timer');
+                if (el) el.textContent = 'รอชำระเงิน... ' + sec + ' วินาที';
+            }, 1000);
+            function showQR(data) {
+                currentQRImage = data.qr_code_tag30 || data.qr_image;
+                currentQRAmount = total;
+                currentOrderId = data.order_id || null;
+                document.getElementById('qr-modal-image').src = currentQRImage || '';
+                document.getElementById('qr-modal-amount').textContent = formatMoney(total);
+                var orderIdEl = document.getElementById('qr-modal-order-id');
+                if (orderIdEl) orderIdEl.textContent = currentOrderId ? 'Order #' + currentOrderId : '';
+                var lines = getOrderLines();
+                document.getElementById('qr-modal-details').innerHTML = lines.map(function(l){ return l.name + ' x' + l.qty + ' ' + formatMoney(l.line_total); }).join('<br>') || '-';
+                var orderItemsForSignage = lines.map(function(l){ return { name: l.name, qty: l.qty, line_total: l.line_total }; });
+                if (currentQRImage) {
+                    fetch(API_BASE_URL + '/signage/set-display', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ store_id: currentStoreId, qr_image: currentQRImage, amount: total, order_items: orderItemsForSignage })
+                    }).then(function(r) { if (!r.ok) console.warn('Signage set-display failed', r.status); }).catch(function(e) { console.warn('Signage set-display error', e); });
+                }
+            }
+            if (gatewayInfo.provider === 'omise' || gatewayInfo.provider === 'scb_deeplink') {
+                fetch(API_BASE_URL + '/payment-callback/stores/' + currentStoreId + '/create-gateway-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: total, order_lines: orderLines })
+                })
+                .then(function(res) {
+                    if (!res.ok) throw new Error((res.status === 400 ? 'ไม่มี Gateway หรือตั้งค่าไม่ครบ' : res.status) + '');
+                    return res.json();
+                })
+                .then(function(data) {
+                    var qrImg = data.qr_image || data.qr_code_tag30;
+                    if (qrImg) {
+                        showQR({ qr_code_tag30: qrImg, qr_image: qrImg, order_id: data.order_id });
+                        return;
+                    }
+                    throw new Error('ไม่ได้รับ QR');
+                })
+                .catch(function(e) {
+                    startPromptPayFallback();
+                });
+                return;
+            }
+            startPromptPayFallback();
+
+            function startPromptPayFallback() {
+                fetch(API_BASE_URL + '/stores/' + currentStoreId + '/generate-promptpay-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: total, order_lines: orderLines })
+                })
+                .then(function(res) {
+                    if (!res.ok) return res.json().then(function(err){ throw new Error(err.detail || 'สร้าง QR ไม่ได้'); });
+                    return res.json();
+                })
+                .then(showQR)
+                .catch(function(e) {
+                    document.getElementById('qr-modal-details').innerHTML = 'เกิดข้อผิดพลาด: ' + e.message;
+                    showAlert('❌ ' + e.message, 'error');
+                });
+            }
+        }
+
+        function refreshPromptPayQR() {
+            if (!currentOrderId && !currentQRAmount) { startPromptPay(); return; }
+            startPromptPay();
+        }
+
+        function generatePromptPayQR() {
+            var total = getOrderTotal();
+            if (total <= 0 || !currentStoreId) return Promise.resolve();
+            startPromptPay();
+            return Promise.resolve();
+        }
+
+        function closeQRModal() {
+            if (qrWaitTimerInterval) { clearInterval(qrWaitTimerInterval); qrWaitTimerInterval = null; }
+            var modal = document.getElementById('qr-modal');
+            if (modal) modal.classList.remove('show');
+            if (currentStoreId) {
+                fetch(API_BASE_URL + '/signage/clear?store_id=' + currentStoreId, { method: 'POST' }).catch(function(){});
+            }
+            setTimeout(focusBarcodeInput, 100);
+        }
+
+        var currentCardOrderId = null;
+        var cardChargePollInterval = null;
+
+        function startCreditDebit() {
+            var total = getOrderTotal();
+            if (total <= 0 || !currentStoreId) return;
+            document.getElementById('card-wait-amount').textContent = formatMoney(total);
+            var omiseBtn = document.getElementById('card-btn-omise');
+            var hasOmise = gatewayInfo.provider === 'omise' && gatewayInfo.omise_public_key;
+            if (hasOmise) {
+                omiseBtn.style.display = 'block';
+                omiseBtn.disabled = false;
+            } else {
+                omiseBtn.style.display = 'block';
+                omiseBtn.disabled = true;
+                omiseBtn.title = 'Omise ยังไม่พร้อม (ตั้งค่า gateway ที่ Store)';
+            }
+            document.getElementById('card-choice-step').style.display = 'block';
+            document.getElementById('card-edc-step').style.display = 'none';
+            document.getElementById('card-omise-step').style.display = 'none';
+            document.getElementById('card-wait-modal').classList.add('show');
+        }
+
+        function chooseCardMethod(method) {
+            var total = getOrderTotal();
+            document.getElementById('card-choice-step').style.display = 'none';
+            if (method === 'edc') {
+                document.getElementById('card-edc-step').style.display = 'block';
+                document.getElementById('card-edc-amount').textContent = formatMoney(total);
+                document.getElementById('card-edc-wait').textContent = 'กำลังรอ EDC ยืนยันการชำระเงิน... กรุณารูดบัตรที่เครื่อง';
+                if (cardWaitTimerInterval) clearInterval(cardWaitTimerInterval);
+                var startTime = Date.now();
+                cardWaitTimerInterval = setInterval(function() {
+                    var sec = Math.floor((Date.now() - startTime) / 1000);
+                    var el = document.getElementById('card-wait-timer');
+                    if (el) el.textContent = 'รอการยืนยัน... ' + sec + ' วินาที';
+                }, 1000);
+            } else if (method === 'omise') {
+                document.getElementById('card-omise-step').style.display = 'block';
+                document.getElementById('omise-card-number').value = '';
+                document.getElementById('omise-exp-month').value = '';
+                document.getElementById('omise-exp-year').value = '';
+                document.getElementById('omise-security-code').value = '';
+                document.getElementById('omise-card-name').value = '';
+                var se = document.getElementById('card-omise-status');
+                if (se) se.textContent = '';
+            }
+        }
+
+        function backToCardChoice() {
+            document.getElementById('card-omise-step').style.display = 'none';
+            document.getElementById('card-edc-step').style.display = 'none';
+            document.getElementById('card-choice-step').style.display = 'block';
+        }
+
+        function submitOmiseCard() {
+            var total = getOrderTotal();
+            if (total <= 0 || !currentStoreId || !gatewayInfo.omise_public_key) return;
+            var number = (document.getElementById('omise-card-number').value || '').replace(/\s/g, '');
+            var expMonth = document.getElementById('omise-exp-month').value;
+            var expYear = document.getElementById('omise-exp-year').value;
+            var securityCode = document.getElementById('omise-security-code').value;
+            var name = document.getElementById('omise-card-name').value;
+            if (!number || !expMonth || !expYear || !securityCode) {
+                showAlert('กรอกหมายเลขบัตร MM/YY และ CVV ให้ครบ', 'error');
+                return;
+            }
+            if (typeof Omise === 'undefined') {
+                showAlert('Omise.js ยังโหลดไม่สมบูรณ์', 'error');
+                return;
+            }
+            Omise.setPublicKey(gatewayInfo.omise_public_key);
+            document.getElementById('card-omise-form').querySelector('button').disabled = true;
+            var statusEl = document.getElementById('card-omise-status');
+            if (statusEl) statusEl.textContent = 'กำลังสร้าง token...';
+            Omise.createToken('card', {
+                number: number,
+                expiration_month: expMonth,
+                expiration_year: '20' + expYear,
+                security_code: securityCode,
+                name: name
+            }, function(status, response) {
+                if (status !== 200 || !response.id) {
+                    document.getElementById('card-omise-form').querySelector('button').disabled = false;
+                    showAlert('บัตรไม่ถูกต้อง: ' + (response.message || response), 'error');
+                    if (statusEl) statusEl.textContent = '';
+                    return;
+                }
+                var token = response.id;
+                if (statusEl) statusEl.textContent = 'กำลังชำระเงิน...';
+                fetch(API_BASE_URL + '/stores/' + currentStoreId + '/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: total, order_lines: getOrderLines().map(function(l){ return { menu_id: l.menu_id, name: l.name, qty: l.qty, unit_price: l.unit_price }; }) })
+                })
+                .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('สร้าง Order ไม่ได้')); })
+                .then(function(orderRes) {
+                    currentCardOrderId = orderRes.order_id;
+                    return fetch(API_BASE_URL + '/payment-callback/stores/' + currentStoreId + '/charge-card', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ amount: total, token: token, order_id: currentCardOrderId })
+                    });
+                })
+                .then(function(r) {
+                    if (!r.ok) return r.json().then(function(e){ throw new Error(e.detail || 'charge ไม่สำเร็จ'); });
+                    return r.json();
+                })
+                .then(function(data) {
+                    currentOmiseChargeId = data.charge_id;
+                    if (data.status === 'successful') {
+                        showAlert('ชำระเงินสำเร็จ ' + formatMoney(total), 'success');
+                        document.getElementById('btn-print-receipt').disabled = false;
+                        closeCardWaitModal();
+                        return;
+                    }
+                    if (statusEl) statusEl.textContent = 'รอการยืนยัน (3D Secure ได้)...';
+                    if (data.authorizer_uri) window.open(data.authorizer_uri, '_blank', 'width=500,height=600');
+                    cardChargePollInterval = setInterval(pollCardChargeStatus, 2000);
+                })
+                .catch(function(e) {
+                    document.getElementById('card-omise-form').querySelector('button').disabled = false;
+                    showAlert('❌ ' + e.message, 'error');
+                    if (statusEl) statusEl.textContent = '';
+                });
+            });
+        }
+
+        function pollCardChargeStatus() {
+            if (!currentOmiseChargeId || !currentStoreId) return;
+            fetch(API_BASE_URL + '/payment-callback/stores/' + currentStoreId + '/charge-status/' + currentOmiseChargeId)
+                .then(function(r){ return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'successful' || data.paid) {
+                        if (cardChargePollInterval) clearInterval(cardChargePollInterval);
+                        cardChargePollInterval = null;
+                        showAlert('ชำระเงินสำเร็จ ' + formatMoney(data.amount || getOrderTotal()), 'success');
+                        document.getElementById('btn-print-receipt').disabled = false;
+                        closeCardWaitModal();
+                    } else if (data.status === 'failed') {
+                        if (cardChargePollInterval) clearInterval(cardChargePollInterval);
+                        showAlert('การชำระเงินไม่สำเร็จ', 'error');
+                    }
+                })
+                .catch(function(){});
+        }
+
+        function closeCardWaitModal() {
+            if (cardWaitTimerInterval) { clearInterval(cardWaitTimerInterval); cardWaitTimerInterval = null; }
+            if (cardChargePollInterval) { clearInterval(cardChargePollInterval); cardChargePollInterval = null; }
+            document.getElementById('card-choice-step').style.display = 'block';
+            document.getElementById('card-edc-step').style.display = 'none';
+            document.getElementById('card-omise-step').style.display = 'none';
+            var omiseForm = document.getElementById('card-omise-form');
+            if (omiseForm) {
+                var btn = omiseForm.querySelector('button');
+                if (btn) btn.disabled = false;
+            }
+            document.getElementById('card-wait-modal').classList.remove('show');
+            setTimeout(focusBarcodeInput, 100);
+        }
+
+        function cardCallRefresh() {
+            fetch(API_BASE_URL + '/pos-settings/test-edc', { method: 'POST' }).then(function(r){ return r.json(); }).then(function(d){
+                showAlert(d.message || 'เรียกข้อมูล EDC แล้ว', 'info');
+            }).catch(function(){ showAlert('กรุณารูดบัตรที่เครื่อง EDC', 'info'); });
+        }
+
+        function confirmEDCPaid() {
+            var total = getOrderTotal();
+            showAlert('ชำระเงินผ่าน EDC สำเร็จ ' + formatMoney(total), 'success');
+            document.getElementById('btn-print-receipt').disabled = false;
+            closeCardWaitModal();
+        }
+
+        function openCashModal() {
+            var total = getOrderTotal();
+            if (total <= 0) return;
+            document.getElementById('cash-total-display').textContent = formatMoney(total);
+            document.getElementById('cash-received-input').value = '';
+            document.getElementById('cash-received-input').focus();
+            document.getElementById('cash-change-display').textContent = formatMoney(0);
+            document.getElementById('cash-modal').classList.add('show');
+        }
+
+        function closeCashModal() {
+            document.getElementById('cash-modal').classList.remove('show');
+            setTimeout(focusBarcodeInput, 100);
+        }
+
+        (function initCashInput() {
+            var cashInput = document.getElementById('cash-received-input');
+            if (cashInput) {
+                cashInput.addEventListener('input', function() {
+                    var total = getOrderTotal();
+                    var received = parseFloat(cashInput.value) || 0;
+                    var change = Math.max(0, received - total);
+                    document.getElementById('cash-change-display').textContent = formatMoney(change);
+                });
+            }
+        })();
+
+        function confirmCashReceived() {
+            var total = getOrderTotal();
+            var received = parseFloat(document.getElementById('cash-received-input').value) || 0;
+            if (received < total) {
+                showAlert('จำนวนเงินที่รับไม่ครบ', 'error');
+                return;
+            }
+            closeCashModal();
+            document.getElementById('btn-print-receipt').disabled = false;
+            showAlert('รับเงินสด ' + formatMoney(received) + ' ' + t('change') + ' ' + formatMoney(received - total), 'success');
+            setTimeout(focusBarcodeInput, 100);
+        }
+
+        /** กดพิมพ์ QR จากในโมดัล: ปิดโมดัลก่อน แล้วค่อยเปิดหน้าพิมพ์ (ป้องกันกดปิดไม่ได้) */
+        function doPrintQRAndClose() {
+            closeQRModal();
+            setTimeout(function() { printOrderWithQR(); }, 150);
+        }
+
+        function generatePromptPayQRBackend() {
+            var total = getOrderTotal();
+            if (total <= 0 || !currentStoreId) return Promise.reject(new Error('ไม่มีรายการ'));
+            var orderLines = getOrderLines().map(function(l){ return { menu_id: l.menu_id, name: l.name, qty: l.qty, unit_price: l.unit_price }; });
+            return fetch(API_BASE_URL + '/stores/' + currentStoreId + '/generate-promptpay-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: total, order_lines: orderLines })
+            }).then(function(res) {
+                if (!res.ok) return res.json().then(function(err){ throw new Error(err.detail || 'สร้าง QR ไม่ได้'); });
+                return res.json();
+            }).then(function(data) {
+                currentQRImage = data.qr_code_tag30;
+                currentQRAmount = total;
+                currentOrderId = data.order_id || null;
+                return data;
+            });
+        }
+
+        function printOrderWithQR() {
+            const total = getOrderTotal();
+            const lines = getOrderLines();
+            if (total <= 0) return;
+            var area = document.getElementById('print-order-area');
+            var receiptArea = document.getElementById('print-receipt-area');
+            var qrImg = currentQRImage;
+            if (!qrImg && total > 0) {
+                generatePromptPayQRBackend().then(function() { printOrderWithQR(); }).catch(function(e){ showAlert('❌ ' + e.message, 'error'); });
+                return;
+            }
+            receiptArea.classList.remove('print-active');
+            receiptArea.style.display = 'none';
+            area.classList.add('print-active');
+            var orderLabel = currentOrderId ? '<div style="font-size:16px;margin-bottom:4px;">Order #' + currentOrderId + '</div>' : '';
+            area.innerHTML = '<div class="thermal-content">' +
+                '<div style="text-align:center;font-weight:bold;margin:0 0 4px 0;font-size:19px;">ใบสั่งซื้อ / Order</div>' +
+                orderLabel +
+                lines.map(function(l){ return '<div style="margin:2px 0;font-size:19px;">' + l.name + ' x ' + l.qty + ' = ' + formatMoney(l.line_total) + '</div>'; }).join('') +
+                '<div style="margin-top:4px;font-weight:bold;border-top:1px dashed #000;padding-top:4px;font-size:19px;">' + t('total') + ' ' + formatMoney(total) + '</div>' +
+                '<div style="margin:4px 0;font-size:17px;">สแกน QR เพื่อชำระเงิน</div>' +
+                (qrImg ? '<img src="' + qrImg + '" style="max-width:74mm;display:block;margin:2px auto;">' : '') +
+                '<div style="margin-top:4px;font-size:16px;">' + new Date().toLocaleString('th-TH') + '</div>' +
+                '<div style="height:2em;"></div><div style="height:2em;"></div>' +
+                '</div>';
+            area.style.display = 'block';
+            document.body.classList.add('printing');
+            window.print();
+            document.body.classList.remove('printing');
+            area.classList.remove('print-active');
+            area.style.display = 'none';
+        }
+
+        function printReceipt() {
+            const lines = getOrderLines();
+            const total = getOrderTotal();
+            if (total <= 0) return;
+            const area = document.getElementById('print-receipt-area');
+            const orderArea = document.getElementById('print-order-area');
+            orderArea.classList.remove('print-active');
+            orderArea.style.display = 'none';
+            area.classList.add('print-active');
+            area.innerHTML = '<div class="thermal-content">' +
+                '<div style="text-align:center;font-weight:bold;margin:0 0 4px 0;font-size:19px;">ใบรับเงิน / Receipt</div>' +
+                '<div style="font-size:17px;margin-bottom:4px;">ระบบ 0% VAT (0kd)</div>' +
+                lines.map(function(l){ return '<div style="margin:2px 0;font-size:19px;">' + l.name + ' x ' + l.qty + ' @ ' + formatMoney(l.unit_price) + ' = ' + formatMoney(l.line_total) + '</div>'; }).join('') +
+                '<div style="margin-top:4px;font-weight:bold;border-top:1px dashed #000;padding-top:4px;font-size:19px;">' + t('total') + ' ' + formatMoney(total) + '</div>' +
+                '<div style="margin-top:4px;font-size:16px;">ได้รับเงินแล้ว ' + new Date().toLocaleString('th-TH') + '</div>' +
+                '<div style="height:2em;"></div><div style="height:2em;"></div>' +
+                '</div>';
+            area.style.display = 'block';
+            document.body.classList.add('printing');
+            window.print();
+            document.body.classList.remove('printing');
+            area.classList.remove('print-active');
+            area.style.display = 'none';
+        }
+
+        async function processPayment() {
+            const fcId = document.getElementById('foodcourt-id-input').value.trim();
+            const total = getOrderTotal();
+            if (!fcId || total <= 0 || !currentStoreId) return;
+            try {
+                const balRes = await fetch(`${API_BASE_URL}/counter/balance/${fcId}`);
+                if (!balRes.ok) {
+                    const err = await balRes.json();
+                    throw new Error(err.detail || 'ไม่พบ Food Court ID');
+                }
+                const balData = await balRes.json();
+                const curBal = parseFloat(balData.current_balance);
+                if (curBal < total) {
+                    showAlert('ยอดเงินคงเหลือไม่พอ: ' + formatMoney(curBal), 'error');
+                    return;
+                }
+                const useRes = await fetch(`${API_BASE_URL}/payment-hub/use`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ foodcourt_id: fcId, store_id: currentStoreId, amount: total })
+                });
+                if (!useRes.ok) {
+                    const err = await useRes.json();
+                    throw new Error(err.detail || 'หักยอดไม่สำเร็จ');
+                }
+                showAlert('✅ หักยอดสำเร็จ', 'success');
+                document.getElementById('btn-print-receipt').disabled = false;
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
         }
 
         function startRecentPaidPolling() {
@@ -1182,1005 +1315,43 @@
             pollRecentPaid();
         }
 
-        // Load store info on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get store ID from URL parameter or use default
-            const urlParams = new URLSearchParams(window.location.search);
-            const storeId = urlParams.get('store_id') || 1; // Default to store ID 1
-            
-            loadStoreInfo(storeId);
-            loadQuickAmounts(storeId);
-            loadMenus(storeId);
-            startRecentPaidPolling();
-            
-            // Setup QR scanner button event listeners
-            const startScannerBtn = document.getElementById('start-scanner-btn');
-            const stopScannerBtn = document.getElementById('stop-scanner-btn');
-            
-            if (startScannerBtn) {
-                startScannerBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Start scanner button clicked');
-                    startQRScanner();
-                });
-            }
-            
-            if (stopScannerBtn) {
-                stopScannerBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Stop scanner button clicked');
-                    stopQRScanner();
-                });
-            }
-            
-            // Enable/disable process button based on inputs
-            const amountInput = document.getElementById('amount-input');
-            const fcIdInput = document.getElementById('foodcourt-id-input');
-            const processBtn = document.getElementById('process-payment-btn');
-            
-            function checkInputs() {
-                const amountValue = parseFloat(amountInput.value.replace(/[^\d.]/g, ''));
-                const hasAmount = !isNaN(amountValue) && amountValue > 0 && amountConfirmed;
-                const hasFcId = fcIdInput.value.trim().length > 0;
-                const shouldEnable = hasAmount && hasFcId;
-                processBtn.disabled = !shouldEnable;
-            }
-            
-            // Make checkInputs available globally
-            window.checkInputs = checkInputs;
-            
-            // Initial check
-            checkInputs();
-            
-            amountInput.addEventListener('input', checkInputs);
-            amountInput.addEventListener('change', checkInputs);
-            fcIdInput.addEventListener('input', checkInputs);
-            fcIdInput.addEventListener('change', checkInputs);
-            
-            // Allow Enter key to trigger process payment or confirm amount
-            fcIdInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !processBtn.disabled) {
-                    e.preventDefault();
-                    processPayment();
-                }
-            });
-            
-            fcIdInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Tab' && fcIdInput.value.trim().length > 0 && !processBtn.disabled) {
-                    // Auto process on Tab if FC ID is entered
-                    e.preventDefault();
-                    processPayment();
-                }
-            });
-        });
-        
-        async function loadStoreInfo(storeId) {
+        async function pollRecentPaid() {
+            if (!currentStoreId) return;
             try {
-                console.log('Loading store info for ID:', storeId);
-                const response = await fetch(`${API_BASE_URL}/stores/${storeId}`);
-                
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-                
-                const store = await response.json();
-                console.log('Store data:', store);
-                
-                currentStoreId = store.id;
-                
-                document.getElementById('store-name').textContent = store.name || '-';
-                document.getElementById('store-id').textContent = store.id;
-                document.getElementById('store-tax-id').textContent = store.tax_id || '-';
-                document.getElementById('store-status').textContent = store.crypto_enabled ? '✅ เปิดใช้งาน' : '❌ ปิดใช้งาน';
-                document.getElementById('store-location').textContent = store.location_name || '-';
-                document.getElementById('store-profile').textContent = store.profile_name || '-';
-                document.getElementById('store-event').textContent = store.event_name || '-';
-            } catch (error) {
-                console.error('Error loading store info:', error);
-                showAlert('❌ ไม่สามารถโหลดข้อมูลร้านค้าได้: ' + error.message, 'error');
-            }
-        }
-        
-        async function loadQuickAmounts(storeId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/stores/${storeId}/quick-amounts/`);
-                
-                if (!response.ok) {
-                    // ถ้าไม่มี quick amounts ให้ใช้ค่า default
-                    console.log('No quick amounts found, using defaults');
-                    quickAmounts = [
-                        { id: null, amount: 50, label: '50 บาท' },
-                        { id: null, amount: 100, label: '100 บาท' },
-                        { id: null, amount: 200, label: '200 บาท' },
-                        { id: null, amount: 500, label: '500 บาท' }
-                    ];
-                    renderQuickAmountButtons();
-                    return;
-                }
-                
-                quickAmounts = await response.json();
-                renderQuickAmountButtons();
-            } catch (error) {
-                console.error('Error loading quick amounts:', error);
-                // ใช้ค่า default ถ้าโหลดไม่ได้
-                quickAmounts = [
-                    { id: null, amount: 50, label: '50 บาท' },
-                    { id: null, amount: 100, label: '100 บาท' },
-                    { id: null, amount: 200, label: '200 บาท' },
-                    { id: null, amount: 500, label: '500 บาท' }
-                ];
-                renderQuickAmountButtons();
-            }
-        }
-        
-        function renderQuickAmountButtons() {
-            const container = document.getElementById('quick-amount-buttons');
-            container.innerHTML = '';
-            
-            quickAmounts.forEach(qa => {
-                const button = document.createElement('button');
-                button.className = 'quick-amount-btn';
-                button.textContent = qa.label || `${qa.amount} บาท`;
-                button.dataset.amount = qa.amount;
-                button.dataset.id = qa.id || '';
-                
-                // Click event - set amount
-                button.addEventListener('click', function(e) {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    } else {
-                        setAmount(qa.amount);
+                const since = lastPaidPollTime || new Date(Date.now() - 60000).toISOString().slice(0, 19);
+                const res = await fetch(`${API_BASE_URL}/payment-callback/stores/${currentStoreId}/recent-paid?since=${encodeURIComponent(since)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                (data.items || []).forEach(item => {
+                    if (announcedPaidIds.has(item.id)) return;
+                    announcedPaidIds.add(item.id);
+                    showAlert('จ่ายเงินเรียบร้อยแล้ว ' + formatMoney(parseFloat(item.amount)), 'success');
+                    if ('speechSynthesis' in window) {
+                        const u = new SpeechSynthesisUtterance('เงินเข้าแล้ว ' + parseFloat(item.amount).toFixed(0) + ' ' + (localeSettings.currency_symbol || '') + ' ขอบคุณครับ');
+                        u.lang = 'th-TH';
+                        window.speechSynthesis.speak(u);
                     }
                 });
-                
-                // Long press event - edit amount
-                button.addEventListener('mousedown', function(e) {
-                    longPressTimer = setTimeout(() => {
-                        openEditAmountModal(qa);
-                        longPressTimer = null;
-                    }, 500); // 500ms = long press
-                });
-                
-                button.addEventListener('mouseup', function(e) {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                });
-                
-                button.addEventListener('mouseleave', function(e) {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                });
-                
-                // Touch events for mobile
-                button.addEventListener('touchstart', function(e) {
-                    longPressTimer = setTimeout(() => {
-                        e.preventDefault();
-                        openEditAmountModal(qa);
-                        longPressTimer = null;
-                    }, 500);
-                });
-                
-                button.addEventListener('touchend', function(e) {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                });
-                
-                container.appendChild(button);
-            });
+                if (data.items && data.items.length > 0 && data.items[0].paid_at) lastPaidPollTime = data.items[0].paid_at;
+            } catch (e) {}
         }
-        
-        function openEditAmountModal(quickAmount) {
-            editingQuickAmountId = quickAmount.id;
-            const input = document.getElementById('edit-amount-input');
-            input.value = quickAmount.amount;
-            document.getElementById('edit-amount-modal').classList.add('show');
-            setTimeout(() => input.focus(), 100);
-        }
-        
-        function closeEditAmountModal() {
-            document.getElementById('edit-amount-modal').classList.remove('show');
-            editingQuickAmountId = null;
-            document.getElementById('edit-amount-input').value = '';
-        }
-        
-        async function saveQuickAmount() {
-            const input = document.getElementById('edit-amount-input');
-            const newAmount = parseFloat(input.value);
-            
-            if (!newAmount || newAmount <= 0) {
-                showAlert('กรุณากรอกจำนวนเงินที่ถูกต้อง', 'error');
-                return;
-            }
-            
-            try {
-                if (editingQuickAmountId) {
-                    // Update existing
-                    const response = await fetch(`${API_BASE_URL}/stores/${currentStoreId}/quick-amounts/${editingQuickAmountId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            amount: newAmount,
-                            label: `${newAmount} บาท`
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('ไม่สามารถอัปเดตราคาได้');
-                    }
-                } else {
-                    // Create new
-                    const response = await fetch(`${API_BASE_URL}/stores/${currentStoreId}/quick-amounts/`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            amount: newAmount,
-                            label: `${newAmount} บาท`
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('ไม่สามารถสร้างราคาใหม่ได้');
-                    }
-                }
-                
-                // Reload quick amounts
-                await loadQuickAmounts(currentStoreId);
-                closeEditAmountModal();
-                showAlert('✅ บันทึกราคาด่วนสำเร็จ', 'success');
-            } catch (error) {
-                console.error('Error saving quick amount:', error);
-                showAlert('❌ ' + error.message, 'error');
-            }
-        }
-        
-        function showAlert(message, type = 'info') {
-            const alertContainer = document.getElementById('alert-container');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} show`;
-            alert.textContent = message;
-            alertContainer.innerHTML = '';
-            alertContainer.appendChild(alert);
-            
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
-        }
-        
-        function showLoading(show) {
-            const loading = document.getElementById('loading');
-            if (show) {
-                loading.classList.add('show');
-            } else {
-                loading.classList.remove('show');
-            }
-        }
-        
-        
-        function setAmount(amount) {
-            const amountInput = document.getElementById('amount-input');
-            amountInput.value = amount.toFixed(2);
-            // Trigger input and change events to enable/disable button
-            const inputEvent = new Event('input', { bubbles: true });
-            amountInput.dispatchEvent(inputEvent);
-            const changeEvent = new Event('change', { bubbles: true });
-            amountInput.dispatchEvent(changeEvent);
-        }
-        
-        let activeInput = 'amount-input'; // Track which input is active
-        
-        function keypadInput(digit) {
-            // Determine which input to use
-            let targetInput;
-            if (activeInput === 'total-price-input') {
-                targetInput = document.getElementById('total-price-input');
-            } else {
-                targetInput = document.getElementById('amount-input');
-            }
-            
-            let currentValue = targetInput.value || '';
-            
-            // Remove formatting and get clean number
-            currentValue = currentValue.replace(/[^\d.]/g, '');
-            
-            // Handle decimal point
-            if (digit === '.') {
-                if (!currentValue.includes('.')) {
-                    if (currentValue === '') {
-                        currentValue = '0.';
-                    } else {
-                        currentValue += '.';
-                    }
-                }
-            } else {
-                // Handle number input
-                if (currentValue === '0' || currentValue === '') {
-                    currentValue = digit;
-                } else {
-                    // Check if we already have 2 decimal places
-                    if (currentValue.includes('.')) {
-                        const parts = currentValue.split('.');
-                        if (parts[1] && parts[1].length >= 2) {
-                            return; // Don't add more than 2 decimal places
-                        }
-                    }
-                    currentValue += digit;
-                }
-            }
-            
-            // Format and set value
-            targetInput.value = currentValue;
-            
-            // Trigger input and change events to enable/disable button
-            const inputEvent = new Event('input', { bubbles: true });
-            targetInput.dispatchEvent(inputEvent);
-            const changeEvent = new Event('change', { bubbles: true });
-            targetInput.dispatchEvent(changeEvent);
-        }
-        
-        function confirmAmount() {
-            const amountInput = document.getElementById('amount-input');
-            const amount = parseFloat(amountInput.value.replace(/[^\d.]/g, ''));
-            
-            if (!amount || amount <= 0) {
-                showAlert('กรุณากรอกจำนวนเงินที่ต้องการหัก', 'error');
-                return;
-            }
-            
-            // Hide keypad
-            const keypad = document.getElementById('numeric-keypad');
-            keypad.classList.add('hidden');
-            amountConfirmed = true;
-            
-            // Update button state
-            checkInputs();
-            
-            // Focus on Food Court ID input
-            const fcIdInput = document.getElementById('foodcourt-id-input');
-            setTimeout(() => {
-                fcIdInput.focus();
-            }, 100);
-        }
-        
-        // Add event listener for total price input
-        document.addEventListener('DOMContentLoaded', function() {
-            const totalPriceInput = document.getElementById('total-price-input');
-            if (totalPriceInput) {
-                totalPriceInput.addEventListener('input', function() {
-                    updateGenerateQRButtonState();
-                });
-                totalPriceInput.addEventListener('change', function() {
-                    const value = parseFloat(this.value.replace(/[^\d.]/g, ''));
-                    if (value > 0) {
-                        totalPriceConfirmed = true;
-                        updateGenerateQRButtonState();
-                    }
-                });
-            }
-            
-            // Add event listener for menu select
-            const menuSelect = document.getElementById('menu-select');
-            if (menuSelect) {
-                menuSelect.addEventListener('change', function() {
-                    // Auto-fill total price if menu is selected
-                    const selectedMenu = menus.find(m => m.id === parseInt(this.value));
-                    if (selectedMenu) {
-                        document.getElementById('total-price-input').value = selectedMenu.unit_price.toFixed(2);
-                        totalPriceConfirmed = true;
-                        updateGenerateQRButtonState();
-                    }
-                });
-            }
-        });
-        
-        function showKeypadForEdit() {
-            // Show keypad again for editing amount
-            activeInput = 'amount-input';
-            const keypad = document.getElementById('numeric-keypad');
-            keypad.classList.remove('hidden');
-            amountConfirmed = false;
-            
-            // Update button state
-            checkInputs();
-        }
-        
-        function showKeypadForTotalPrice() {
-            // Show keypad for total price
-            activeInput = 'total-price-input';
-            const keypad = document.getElementById('numeric-keypad');
-            keypad.classList.remove('hidden');
-            totalPriceConfirmed = false;
-            
-            // Update button state
-            updateGenerateQRButtonState();
-        }
-        
-        function clearAmount() {
-            // Determine which input to clear
-            let targetInput;
-            if (activeInput === 'total-price-input') {
-                targetInput = document.getElementById('total-price-input');
-            } else {
-                targetInput = document.getElementById('amount-input');
-            }
-            
-            const currentValue = targetInput.value || '';
-            
-            if (currentValue.length > 0) {
-                // Remove last character
-                targetInput.value = currentValue.slice(0, -1);
-                
-                // If empty, set to empty
-                if (targetInput.value === '' || targetInput.value === '.') {
-                    targetInput.value = '';
-                }
-                
-                // Trigger input and change events
-                const inputEvent = new Event('input', { bubbles: true });
-                targetInput.dispatchEvent(inputEvent);
-                const changeEvent = new Event('change', { bubbles: true });
-                targetInput.dispatchEvent(changeEvent);
-            }
-        }
-        
-        function showSummaryModal(amount, balance, fcId) {
-            const modal = document.getElementById('summary-modal');
-            document.getElementById('summary-amount').textContent = 
-                amount.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' บาท';
-            document.getElementById('summary-balance').textContent = 
-                balance.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' บาท';
-            document.getElementById('summary-fc-id').textContent = fcId;
-            
-            modal.classList.add('show');
-            
-            // Auto hide after 3 seconds and reset
-            setTimeout(() => {
-                modal.classList.remove('show');
-                resetToFirstStep();
-            }, 3000);
-        }
-        
-        function resetToFirstStep() {
-            // Clear all inputs
-            document.getElementById('amount-input').value = '';
-            document.getElementById('foodcourt-id-input').value = '';
-            document.getElementById('balance-display').style.display = 'none';
-            document.getElementById('process-payment-btn').disabled = true;
-            amountConfirmed = false;
-            
-            // Show keypad again
-            const keypad = document.getElementById('numeric-keypad');
-            keypad.classList.remove('hidden');
-            
-            // Update button state
-            checkInputs();
-            
-            // Focus on amount input
-            setTimeout(() => {
-                document.getElementById('amount-input').focus();
-            }, 100);
-            
-            // Clear alert
-            document.getElementById('alert-container').innerHTML = '';
-        }
-        
-        async function processPayment() {
-            const amountInput = document.getElementById('amount-input');
-            const amount = parseFloat(amountInput.value.replace(/[^\d.]/g, ''));
-            const fcId = document.getElementById('foodcourt-id-input').value.trim();
-            
-            if (!amount || amount <= 0) {
-                showAlert('กรุณากรอกจำนวนเงินที่ต้องการหัก', 'error');
-                return;
-            }
-            
-            if (!fcId) {
-                showAlert('กรุณากรอกหรือสแกน Food Court ID', 'error');
-                return;
-            }
-            
-            if (!currentStoreId) {
-                showAlert('กรุณาโหลดข้อมูลร้านค้าก่อน', 'error');
-                return;
-            }
-            
-            showLoading(true);
-            
-            try {
-                // Step 1: ตรวจสอบยอดเงินคงเหลือ
-                const balanceResponse = await fetch(`${API_BASE_URL}/counter/balance/${fcId}`);
-                
-                if (!balanceResponse.ok) {
-                    const error = await balanceResponse.json();
-                    throw new Error(error.detail || 'ไม่พบ Food Court ID');
-                }
-                
-                const balanceData = await balanceResponse.json();
-                const currentBalance = parseFloat(balanceData.current_balance);
-                
-                // Step 2: ตรวจสอบว่ายอดเงินพอหรือไม่
-                if (currentBalance < amount) {
-                    // แสดงยอดเงินคงเหลือ
-                    document.getElementById('balance-amount').textContent = 
-                        currentBalance.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    document.getElementById('display-fc-id').textContent = balanceData.foodcourt_id;
-                    document.getElementById('display-initial-amount').textContent = 
-                        parseFloat(balanceData.initial_amount).toLocaleString('th-TH', {minimumFractionDigits: 2});
-                    document.getElementById('display-payment-method').textContent = balanceData.payment_method;
-                    document.getElementById('balance-display').style.display = 'block';
-                    
-                    showAlert(`❌ ยอดเงินคงเหลือไม่พอ! ยอดเงินคงเหลือ: ${currentBalance.toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท, ต้องการ: ${amount.toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท`, 'error');
-                    showLoading(false);
-                    return;
-                }
-                
-                // Step 3: หักยอดเงิน (ถ้ายอดเงินพอ)
-                const useResponse = await fetch(`${API_BASE_URL}/payment-hub/use`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        foodcourt_id: fcId,
-                        store_id: currentStoreId,
-                        amount: amount
-                    })
-                });
-                
-                if (!useResponse.ok) {
-                    const error = await useResponse.json();
-                    throw new Error(error.detail || 'เกิดข้อผิดพลาดในการหักยอดเงิน');
-                }
-                
-                const useData = await useResponse.json();
-                const remainingBalance = parseFloat(useData.remaining_balance);
-                
-                // Add to transaction history
-                const transaction = {
-                    id: Date.now(),
-                    foodcourt_id: fcId,
-                    amount: amount,
-                    remaining_balance: remainingBalance,
-                    timestamp: new Date().toLocaleString('th-TH')
-                };
-                transactionHistory.unshift(transaction);
-                updateTransactionHistory();
-                
-                // Show summary modal
-                showSummaryModal(amount, remainingBalance, fcId);
-                
-            } catch (error) {
-                showAlert('❌ ' + error.message, 'error');
-            } finally {
-                showLoading(false);
-            }
-        }
-        
-        function updateTransactionHistory() {
-            const historyList = document.getElementById('transaction-history-list');
-            
-            if (transactionHistory.length === 0) {
-                historyList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มีรายการ</p>';
-                return;
-            }
-            
-            let html = '';
-            transactionHistory.forEach(trans => {
-                html += `
-                    <div class="transaction-item">
-                        <div class="transaction-item-header">
-                            <div>
-                                <strong>${trans.foodcourt_id}</strong>
-                                <div class="transaction-item-details">${trans.timestamp}</div>
-                            </div>
-                            <div class="transaction-item-amount">-${trans.amount.toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</div>
-                        </div>
-                        <div class="transaction-item-details">
-                            ยอดเงินคงเหลือ: ${trans.remaining_balance.toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท
-                        </div>
-                    </div>
-                `;
-            });
-            
-            historyList.innerHTML = html;
-        }
-        
-        function clearAll() {
-            stopQRScanner();
-            document.getElementById('amount-input').value = '';
-            document.getElementById('foodcourt-id-input').value = '';
-            document.getElementById('remark-input').value = '';
-            document.getElementById('total-price-input').value = '';
-            document.getElementById('menu-select').value = '';
-            document.getElementById('qr-code-display').style.display = 'none';
-            document.getElementById('balance-display').style.display = 'none';
-            document.getElementById('process-payment-btn').disabled = true;
-            document.getElementById('generate-qr-btn').disabled = true;
-            amountConfirmed = false;
-            totalPriceConfirmed = false;
-            
-            // Show keypad again
-            const keypad = document.getElementById('numeric-keypad');
-            keypad.classList.remove('hidden');
-            
-            // Update button state
-            checkInputs();
-            
-            // Focus on amount input
-            setTimeout(() => {
-                document.getElementById('amount-input').focus();
-            }, 100);
-            
-            showAlert('✅ ล้างข้อมูลเรียบร้อย', 'info');
-        }
-        
-        async function loadMenus(storeId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`);
-                
-                if (!response.ok) {
-                    console.log('No menus found or error loading menus');
-                    menus = [];
-                    return;
-                }
-                
-                menus = await response.json();
-                renderMenuSelect();
-            } catch (error) {
-                console.error('Error loading menus:', error);
-                menus = [];
-            }
-        }
-        
-        function renderMenuSelect() {
-            const select = document.getElementById('menu-select');
-            select.innerHTML = '<option value="">-- เลือกรายการสินค้า --</option>';
-            
-            menus.forEach(menu => {
-                if (menu.is_active) {
-                    const option = document.createElement('option');
-                    option.value = menu.id;
-                    option.textContent = `${menu.name} - ${menu.unit_price.toFixed(2)} บาท`;
-                    select.appendChild(option);
-                }
-            });
-            
-            // Update generate QR button state
-            updateGenerateQRButtonState();
-        }
-        
-        function updateGenerateQRButtonState() {
-            const totalPriceInput = document.getElementById('total-price-input');
-            const totalPrice = parseFloat(totalPriceInput.value.replace(/[^\d.]/g, ''));
-            const hasTotalPrice = !isNaN(totalPrice) && totalPrice > 0 && totalPriceConfirmed;
-            
-            const generateBtn = document.getElementById('generate-qr-btn');
-            generateBtn.disabled = !hasTotalPrice;
-        }
-        
-        
-        async function generatePromptPayQR() {
-            const totalPriceInput = document.getElementById('total-price-input');
-            const totalPrice = parseFloat(totalPriceInput.value.replace(/[^\d.]/g, ''));
-            const menuSelect = document.getElementById('menu-select');
-            const menuId = menuSelect.value ? parseInt(menuSelect.value) : null;
-            const remarkInput = document.getElementById('remark-input');
-            const remark = remarkInput.value.trim() || null;
-            const promptpayMobileInput = document.getElementById('promptpay-mobile-input');
-            const promptpayMobile = promptpayMobileInput.value.trim() || null;
-            
-            if (!totalPrice || totalPrice <= 0) {
-                showAlert('กรุณากรอกราคารวม', 'error');
-                return;
-            }
-            
-            if (!currentStoreId) {
-                showAlert('กรุณาโหลดข้อมูลร้านค้าก่อน', 'error');
-                return;
-            }
-            
-            showLoading(true);
-            
-            try {
-                const requestBody = {
-                    menu_id: menuId,
-                    ref3: remark,
-                    amount: totalPrice
-                };
-                
-                // เพิ่ม promptpay_mobile ถ้ามี
-                if (promptpayMobile) {
-                    // ทำความสะอาดเบอร์โทร (เอาเฉพาะตัวเลข)
-                    const mobileClean = promptpayMobile.replace(/\D/g, '');
-                    if (mobileClean.length === 10) {
-                        requestBody.promptpay_mobile = mobileClean;
-                    } else if (mobileClean.length > 0) {
-                        showAlert('⚠️ เบอร์โทรศัพท์ต้องเป็น 10 หลัก', 'error');
-                        showLoading(false);
-                        return;
-                    }
-                }
-                
-                const response = await fetch(`${API_BASE_URL}/stores/${currentStoreId}/generate-promptpay-qr`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'ไม่สามารถสร้าง QR Code ได้');
-                }
-                
-                const data = await response.json();
-                
-                // แสดง QR Code Tag30 Static (ไม่มี amount - จาก store.biller_id, store.token)
-                if (data.qr_code_tag30_static) {
-                    document.getElementById('qr-code-image-tag30-static').src = data.qr_code_tag30_static;
-                }
-                // แสดง QR Code Tag30 Dynamic (มี amount)
-                document.getElementById('qr-code-image-tag30').src = data.qr_code_tag30;
-                
-                // แสดง QR Code Tag29 (Credit Transfer) ถ้ามี
-                if (data.qr_code_tag29) {
-                    document.getElementById('qr-code-image-tag29').src = data.qr_code_tag29;
-                    document.getElementById('qr-code-image-tag29').style.display = 'block';
-                    document.getElementById('qr-code-tag29-message').style.display = 'none';
-                } else {
-                    document.getElementById('qr-code-image-tag29').style.display = 'none';
-                    document.getElementById('qr-code-tag29-message').style.display = 'block';
-                    document.getElementById('qr-code-tag29-message').textContent = 'กรุณากรอก PromptPay Mobile เพื่อสร้าง QR Code Tag29';
-                }
-                
-                document.getElementById('qr-code-display').style.display = 'block';
 
-                // ส่ง QR ไปจอที่ 2 (Signage) ทันที
-                try {
-                    await fetch(`${API_BASE_URL}/signage/set-display`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            store_id: currentStoreId,
-                            qr_image: data.qr_code_tag30,
-                            amount: totalPrice
-                        })
-                    });
-                } catch (e) { console.warn('Signage set-display', e); }
-                
-                showAlert('✅ สร้าง PromptPay QR Code สำเร็จ', 'success');
-                
-            } catch (error) {
-                showAlert('❌ ' + error.message, 'error');
-            } finally {
-                showLoading(false);
-            }
+        function clearOrder() {
+            orderItems = [];
+            renderOrderList();
+            currentQRImage = null;
+            currentQRAmount = 0;
+            currentOrderId = null;
+            closeQRModal();
+            closeCardWaitModal();
+            closeCashModal();
+            showAlert('ล้างรายการแล้ว', 'info');
+            setTimeout(focusBarcodeInput, 150);
         }
-        
-        /** ยกเลิกการจ่าย – ซ่อน QR, ล้างฟอร์มขั้นตอนที่ 2, ล้างจอ signage แล้วทำรายการใหม่ได้ */
-        function cancelPayment() {
-            document.getElementById('qr-code-display').style.display = 'none';
-            document.getElementById('total-price-input').value = '';
-            document.getElementById('menu-select').value = '';
-            document.getElementById('remark-input').value = '';
-            document.getElementById('promptpay-mobile-input').value = '';
-            document.getElementById('generate-qr-btn').disabled = true;
-            totalPriceConfirmed = false;
-            updateGenerateQRButtonState();
-            if (currentStoreId) {
-                fetch(`${API_BASE_URL}/signage/clear?store_id=${currentStoreId}`, { method: 'POST' }).catch(function() {});
-            }
-            showAlert('ยกเลิกรายการแล้ว ทำรายการใหม่ได้', 'info');
-        }
-        
-        // QR Code Scanner Functions
-        async function startQRScanner() {
-            console.log('startQRScanner() called');
-            
-            try {
-                // Check if jsQR is loaded
-                if (typeof jsQR === 'undefined') {
-                    console.error('jsQR library not loaded');
-                    showAlert('❌ QR Code library ไม่พร้อมใช้งาน กรุณารีเฟรชหน้าเว็บ', 'error');
-                    return;
-                }
-                console.log('jsQR library loaded');
-                
-                // Check if getUserMedia is available
-                if (!navigator.mediaDevices) {
-                    console.error('navigator.mediaDevices not available');
-                    showAlert('❌ Browser ไม่รองรับการเข้าถึงกล้อง กรุณาใช้ HTTPS หรือ localhost', 'error');
-                    return;
-                }
-                
-                if (!navigator.mediaDevices.getUserMedia) {
-                    console.error('getUserMedia not available');
-                    // Try legacy API
-                    navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia ||
-                        navigator.webkitGetUserMedia ||
-                        navigator.mozGetUserMedia ||
-                        navigator.msGetUserMedia;
-                    
-                    if (!navigator.mediaDevices.getUserMedia) {
-                        showAlert('❌ Browser ไม่รองรับการเข้าถึงกล้อง กรุณาใช้ HTTPS หรือ localhost', 'error');
-                        return;
-                    }
-                }
-                console.log('getUserMedia available');
-                
-                const video = document.getElementById('qr-video');
-                const container = document.getElementById('qr-scanner-container');
-                const startBtn = document.getElementById('start-scanner-btn');
-                const stopBtn = document.getElementById('stop-scanner-btn');
-                
-                if (!video || !container || !startBtn || !stopBtn) {
-                    console.error('Required elements not found');
-                    showAlert('❌ ไม่พบ elements ที่จำเป็น', 'error');
-                    return;
-                }
-                
-                console.log('Requesting camera access...');
-                
-                // Request camera access
-                let constraints = {
-                    video: {
-                        facingMode: 'environment' // Use back camera on mobile
-                    }
-                };
-                
-                let stream = null;
-                
-                // Fallback for devices that don't support facingMode
-                try {
-                    console.log('Trying with facingMode: environment');
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    qrScannerStream = stream;
-                    console.log('Camera access granted with facingMode');
-                } catch (e) {
-                    // Try without facingMode constraint
-                    console.log('Trying without facingMode constraint...', e);
-                    try {
-                        constraints = { video: true };
-                        stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        qrScannerStream = stream;
-                        console.log('Camera access granted without facingMode');
-                    } catch (e2) {
-                        console.error('Failed to get camera access:', e2);
-                        throw e2;
-                    }
-                }
-                
-                console.log('Setting video source...');
-                video.srcObject = qrScannerStream;
-                
-                // Wait for video to be ready
-                video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded, playing...');
-                    video.play().then(() => {
-                        console.log('Video playing successfully');
-                    }).catch(err => {
-                        console.error('Error playing video:', err);
-                        showAlert('❌ ไม่สามารถเล่นวิดีโอได้: ' + err.message, 'error');
-                    });
-                };
-                
-                video.onerror = (err) => {
-                    console.error('Video error:', err);
-                    showAlert('❌ เกิดข้อผิดพลาดในการเล่นวิดีโอ', 'error');
-                };
-                
-                console.log('Showing scanner container...');
-                container.style.display = 'block';
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'block';
-                
-                // Create canvas for QR code detection
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                
-                // Start scanning
-                console.log('Starting QR code scanning...');
-                qrScannerInterval = setInterval(() => {
-                    if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height);
-                        
-                        if (code) {
-                            // Found QR code
-                            console.log('QR code detected:', code.data);
-                            const fcId = code.data.trim();
-                            document.getElementById('foodcourt-id-input').value = fcId;
-                            
-                            // Trigger input event to enable button
-                            const event = new Event('input', { bubbles: true });
-                            document.getElementById('foodcourt-id-input').dispatchEvent(event);
-                            
-                            // Stop scanner
-                            stopQRScanner();
-                            
-                            showAlert('✅ สแกน QR Code สำเร็จ: ' + fcId, 'success');
-                        }
-                    }
-                }, 100);
-                
-            } catch (error) {
-                console.error('Error starting QR scanner:', error);
-                console.error('Error name:', error.name);
-                console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
-                
-                let errorMessage = '❌ ไม่สามารถเปิดกล้องได้: ';
-                
-                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                    errorMessage += 'กรุณาอนุญาตให้เข้าถึงกล้อง (ตรวจสอบ browser settings)';
-                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-                    errorMessage += 'ไม่พบกล้องในระบบ';
-                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-                    errorMessage += 'กล้องถูกใช้งานโดยโปรแกรมอื่น';
-                } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
-                    errorMessage += 'กล้องไม่รองรับคุณสมบัติที่ต้องการ';
-                } else if (error.name === 'TypeError') {
-                    errorMessage += 'Browser ไม่รองรับการเข้าถึงกล้อง (อาจต้องใช้ HTTPS)';
-                } else {
-                    errorMessage += error.message || error.toString();
-                }
-                
-                showAlert(errorMessage, 'error');
-                
-                // Reset UI
-                const container = document.getElementById('qr-scanner-container');
-                const startBtn = document.getElementById('start-scanner-btn');
-                const stopBtn = document.getElementById('stop-scanner-btn');
-                if (container) container.style.display = 'none';
-                if (startBtn) startBtn.style.display = 'block';
-                if (stopBtn) stopBtn.style.display = 'none';
-            }
-        }
-        
-        function stopQRScanner() {
-            if (qrScannerStream) {
-                qrScannerStream.getTracks().forEach(track => track.stop());
-                qrScannerStream = null;
-            }
-            
-            if (qrScannerInterval) {
-                clearInterval(qrScannerInterval);
-                qrScannerInterval = null;
-            }
-            
-            const video = document.getElementById('qr-video');
-            if (video) {
-                video.srcObject = null;
-            }
-            
-            const container = document.getElementById('qr-scanner-container');
-            const startBtn = document.getElementById('start-scanner-btn');
-            const stopBtn = document.getElementById('stop-scanner-btn');
-            
-            if (container) container.style.display = 'none';
-            if (startBtn) startBtn.style.display = 'block';
-            if (stopBtn) stopBtn.style.display = 'none';
-        }
+
+        document.getElementById('foodcourt-id-input').addEventListener('input', function() {
+            document.getElementById('btn-process-payment').disabled = !this.value.trim() || orderItems.length === 0;
+        });
     </script>
 </body>
 </html>
-
-

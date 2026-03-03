@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการโฆษณา / ตั้งเวลาปล่อย - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-size: 13px; }
+    input, select, button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; }
+    .small { font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <a href="/admin/calendar" class="back" style="margin-left:12px">ปฏิทิน</a>
+    <h1>จัดการโฆษณา (ตั้งเวลาปล่อย start/end)</h1>
+  </div>
+  <div class="card">
+    <h2>เพิ่มโฆษณา</h2>
+    <label>หัวข้อ</label>
+    <input type="text" id="ad-title" placeholder="หัวข้อโฆษณา">
+    <label>ร้าน (ว่าง = ทุกร้าน)</label>
+    <select id="ad-store"><option value="">ทุกร้าน</option></select>
+    <label>เริ่มแสดง (start_at) YYYY-MM-DDTHH:mm</label>
+    <input type="datetime-local" id="ad-start">
+    <label>สิ้นสุดแสดง (end_at)</label>
+    <input type="datetime-local" id="ad-end">
+    <label>เปิดใช้งาน</label>
+    <input type="checkbox" id="ad-active" checked>
+    <button type="button" id="btn-create">สร้างโฆษณา</button>
+    <span id="create-msg" class="small"></span>
+  </div>
+  <div class="card">
+    <h2>รายการโฆษณา</h2>
+    <div id="ad-list"></div>
+  </div>
+  <script>
+    const API = window.location.origin + '/api';
+    async function loadStores() {
+      const r = await fetch(API + '/stores');
+      if (r.ok) {
+        const arr = await r.json();
+        const sel = document.getElementById('ad-store');
+        (arr || []).forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name || 'ร้าน ' + s.id; sel.appendChild(o); });
+      }
+    }
+    async function loadAds() {
+      const r = await fetch(API + '/admin/ads/list');
+      const list = await r.json();
+      const el = document.getElementById('ad-list');
+      if (!list || !list.length) { el.innerHTML = '<p>ยังไม่มีโฆษณา</p>'; return; }
+      el.innerHTML = '<table><thead><tr><th>หัวข้อ</th><th>ร้าน</th><th>เริ่ม</th><th>สิ้นสุด</th><th>สถานะ</th></tr></thead><tbody>' +
+        list.map(a => '<tr><td>' + (a.title || '') + '</td><td>' + (a.store_id ?? 'ทุกร้าน') + '</td><td class="small">' + (a.start_at ? a.start_at.slice(0, 16) : '-') + '</td><td class="small">' + (a.end_at ? a.end_at.slice(0, 16) : '-') + '</td><td>' + (a.is_active ? 'เปิด' : 'ปิด') + '</td></tr>').join('') + '</tbody></table>';
+    }
+    document.getElementById('btn-create').addEventListener('click', async function() {
+      const title = document.getElementById('ad-title').value.trim();
+      if (!title) { document.getElementById('create-msg').textContent = 'กรอกหัวข้อ'; return; }
+      const storeId = document.getElementById('ad-store').value;
+      const start = document.getElementById('ad-start').value;
+      const end = document.getElementById('ad-end').value;
+      const body = { title, store_id: storeId ? parseInt(storeId, 10) : null, start_at: start || null, end_at: end || null, is_active: document.getElementById('ad-active').checked };
+      const r = await fetch(API + '/admin/ads/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      document.getElementById('create-msg').textContent = r.ok ? 'สร้างแล้ว id=' + d.id : (d.detail || 'ผิดพลาด');
+      if (r.ok) { loadAds(); document.getElementById('ad-title').value = ''; }
+    });
+    loadStores();
+    loadAds();
+  </script>
+</body>
+</html>

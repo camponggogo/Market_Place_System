@@ -71,3 +71,43 @@ def get_charge(secret_key: str, charge_id: str) -> Dict[str, Any]:
     if resp.status_code != 200:
         raise ValueError(f"Omise get charge failed: {resp.status_code}")
     return resp.json()
+
+
+def create_charge_card(
+    secret_key: str,
+    amount_satang: int,
+    card_token: str,
+    currency: str = "THB",
+    metadata: Optional[Dict[str, str]] = None,
+    return_uri: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    สร้าง Omise Charge แบบบัตร (Credit/Debit)
+    card_token: ได้จาก Omise.js (tokenization)
+    คืน charge object; status = pending | successful | failed
+    อ้างอิง: https://docs.omise.co/charging-cards
+    """
+    url = f"{OMISE_API}/charges"
+    auth = base64.b64encode(f"{secret_key}:".encode()).decode()
+    headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "amount": str(amount_satang),
+        "currency": currency.lower(),
+        "card": card_token,
+    }
+    if metadata:
+        for k, v in metadata.items():
+            data[f"metadata[{k}]"] = str(v)
+    if return_uri:
+        data["return_uri"] = return_uri
+
+    logger.info("Omise API: POST /charges (card) amount=%s satang", amount_satang)
+    with httpx.Client(timeout=15.0) as client:
+        resp = client.post(url, headers=headers, data=data)
+    logger.info("Omise API response: charges status=%s", resp.status_code)
+
+    if resp.status_code not in (200, 201):
+        logger.warning("Omise card charge failed: %s %s", resp.status_code, resp.text[:500])
+        raise ValueError(f"Omise charge failed: {resp.status_code} {resp.text}")
+
+    return resp.json()

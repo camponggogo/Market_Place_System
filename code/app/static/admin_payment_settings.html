@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตั้งค่าการรับเงิน - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; }
+    button { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; background: #2563eb; color: #fff; }
+    button:hover { background: #1d4ed8; }
+    p.muted { color: #64748b; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <h1>ตั้งค่าการรับเงิน (Payment Gateway)</h1>
+  </div>
+  <div class="card">
+    <p class="muted">จัดการ Banking / Payment Gateway ตาม Group, Site หรือ Store (Omise, Stripe, SCB Deeplink, K Bank ฯลฯ) ใช้ได้จากแท็บ Banking ในหน้า Admin หลัก</p>
+    <p><a href="/admin" style="color:#2563eb;">ไปที่ Admin Dashboard → แท็บ Banking</a></p>
+    <div id="profiles-list"></div>
+  </div>
+  <script>
+    const API = window.location.origin + '/api';
+    async function load() {
+      try {
+        const r = await fetch(API + '/admin/banking-profiles');
+        const list = await r.json();
+        const el = document.getElementById('profiles-list');
+        if (!list || !list.length) {
+          el.innerHTML = '<p>ยังไม่มี Payment Profile</p>';
+          return;
+        }
+        el.innerHTML = '<table><thead><tr><th>ชื่อ</th><th>ประเภท</th><th>Scope</th><th>สถานะ</th></tr></thead><tbody>' +
+          list.map(p => '<tr><td>' + (p.name || '') + '</td><td>' + (p.provider_type || '-') + '</td><td>' + (p.scope_type || '') + ' ' + (p.store_id ?? p.site_id ?? p.group_id ?? '') + '</td><td>' + (p.is_active ? 'เปิด' : 'ปิด') + '</td></tr>').join('') +
+          '</tbody></table>';
+      } catch (e) {
+        document.getElementById('profiles-list').innerHTML = '<p style="color:red">โหลดไม่สำเร็จ</p>';
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

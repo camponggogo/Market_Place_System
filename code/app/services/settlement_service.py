@@ -14,6 +14,7 @@ from app.models import (
     Transaction,
     PromptPayBackTransaction,
     StoreSettlement,
+    Order,
     PaymentMethod,
     TransactionStatus,
 )
@@ -45,12 +46,24 @@ def receive_back_transaction(
     """
     รับข้อมูล Back Transaction จากธนาคาร (Webhook/Callback)
     ใส่ DB ทันที: PromptPayBackTransaction + Transaction (อัปเดตสถานะจ่ายเงินแล้ว)
-    ref1 = store token (20 หลัก), ref2 = menu/ref, ref3 = remark
+    ref1 = store token (20 หลัก), ref2 = order_id (จาก Store POS), ref3 = remark
     """
     store_id = None
-    store = db.query(Store).filter(Store.token == ref1.strip()).first()
+    ref1_clean = (ref1 or "").strip()
+    store = db.query(Store).filter(Store.token == ref1_clean).first()
     if store:
         store_id = store.id
+    # ถ้า ref1 เป็นตัวเลข 20 หลัก (จาก QR ที่เราสร้าง) ให้หา store จาก token ตัวเลขหรือ store.id
+    if not store_id and ref1_clean and ref1_clean.isdigit() and len(ref1_clean) <= 20:
+        for s in db.query(Store).all():
+            tok = (getattr(s, "token", None) or "").strip()
+            digits = "".join(c for c in tok if c.isdigit())
+            if digits and digits.zfill(20)[:20] == ref1_clean.zfill(20)[:20]:
+                store_id = s.id
+                break
+            if (str(s.id) or "").zfill(20)[:20] == ref1_clean.zfill(20)[:20]:
+                store_id = s.id
+                break
 
     back = PromptPayBackTransaction(
         ref1=ref1.strip(),
@@ -67,6 +80,18 @@ def receive_back_transaction(
     db.add(back)
     db.commit()
     db.refresh(back)
+
+    # ถ้า ref2 = order_id (ตัวเลข) ให้อัปเดต Order เป็น paid
+    if back.ref2 and back.ref2.strip().isdigit() and store_id:
+        try:
+            order_id = int(back.ref2.strip())
+            order = db.query(Order).filter(Order.id == order_id, Order.store_id == store_id).first()
+            if order and order.status == "pending":
+                order.status = "paid"
+                order.paid_at = paid_at
+                db.commit()
+        except (ValueError, TypeError):
+            pass
 
     # สร้าง/อัปเดต Transaction ในตาราง transactions (ref1, ref2, ref3, เลขที่บัญชี) และสถานะจ่ายเงินแล้ว
     guest = _get_or_create_promptpay_guest_customer(db)

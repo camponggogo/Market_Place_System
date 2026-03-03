@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>สแกนจ่ายด้วย E-Coupon</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #1a1d23; color: #e4e6eb; min-height: 100vh; padding: 20px; padding-bottom: 80px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 20px; color: #28a745; }
+    .camera-wrap { position: relative; max-width: 400px; margin: 0 auto 20px; border-radius: 16px; overflow: hidden; background: #000; }
+    #video { width: 100%; display: block; }
+    #canvas { display: none; }
+    .scan-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: rgba(40,167,69,.8); animation: scan 1.5s linear infinite; }
+    @keyframes scan { 0% { transform: translateY(-50%); } 50% { transform: translateY(50%); } 100% { transform: translateY(-50%); } }
+    .permission { padding: 20px; text-align: center; background: #2d323b; border-radius: 12px; margin-bottom: 16px; }
+    .permission button { padding: 14px 24px; border: none; border-radius: 10px; background: #28a745; color: #fff; font-size: 16px; cursor: pointer; }
+    .manual { margin-top: 20px; }
+    .manual h3 { font-size: 14px; color: #28a745; margin-bottom: 10px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 13px; margin-bottom: 4px; }
+    .form-group input { width: 100%; padding: 12px; border: 2px solid #444; border-radius: 8px; background: #1e2128; color: #fff; font-size: 16px; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; background: linear-gradient(135deg, #28a745, #20c997); color: #fff; margin-top: 8px; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .result { padding: 16px; border-radius: 12px; margin-top: 16px; display: none; }
+    .result.show { display: block; }
+    .result.success { background: #155724; color: #d4edda; }
+    .result.error { background: #721c24; color: #f8d7da; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #2d323b; border-top: 1px solid #444; display: flex; align-items: center; justify-content: space-around; z-index: 100; }
+    .bottom-nav a { color: #888; text-decoration: none; font-size: 11px; display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .bottom-nav a.scan { color: #28a745; }
+    .bottom-nav .icon { font-size: 20px; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>สแกน QR จ่ายด้วย E-Coupon</h1>
+    <p style="font-size:14px;opacity:.8;">เปิดกล้องเพื่อสแกน QR PromptPay แล้วหักยอดด้วย E-Coupon</p>
+  </div>
+
+  <div id="permissionBlock" class="permission">
+    <p style="margin-bottom:12px;">เพื่อสแกน QR ระบบต้องใช้กล้อง</p>
+    <button type="button" id="btnAllowCamera">อนุญาตใช้กล้อง</button>
+  </div>
+
+  <div id="cameraBlock" style="display:none;">
+    <div class="camera-wrap">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="scan-line" id="scanLine"></div>
+    </div>
+    <p id="scanStatus" style="text-align:center;font-size:14px;color:#888;">กำลังสแกน...</p>
+  </div>
+
+  <div class="manual">
+    <h3>หรือกรอกข้อมูลเอง</h3>
+    <div class="form-group">
+      <label>ข้อความจาก QR (ถ้าสแกนได้แล้ว)</label>
+      <input type="text" id="qrText" placeholder="เช่น store_id=1&order_id=5&amount=100">
+    </div>
+    <div class="form-group">
+      <label>รหัสร้าน (store_id)</label>
+      <input type="number" id="storeId" placeholder="1">
+    </div>
+    <div class="form-group">
+      <label>รหัส Order (order_id)</label>
+      <input type="number" id="orderId" placeholder="5">
+    </div>
+    <div class="form-group">
+      <label>จำนวนเงิน (บาท)</label>
+      <input type="number" id="amount" step="0.01" placeholder="100">
+    </div>
+    <button type="button" class="btn" id="btnPay">ยืนยันจ่ายด้วย E-Coupon</button>
+  </div>
+
+  <div id="result" class="result"></div>
+
+  <nav class="bottom-nav">
+    <a href="/member/dashboard"><span class="icon">🏠</span> หน้าหลัก</a>
+    <a href="/member/dashboard#points"><span class="icon">⭐</span> คะแนน</a>
+    <a href="/member/scan" class="scan"><span class="icon">📷</span> สแกนจ่าย</a>
+    <a href="/member/dashboard#history"><span class="icon">📋</span> ประวัติ</a>
+    <a href="/member/dashboard#profile"><span class="icon">👤</span> สมาชิก</a>
+  </nav>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+  <script>
+    const API = window.location.origin;
+    const token = localStorage.getItem('member_token');
+    if (!token) { window.location.href = '/member'; }
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const permissionBlock = document.getElementById('permissionBlock');
+    const cameraBlock = document.getElementById('cameraBlock');
+    const scanStatus = document.getElementById('scanStatus');
+    const resultEl = document.getElementById('result');
+
+    let stream = null;
+    let lastQr = '';
+    let scanAnimation = null;
+
+    function showResult(msg, isError) {
+      resultEl.textContent = msg;
+      resultEl.className = 'result show ' + (isError ? 'error' : 'success');
+    }
+
+    document.getElementById('btnAllowCamera').onclick = async function() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        permissionBlock.style.display = 'none';
+        cameraBlock.style.display = 'block';
+        video.srcObject = stream;
+        video.play();
+        requestAnimationFrame(tick);
+      } catch (e) {
+        scanStatus.textContent = 'ไม่สามารถเปิดกล้องได้: ' + (e.message || 'ถูกปฏิเสธ');
+      }
+    };
+
+    function tick() {
+      if (!video.videoWidth) { requestAnimationFrame(tick); return; }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data && code.data !== lastQr) {
+        lastQr = code.data;
+        scanStatus.textContent = 'สแกนได้: ' + code.data.substring(0, 50) + '...';
+        document.getElementById('qrText').value = code.data;
+        doPayWithQr(code.data);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    async function doPayWithQr(qrText) {
+      try {
+        const r = await fetch(API + '/api/member/scan-pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ qr_text: qrText })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok) {
+          showResult('จ่ายด้วย E-Coupon เรียบร้อย จำนวน ' + (data.amount_deducted || '') + ' บาท', false);
+          lastQr = '';
+        } else {
+          showResult(data.detail || 'ดำเนินการไม่สำเร็จ', true);
+          lastQr = '';
+        }
+      } catch (err) {
+        showResult('เกิดข้อผิดพลาด: ' + (err.message || 'เครือข่าย'), true);
+        lastQr = '';
+      }
+    }
+
+    document.getElementById('btnPay').onclick = async function() {
+      const qrText = document.getElementById('qrText').value.trim();
+      const storeId = document.getElementById('storeId').value ? parseInt(document.getElementById('storeId').value, 10) : null;
+      const orderId = document.getElementById('orderId').value ? parseInt(document.getElementById('orderId').value, 10) : null;
+      const amount = document.getElementById('amount').value ? parseFloat(document.getElementById('amount').value) : null;
+      const body = {};
+      if (qrText) body.qr_text = qrText;
+      if (storeId != null) body.store_id = storeId;
+      if (orderId != null) body.order_id = orderId;
+      if (amount != null) body.amount = amount;
+      if (!body.qr_text && body.store_id == null && body.order_id == null && body.amount == null) {
+        showResult('กรุณากรอกข้อความ QR หรือ store_id/order_id/amount', true);
+        return;
+      }
+      try {
+        const r = await fetch(API + '/api/member/scan-pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(body)
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok) {
+          showResult('จ่ายด้วย E-Coupon เรียบร้อย จำนวน ' + (data.amount_deducted || '') + ' บาท', false);
+        } else {
+          showResult(data.detail || 'ดำเนินการไม่สำเร็จ', true);
+        }
+      } catch (err) {
+        showResult('เกิดข้อผิดพลาด: ' + (err.message || 'เครือข่าย'), true);
+      }
+    };
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.permissions.query({ name: 'camera' }).then(function(p) {
+        if (p.state === 'granted') document.getElementById('btnAllowCamera').click();
+      }).catch(function() {});
+    }
+  </script>
+</body>
+</html>

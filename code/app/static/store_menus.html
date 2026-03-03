@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการเมนู - Food Court</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
+        * { font-family: 'TH Sarabun New', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1d23; color: #e4e6eb; font-size: 18px; min-height: 100vh; }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 { font-size: 22px; }
+        .header a { color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; font-weight: bold; }
+        .header a:hover { background: rgba(255,255,255,0.3); }
+        .container { max-width: 720px; margin: 24px auto; padding: 0 20px; }
+        .card { background: #252830; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h2 { font-size: 20px; color: #28a745; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+        .menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #333; gap: 12px; flex-wrap: wrap; }
+        .menu-item:last-child { border-bottom: none; }
+        .menu-item .name { font-weight: bold; }
+        .menu-item .price { color: #28a745; }
+        .menu-item .addon-preview { font-size: 14px; color: #888; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; color: #aaa; font-size: 15px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 2px solid #444; border-radius: 8px; background: #1e2128; color: #fff; font-size: 16px; }
+        .form-group textarea { min-height: 80px; font-family: monospace; }
+        .form-group small { color: #888; font-size: 13px; margin-top: 4px; display: block; }
+        .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-primary { background: #28a745; color: white; }
+        .btn-primary:hover { background: #218838; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-sm { padding: 6px 12px; font-size: 14px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: #252830; border-radius: 12px; padding: 24px; max-width: 480px; width: 90%; }
+        .modal-content h3 { margin-bottom: 16px; color: #28a745; }
+        .modal-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        .alert { padding: 12px; border-radius: 8px; margin: 12px 0; }
+        .alert-success { background: #155724; color: #d4edda; }
+        .alert-error { background: #721c24; color: #f8d7da; }
+        .addon-row { padding: 12px; background: #1e2128; border-radius: 8px; border: 1px solid #333; margin-bottom: 8px; }
+        .addon-row .row-top { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .addon-row .addon-name { flex: 1; padding: 8px 10px; border: 2px solid #444; border-radius: 6px; background: #252830; color: #fff; font-size: 15px; }
+        .addon-row .addon-price { width: 90px; padding: 8px 10px; border: 2px solid #444; border-radius: 6px; background: #252830; color: #fff; font-size: 15px; text-align: right; }
+        .addon-row .btn-remove-addon { padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .addon-row .btn-remove-addon:hover { background: #c82333; }
+        .addon-row .row-img { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .addon-row .row-img input[type="url"] { flex: 1; min-width: 140px; padding: 6px 10px; border: 2px solid #444; border-radius: 6px; background: #252830; color: #fff; font-size: 13px; }
+        .addon-row .img-preview { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #1a1d23; }
+        .addon-row .btn-fetch-img { padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .addon-row .btn-fetch-img:hover { background: #138496; }
+        .addon-row .row-img label { font-size: 13px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 <span data-i18n="manage_menu_title">จัดการเมนู</span></h1>
+        <a href="/store-pos" id="link-back">← <span data-i18n="back_to_pos">กลับไป Store POS</span></a>
+    </div>
+    <div class="container">
+        <div id="alert-container"></div>
+        <div class="card">
+            <h2><span data-i18n="menu_list">รายการเมนู</span> (ร้าน #<span id="store-id">-</span>)</h2>
+            <p style="color:#888;margin-bottom:16px;">ตั้งค่าเมนูพิเศษ (Add-on) แต่ละรายการ: ชื่อ, ราคา, รูปภาพ</p>
+            <div id="menu-list"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="image-modal">
+        <div class="modal-content">
+            <h3 id="image-modal-title">ดาวน์โหลดรูปจาก Internet</h3>
+            <div class="form-group">
+                <label>URL รูปภาพ</label>
+                <input type="url" id="image-url-input" placeholder="https://example.com/food.jpg">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeImageModal()">ยกเลิก</button>
+                <button class="btn btn-primary" onclick="downloadImageToBase64()">ดาวน์โหลด → Base64</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="edit-modal">
+        <div class="modal-content" style="max-width:560px;">
+            <h3 id="edit-modal-title">แก้ไขเมนูพิเศษ (Add-on)</h3>
+            <div id="addon-rows-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+            <button type="button" class="btn btn-secondary" onclick="addAddonRow()" style="margin-bottom:16px;">+ <span data-i18n="add_addon">เพิ่มเมนูพิเศษ</span></button>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeEditModal()"><span data-i18n="cancel">ยกเลิก</span></button>
+                <button class="btn btn-primary" onclick="saveAddonOptions()"><span data-i18n="save">บันทึก</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin + '/api';
+        let storeId = null;
+        let menus = [];
+        let editingMenuId = null;
+        let imageMenuId = null;
+
+        function showAlert(msg, type) {
+            const c = document.getElementById('alert-container');
+            c.innerHTML = '<div class="alert alert-' + (type || 'info') + '">' + msg + '</div>';
+            setTimeout(function(){ c.innerHTML = ''; }, 4000);
+        }
+
+        function t(key) { return (window.localeSettings && window.localeSettings.translations[key]) || key; }
+        function applyLocaleUI() {
+            document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+        }
+        async function loadLocaleSettings() {
+            try {
+                var sid = storeId || 1;
+                var res = await fetch(API + '/locale-settings?store_id=' + sid, { cache: 'no-store' });
+                if (res.ok) {
+                    var d = await res.json();
+                    window.localeSettings = { translations: d.translations || {}, currency_symbol: d.currency_symbol || '\u0e3f' };
+                    applyLocaleUI();
+                    if (menus.length) renderMenuList();
+                }
+            } catch (e) {}
+        }
+        function formatMoney(n) { var s = window.localeSettings && window.localeSettings.currency_symbol; return (parseFloat(n||0).toFixed(2)) + ' ' + (s || '\u0e3f'); }
+        document.addEventListener('DOMContentLoaded', function() {
+            storeId = new URLSearchParams(window.location.search).get('store_id') || 1;
+            document.getElementById('store-id').textContent = storeId;
+            document.getElementById('link-back').href = '/store-pos?store_id=' + storeId;
+            window.localeSettings = window.localeSettings || { translations: {} };
+            loadLocaleSettings().then(function() { loadMenus(); });
+        });
+
+        async function loadMenus() {
+            try {
+                const res = await fetch(API + '/menus/store/' + storeId);
+                if (!res.ok) throw new Error('โหลดเมนูไม่สำเร็จ');
+                menus = await res.json();
+                renderMenuList();
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+                document.getElementById('menu-list').innerHTML = '<p style="color:#888;">โหลดเมนูไม่สำเร็จ</p>';
+            }
+        }
+
+        function renderMenuList() {
+            const el = document.getElementById('menu-list');
+            if (!menus.length) {
+                el.innerHTML = '<p style="color:#888;">' + (t('no_menu') || 'ยังไม่มีเมนู') + '</p>';
+                return;
+            }
+            el.innerHTML = menus.map(function(m) {
+                var addons = [];
+                try {
+                    if (m.addon_options) {
+                        var arr = JSON.parse(m.addon_options);
+                        if (Array.isArray(arr)) addons = arr;
+                    }
+                } catch(e){}
+                var preview = addons.length > 0 ? addons.map(function(a){ return a.name + (a.price > 0 ? ' +' + a.price : ''); }).join(', ') : '-';
+                return '<div class="menu-item">' +
+                    '<div><span class="name">' + escapeHtml(m.name) + '</span> <span class="price">' + formatMoney(m.unit_price) + '</span>' +
+                    '<div class="addon-preview">Add-on: ' + escapeHtml(preview) + '</div></div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                    '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + m.id + ')">' + (t('edit_addon') || 'แก้ไข Add-on') + '</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="openImageModal(' + m.id + ')">📷 ' + (t('image') || 'รูป') + '</button>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function parseAddonsJson(str) {
+            if (!str || !str.trim()) return [];
+            try {
+                var arr = JSON.parse(str);
+                return Array.isArray(arr) ? arr : [];
+            } catch(e){ return []; }
+        }
+
+        function createAddonRow(data, idx) {
+            data = data || {};
+            var name = data.name || '';
+            var price = (data.price !== undefined && data.price !== null) ? String(data.price) : '0';
+            var imgUrl = data.image_url || '';
+            var imgB64 = data.image_base64 || '';
+            var previewSrc = imgB64 ? ('data:image/jpeg;base64,' + imgB64) : (imgUrl || '');
+            var row = document.createElement('div');
+            row.className = 'addon-row';
+            row.dataset.idx = idx;
+            row.innerHTML = '<div class="row-top">' +
+                '<input type="text" class="addon-name" placeholder="ชื่อเมนูพิเศษ (เช่น ไก่, เนื้อ)" value="' + escapeHtml(name) + '">' +
+                '<input type="number" class="addon-price" placeholder="0" min="0" step="0.01" value="' + escapeHtml(price) + '">' +
+                '<button type="button" class="btn-remove-addon" onclick="removeAddonRow(this)">ลบ</button>' +
+                '</div>' +
+                '<div class="row-img">' +
+                '<label>รูป:</label>' +
+                '<input type="url" class="addon-img-url" placeholder="https://..." value="' + escapeHtml(imgUrl) + '">' +
+                '<button type="button" class="btn-fetch-img" onclick="fetchAddonImage(this)">ดาวน์โหลดจาก URL</button>' +
+                '<input type="file" class="addon-img-file" accept="image/*" style="display:none;" onchange="onAddonFileSelect(this)">' +
+                '<button type="button" class="btn btn-secondary btn-sm" onclick="this.previousElementSibling.click()">เลือกไฟล์</button>' +
+                '<img class="img-preview" alt="" onerror="this.style.display=\'none\'">' +
+                '</div>';
+            var fileInput = row.querySelector('.addon-img-file');
+            if (imgB64) { fileInput.dataset.b64 = imgB64; }
+            var imgEl = row.querySelector('.img-preview');
+            if (previewSrc) { imgEl.src = previewSrc; imgEl.style.display = ''; }
+            row.querySelector('.addon-img-url').addEventListener('input', function(){ updateAddonPreview(row); });
+            return row;
+        }
+
+        function updateAddonPreview(row) {
+            var url = row.querySelector('.addon-img-url').value.trim();
+            var img = row.querySelector('.img-preview');
+            if (url) { img.src = url; img.style.display = ''; }
+            else if (!row.querySelector('.addon-img-file').dataset.b64) { img.src = ''; img.style.display = 'none'; }
+        }
+
+        function fetchAddonImage(btn) {
+            var row = btn.closest('.addon-row');
+            var urlInput = row.querySelector('.addon-img-url');
+            var url = urlInput.value.trim();
+            if (!url) { showAlert('กรุณาระบุ URL รูปภาพ', 'error'); return; }
+            btn.disabled = true;
+            btn.textContent = 'กำลังโหลด...';
+            fetch(API + '/menus/fetch-image-base64', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(function(r){ return r.ok ? r.json() : r.json().then(function(e){ throw new Error(e.detail || 'โหลดไม่สำเร็จ'); }); })
+            .then(function(d){
+                row.querySelector('.addon-img-file').dataset.b64 = d.base64 || '';
+                var img = row.querySelector('.img-preview');
+                img.src = 'data:image/jpeg;base64,' + (d.base64 || '');
+                img.style.display = '';
+                showAlert('ดาวน์โหลดรูปเรียบร้อย', 'success');
+            })
+            .catch(function(e){ showAlert('❌ ' + e.message, 'error'); })
+            .finally(function(){ btn.disabled = false; btn.textContent = 'ดาวน์โหลดจาก URL'; });
+        }
+
+        function onAddonFileSelect(input) {
+            var f = input.files && input.files[0];
+            if (!f) return;
+            var row = input.closest('.addon-row');
+            var r = new FileReader();
+            r.onload = function(){
+                var dataUrl = r.result;
+                var b64 = dataUrl.indexOf('base64,') >= 0 ? dataUrl.split('base64,')[1] : '';
+                input.dataset.b64 = b64;
+                var img = row.querySelector('.img-preview');
+                img.src = dataUrl;
+                img.style.display = '';
+            };
+            r.readAsDataURL(f);
+        }
+
+        function removeAddonRow(btn) {
+            btn.closest('.addon-row').remove();
+        }
+
+        function addAddonRow() {
+            var container = document.getElementById('addon-rows-container');
+            var idx = container.querySelectorAll('.addon-row').length;
+            container.appendChild(createAddonRow({}, idx));
+        }
+
+        function openEditModal(menuId) {
+            editingMenuId = menuId;
+            var m = menus.find(function(x){ return x.id === menuId; });
+            document.getElementById('edit-modal-title').textContent = (t('edit_addon') || 'แก้ไข Add-on') + ': ' + (m ? m.name : '');
+            var container = document.getElementById('addon-rows-container');
+            container.innerHTML = '';
+            var addons = parseAddonsJson(m && m.addon_options ? m.addon_options : '');
+            if (addons.length === 0) {
+                addAddonRow();
+            } else {
+                addons.forEach(function(a, i){ container.appendChild(createAddonRow(a, i)); });
+            }
+            document.getElementById('edit-modal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+            editingMenuId = null;
+        }
+
+        function openImageModal(menuId) {
+            imageMenuId = menuId;
+            var m = menus.find(function(x){ return x.id === menuId; });
+            document.getElementById('image-modal-title').textContent = 'รูป: ' + (m ? m.name : 'เมนู #' + menuId);
+            document.getElementById('image-url-input').value = '';
+            document.getElementById('image-modal').classList.add('show');
+        }
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.remove('show');
+            imageMenuId = null;
+        }
+        async function downloadImageToBase64() {
+            if (!imageMenuId) return;
+            var url = document.getElementById('image-url-input').value.trim();
+            if (!url) { showAlert('กรุณาระบุ URL รูปภาพ', 'error'); return; }
+            try {
+                var apiUrl = API + '/menus/' + imageMenuId + '/download-image?image_url=' + encodeURIComponent(url);
+                var res = await fetch(apiUrl, { method: 'POST' });
+                var data = await res.json().catch(function(){ return {}; });
+                if (!res.ok) throw new Error(data.detail || res.statusText || 'ดาวน์โหลดไม่สำเร็จ');
+                showAlert('ดาวน์โหลดและบันทึก base64 เรียบร้อย', 'success');
+                closeImageModal();
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
+        }
+
+        function collectAddonRows() {
+            var rows = document.querySelectorAll('#addon-rows-container .addon-row');
+            var arr = [];
+            rows.forEach(function(row){
+                var name = (row.querySelector('.addon-name').value || '').trim();
+                if (!name) return;
+                var price = parseFloat(row.querySelector('.addon-price').value) || 0;
+                var imgUrl = (row.querySelector('.addon-img-url').value || '').trim();
+                var imgB64 = row.querySelector('.addon-img-file').dataset.b64 || '';
+                var obj = { name: name, price: price };
+                if (imgUrl) obj.image_url = imgUrl;
+                if (imgB64) obj.image_base64 = imgB64;
+                arr.push(obj);
+            });
+            return arr;
+        }
+
+        async function saveAddonOptions() {
+            if (!editingMenuId) return;
+            var arr = collectAddonRows();
+            var val = arr.length > 0 ? JSON.stringify(arr) : null;
+            try {
+                const res = await fetch(API + '/menus/' + editingMenuId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ addon_options: val })
+                });
+                if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
+                showAlert('บันทึกเมนูพิเศษเรียบร้อย', 'success');
+                closeEditModal();
+                loadMenus();
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

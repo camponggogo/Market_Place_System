@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="เข้าสู่ระบบสมาชิก - Market Place">
+  <title>เข้าสู่ระบบสมาชิก</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(180deg, #1a1d23 0%, #252830 100%); color: #e4e6eb; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .card { width: 100%; max-width: 400px; background: #2d323b; border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    h1 { font-size: 24px; color: #28a745; margin-bottom: 8px; text-align: center; }
+    .sub { font-size: 14px; opacity: .85; text-align: center; margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 14px; color: #b0b5bd; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 14px; border: 2px solid #444; border-radius: 10px; background: #1e2128; color: #fff; font-size: 16px; }
+    .form-group input:focus { outline: none; border-color: #28a745; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: .2s; }
+    .btn-primary { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; margin-top: 8px; }
+    .btn-primary:active { transform: scale(0.98); }
+    .link-register { display: block; text-align: center; margin-top: 20px; color: #28a745; text-decoration: none; font-size: 15px; }
+    .link-register:hover { text-decoration: underline; }
+    .alert { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .alert.show { display: block; }
+    .alert-error { background: #721c24; color: #f8d7da; }
+    .alert-success { background: #155724; color: #d4edda; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>เข้าสู่ระบบสมาชิก</h1>
+    <p class="sub">ชื่อผู้ใช้ หรือ เบอร์โทร หรือ อีเมล + รหัสผ่าน</p>
+    <div id="alert" class="alert"></div>
+    <form id="form">
+      <div class="form-group">
+        <label for="login_id">ชื่อผู้ใช้ / เบอร์โทร / อีเมล</label>
+        <input type="text" id="login_id" name="login_id" placeholder="กรอกชื่อผู้ใช้ หรือ เบอร์โทร หรือ อีเมล" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">รหัสผ่าน</label>
+        <input type="password" id="password" name="password" placeholder="รหัสผ่าน" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
+    </form>
+    <a href="/member/register" class="link-register">ยังไม่มีบัญชี? ลงทะเบียนที่นี่</a>
+  </div>
+  <script>
+    const API = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+    const alertEl = document.getElementById('alert');
+    function showAlert(msg, type) {
+      alertEl.textContent = msg;
+      alertEl.className = 'alert alert-' + (type || 'error') + ' show';
+    }
+    function hideAlert() { alertEl.className = 'alert'; }
+    document.getElementById('form').onsubmit = async function(e) {
+      e.preventDefault();
+      hideAlert();
+      const login_id = document.getElementById('login_id').value.trim();
+      const password = document.getElementById('password').value;
+      if (!login_id || !password) { showAlert('กรุณากรอกข้อมูลให้ครบ'); return; }
+      try {
+        const r = await fetch(API + '/api/member/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login_id, password })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { showAlert(data.detail || 'เข้าสู่ระบบไม่สำเร็จ'); return; }
+        if (data.token) {
+          localStorage.setItem('member_token', data.token);
+          localStorage.setItem('member_id', data.customer_id);
+          window.location.href = '/member/dashboard';
+        } else { showAlert('ไม่ได้รับโทเค็น'); }
+      } catch (err) { showAlert('เกิดข้อผิดพลาด: ' + (err.message || 'เครือข่าย')); }
+    };
+  </script>
+</body>
+</html>

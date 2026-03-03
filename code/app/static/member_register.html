@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ลงทะเบียนสมาชิก</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: linear-gradient(180deg, #1a1d23 0%, #252830 100%); color: #e4e6eb; min-height: 100vh; padding: 20px; }
+    .card { max-width: 420px; margin: 0 auto; background: #2d323b; border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    h1 { font-size: 22px; color: #28a745; margin-bottom: 6px; text-align: center; }
+    .sub { font-size: 13px; opacity: .85; text-align: center; margin-bottom: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; color: #b0b5bd; margin-bottom: 4px; }
+    .form-group input { width: 100%; padding: 12px; border: 2px solid #444; border-radius: 10px; background: #1e2128; color: #fff; font-size: 16px; }
+    .form-group input:focus { outline: none; border-color: #28a745; }
+    .hint { font-size: 11px; color: #888; margin-top: 2px; }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; background: linear-gradient(135deg, #28a745, #20c997); color: #fff; margin-top: 8px; }
+    .link-login { display: block; text-align: center; margin-top: 16px; color: #28a745; text-decoration: none; font-size: 14px; }
+    .alert { padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; display: none; }
+    .alert.show { display: block; }
+    .alert-error { background: #721c24; color: #f8d7da; }
+    .alert-success { background: #155724; color: #d4edda; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>ลงทะเบียนสมาชิก</h1>
+    <p class="sub">ชื่อผู้ใช้ 4 ตัวขึ้นไป, หมายเลขโทรศัพท์, รหัสผ่าน, อีเมล (ถ้ามี)</p>
+    <div id="alert" class="alert"></div>
+    <form id="form">
+      <div class="form-group">
+        <label for="username">ชื่อผู้ใช้งาน * (4 ตัวอักษรขึ้นไป)</label>
+        <input type="text" id="username" name="username" minlength="4" placeholder="เช่น user1234" required>
+        <div class="hint">ใช้ได้เฉพาะตัวอักษร ตัวเลข และ _ . -</div>
+      </div>
+      <div class="form-group">
+        <label for="phone">หมายเลขโทรศัพท์ *</label>
+        <input type="tel" id="phone" name="phone" placeholder="0812345678" required>
+      </div>
+      <div class="form-group">
+        <label for="password">รหัสผ่าน *</label>
+        <input type="password" id="password" name="password" placeholder="รหัสผ่าน" required>
+      </div>
+      <div class="form-group">
+        <label for="email">อีเมล (ถ้ามี)</label>
+        <input type="email" id="email" name="email" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label for="name">ชื่อ-นามสกุล (ถ้ามี)</label>
+        <input type="text" id="name" name="name" placeholder="ชื่อ">
+      </div>
+      <button type="submit" class="btn">ลงทะเบียน</button>
+    </form>
+    <a href="/member" class="link-login">มีบัญชีแล้ว? เข้าสู่ระบบ</a>
+  </div>
+  <script>
+    const API = (window.location && window.location.origin) ? window.location.origin : '';
+    const alertEl = document.getElementById('alert');
+    function showAlert(msg, type) {
+      alertEl.textContent = msg;
+      alertEl.className = 'alert alert-' + (type || 'error') + ' show';
+    }
+    document.getElementById('form').onsubmit = async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value;
+      const email = document.getElementById('email').value.trim() || null;
+      const name = document.getElementById('name').value.trim() || null;
+      if (username.length < 4) { showAlert('ชื่อผู้ใช้ต้องไม่น้อยกว่า 4 ตัวอักษร'); return; }
+      if (!phone) { showAlert('กรุณากรอกหมายเลขโทรศัพท์'); return; }
+      if (!password) { showAlert('กรุณากรอกรหัสผ่าน'); return; }
+      try {
+        const r = await fetch(API + '/api/member/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, phone, password, email, name })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { showAlert(data.detail || 'ลงทะเบียนไม่สำเร็จ'); return; }
+        showAlert('ลงทะเบียนสำเร็จ กำลังไปหน้าเข้าสู่ระบบ...', 'success');
+        setTimeout(function() { window.location.href = '/member'; }, 1500);
+      } catch (err) { showAlert('เกิดข้อผิดพลาด: ' + (err.message || 'เครือข่าย')); }
+    };
+  </script>
+</body>
+</html>

@@ -85,10 +85,20 @@ $env:PYTHONPATH = "$root\code"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root'; `$env:PYTHONPATH='$root\code'; uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 Write-Host "Waiting for server to be ready..." -ForegroundColor Gray
 Start-Sleep -Seconds 6
+
+if (Get-Command ngrok -ErrorAction SilentlyContinue) {
+    Write-Host "Starting ngrok (port 8000) in new window..." -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "ngrok http 8000"
+    Write-Host "ngrok started. Webhook URL: https://[ngrok-url]/api/payment-callback/webhook (ดูที่ ngrok window)" -ForegroundColor Gray
+    Start-Sleep -Seconds 3
+} else {
+    Write-Host "ngrok not found. Skip. (ติดตั้ง: choco install ngrok หรือดาวน์โหลดจาก ngrok.com)" -ForegroundColor Yellow
+}
+
 try {
     Start-Process "http://localhost:8000/launch?store_id=1"
     Write-Host "Opened browser: Store POS + Signage" -ForegroundColor Green
 } catch {
     Write-Host "Open manually: http://localhost:8000/launch?store_id=1" -ForegroundColor Yellow
 }
-Write-Host "Server is running in the other window. Close that window to stop server." -ForegroundColor Gray
+Write-Host "Server + ngrok running in separate windows. Close those windows to stop." -ForegroundColor Gray

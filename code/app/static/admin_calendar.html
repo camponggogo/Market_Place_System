@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ปฏิทินโฆษณา / โปรโมชั่น - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .nav { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .nav button { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; }
+    .nav button:hover { background: #e2e8f0; }
+    .nav span { font-weight: 600; font-size: 18px; min-width: 180px; text-align: center; }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e2e8f0; border-radius: 8px; overflow: hidden; }
+    .cal-head { background: #1e293b; color: #fff; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; }
+    .cal-cell { background: #fff; min-height: 90px; padding: 6px; font-size: 12px; }
+    .cal-cell.other-month { background: #f8fafc; color: #94a3b8; }
+    .cal-cell .day-num { font-weight: 600; margin-bottom: 4px; }
+    .cal-event { background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cal-event.promo { background: #d1fae5; color: #065f46; }
+    .list-events { margin-top: 16px; }
+    .list-events h3 { font-size: 14px; color: #475569; margin-bottom: 8px; }
+    .list-events div { padding: 8px; border-left: 4px solid #2563eb; margin-bottom: 6px; background: #f8fafc; border-radius: 4px; font-size: 13px; }
+    .list-events div.promo { border-left-color: #059669; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <a href="/admin/ads-manage" class="back" style="margin-left:12px">จัดการโฆษณา</a>
+    <h1>ปฏิทินโฆษณา / โปรโมชั่น (Campaign)</h1>
+  </div>
+  <div class="card">
+    <div class="nav">
+      <button type="button" id="btn-prev">◀ ก่อนหน้า</button>
+      <span id="month-label">...</span>
+      <button type="button" id="btn-next">ถัดไป ▶</button>
+    </div>
+    <div class="calendar" id="calendar"></div>
+    <div class="list-events">
+      <h3>รายการในเดือนนี้</h3>
+      <div id="event-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.origin + '/api';
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+
+    const DAY_NAMES = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+    function render() {
+      document.getElementById('month-label').textContent = currentYear + ' ' + ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][currentMonth];
+      const first = new Date(currentYear, currentMonth, 1);
+      const last = new Date(currentYear, currentMonth + 1, 0);
+      const startPad = first.getDay();
+      const daysInMonth = last.getDate();
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevLast = new Date(prevYear, prevMonth + 1, 0).getDate();
+      let html = '';
+      for (let i = 0; i < 7; i++) html += '<div class="cal-head">' + DAY_NAMES[i] + '</div>';
+      for (let i = 0; i < startPad; i++) {
+        const d = prevLast - startPad + i + 1;
+        html += '<div class="cal-cell other-month"><div class="day-num">' + d + '</div></div>';
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        html += '<div class="cal-cell" data-date="' + currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0') + '"><div class="day-num">' + d + '</div><div class="day-events"></div></div>';
+      }
+      const totalCells = startPad + daysInMonth;
+      const rest = totalCells % 7 ? 7 - (totalCells % 7) : 0;
+      for (let i = 0; i < rest; i++) html += '<div class="cal-cell other-month"></div>';
+      document.getElementById('calendar').innerHTML = html;
+      loadEvents();
+    }
+
+    async function loadEvents() {
+      const start = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-01';
+      const end = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + new Date(currentYear, currentMonth + 1, 0).getDate();
+      try {
+        const r = await fetch(API + '/admin/ads/calendar/events?start=' + start + '&end=' + end);
+        const data = await r.json();
+        const events = data.events || [];
+        const byDate = {};
+        events.forEach(ev => {
+          const d = ev.start ? ev.start.slice(0, 10) : '';
+          if (!byDate[d]) byDate[d] = [];
+          byDate[d].push(ev);
+        });
+        document.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
+          const date = cell.getAttribute('data-date');
+          const dayEvents = byDate[date] || [];
+          const wrap = cell.querySelector('.day-events');
+          if (wrap) wrap.innerHTML = dayEvents.slice(0, 3).map(e => '<div class="cal-event ' + (e.type === 'promotion' ? 'promo' : '') + '" title="' + (e.title || '') + '">' + (e.title || '') + '</div>').join('');
+        });
+        const listEl = document.getElementById('event-list');
+        listEl.innerHTML = events.length ? events.map(e => '<div class="' + (e.type === 'promotion' ? 'promo' : '') + '"><strong>' + (e.title || '') + '</strong> ' + (e.start ? e.start.slice(0, 16) : '') + ' – ' + (e.type === 'ad' ? 'โฆษณา' : 'โปรโมชั่น') + '</div>').join('') : '<p>ไม่มีรายการในเดือนนี้</p>';
+      } catch (e) {
+        document.getElementById('event-list').innerHTML = '<p style="color:red">โหลดไม่สำเร็จ</p>';
+      }
+    }
+
+    document.getElementById('btn-prev').addEventListener('click', function() {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      render();
+    });
+    document.getElementById('btn-next').addEventListener('click', function() {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      render();
+    });
+    render();
+  </script>
+</body>
+</html>

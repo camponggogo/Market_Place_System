@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการคูปอง / E-Coupon - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-size: 13px; color: #555; }
+    input, select, button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; margin-bottom: 10px; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; color: #1f3a8a; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tabs button { padding: 10px 16px; border-radius: 8px; background: #e2e8f0; color: #475569; border: none; cursor: pointer; }
+    .tabs button.active { background: #2563eb; color: #fff; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <h1>จัดการคูปอง / E-Coupon</h1>
+  </div>
+
+  <div class="card">
+    <h2>ออก E-Coupon ใหม่</h2>
+    <div class="grid2">
+      <div>
+        <label>จำนวนเงิน (บาท)</label>
+        <input type="number" id="issue-amount" min="1" step="0.01" value="100">
+        <label>วิธีชำระ</label>
+        <select id="issue-payment">
+          <option value="cash">เงินสด</option>
+          <option value="promptpay">PromptPay</option>
+          <option value="credit_debit">บัตรเครดิต/เดบิต</option>
+          <option value="stripe">Stripe</option>
+          <option value="true_wallet">True Wallet</option>
+        </select>
+        <label>กำหนดให้ลูกค้า (customer_id, ว่างได้)</label>
+        <input type="number" id="issue-customer-id" placeholder="ไม่ระบุ">
+        <button type="button" id="btn-issue">ออก E-Coupon</button>
+        <span id="issue-msg" style="margin-left:8px; font-size:13px;"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>กำหนด E-Coupon ให้ลูกค้า</h2>
+    <label>รหัส E-Coupon</label>
+    <input type="text" id="assign-code" placeholder="ECxxxxxxxx">
+    <label>Customer ID</label>
+    <input type="number" id="assign-customer-id" placeholder="1">
+    <button type="button" id="btn-assign">กำหนดให้ลูกค้า</button>
+    <span id="assign-msg" style="margin-left:8px; font-size:13px;"></span>
+  </div>
+
+  <div class="card">
+    <h2>รายการ E-Coupon</h2>
+    <div class="tabs">
+      <button type="button" data-status="">ทั้งหมด</button>
+      <button type="button" data-status="available">ว่าง</button>
+      <button type="button" data-status="assigned">กำหนดแล้ว</button>
+      <button type="button" data-status="used">ใช้แล้ว</button>
+    </div>
+    <div id="list-loading">กำลังโหลด...</div>
+    <table id="ecoupon-table" style="display:none;">
+      <thead><tr><th>รหัส</th><th>จำนวน</th><th>สถานะ</th><th>ลูกค้า</th><th>วิธีชำระ</th><th>วันออก</th><th>วันใช้</th></tr></thead>
+      <tbody id="ecoupon-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = window.location.origin + '/api';
+    let currentStatus = '';
+
+    async function loadList() {
+      document.getElementById('list-loading').style.display = 'block';
+      document.getElementById('ecoupon-table').style.display = 'none';
+      let url = API + '/admin/ecoupon/list?limit=200';
+      if (currentStatus) url += '&status=' + currentStatus;
+      const r = await fetch(url);
+      const list = await r.json();
+      document.getElementById('list-loading').style.display = 'none';
+      if (!list || !list.length) {
+        document.getElementById('ecoupon-body').innerHTML = '<tr><td colspan="7">ไม่มีรายการ</td></tr>';
+        document.getElementById('ecoupon-table').style.display = 'table';
+        return;
+      }
+      document.getElementById('ecoupon-table').style.display = 'table';
+      document.getElementById('ecoupon-body').innerHTML = list.map(i => 
+        '<tr><td>' + (i.code || '') + '</td><td>' + (i.amount ?? '') + '</td><td>' + (i.status || '') + '</td><td>' + (i.customer_id ?? '-') + '</td><td>' + (i.payment_method || '-') + '</td><td>' + (i.paid_at ? i.paid_at.slice(0,10) : '-') + '</td><td>' + (i.redeemed_at ? i.redeemed_at.slice(0,10) : '-') + '</td></tr>'
+      ).join('');
+    }
+
+    document.querySelectorAll('.tabs button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentStatus = this.dataset.status || '';
+        loadList();
+      });
+    });
+
+    document.getElementById('btn-issue').addEventListener('click', async function() {
+      const amount = parseFloat(document.getElementById('issue-amount').value);
+      const payment = document.getElementById('issue-payment').value;
+      const customerId = document.getElementById('issue-customer-id').value.trim();
+      const msg = document.getElementById('issue-msg');
+      if (!(amount > 0)) { msg.textContent = 'กรอกจำนวน'; msg.style.color = 'red'; return; }
+      msg.textContent = 'กำลังออก...';
+      try {
+        const r = await fetch(API + '/admin/ecoupon/issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount, payment_method: payment, customer_id: customerId ? parseInt(customerId, 10) : null })
+        });
+        const d = await r.json();
+        if (!r.ok) { msg.textContent = d.detail || 'ผิดพลาด'; msg.style.color = 'red'; return; }
+        msg.textContent = 'ออกสำเร็จ: ' + (d.code || '');
+        msg.style.color = 'green';
+        loadList();
+      } catch (e) {
+        msg.textContent = e.message;
+        msg.style.color = 'red';
+      }
+    });
+
+    document.getElementById('btn-assign').addEventListener('click', async function() {
+      const code = document.getElementById('assign-code').value.trim();
+      const customerId = document.getElementById('assign-customer-id').value.trim();
+      const msg = document.getElementById('assign-msg');
+      if (!code || !customerId) { msg.textContent = 'กรอกรหัสและ customer_id'; msg.style.color = 'red'; return; }
+      msg.textContent = 'กำลังกำหนด...';
+      try {
+        const r = await fetch(API + '/admin/ecoupon/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, customer_id: parseInt(customerId, 10) })
+        });
+        const d = await r.json();
+        if (!r.ok) { msg.textContent = d.detail || 'ผิดพลาด'; msg.style.color = 'red'; return; }
+        msg.textContent = 'กำหนดสำเร็จ';
+        msg.style.color = 'green';
+        loadList();
+      } catch (e) {
+        msg.textContent = e.message;
+        msg.style.color = 'red';
+      }
+    });
+
+    loadList();
+  </script>
+</body>
+</html>

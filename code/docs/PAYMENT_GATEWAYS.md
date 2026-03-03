@@ -47,9 +47,24 @@
 เมื่อตั้งค่า Profile เป็น **Omise** หรือ **Stripe** สำหรับร้านนั้นแล้ว สามารถเรียก:
 
 - **POST** `/api/payment-callback/stores/{store_id}/create-gateway-qr`  
-  Body: `{ "amount": 100 }` (บาท)
+  Body: `{ "amount": 100, "order_lines": [...], "order_id": null }` (บาท; order_lines ถ้ามีจะสร้าง Order และใส่ ref2 ใน metadata)
 
-ระบบจะ resolve profile ของร้าน → สร้าง Omise Charge หรือ Stripe PaymentIntent โดยใส่ `metadata.ref1 = store.token` แล้วคืนค่า QR image (Omise) หรือ `client_secret` (Stripe) ให้ Store-POS/Signage ใช้แสดง QR ได้
+ระบบจะ resolve profile ของร้าน → สร้าง Omise Charge หรือ Stripe PaymentIntent โดยใส่ `metadata.ref1 = store.token`, `ref2 = order_id` (ถ้ามี) แล้วคืนค่า QR image (Omise) หรือ `client_secret` (Stripe) ให้ Store-POS/Signage ใช้แสดง QR ได้
+
+---
+
+## Store POS เชื่อม Omise (QR + Credit/Debit)
+
+เมื่อร้านมี **Banking Profile = Omise** (และกรอก Omise Secret Key + Public Key):
+
+- **PromptPay (QR)**  
+  Store POS จะเรียก `create-gateway-qr` แทน QR ธรรมดา → ได้ QR จาก Omise และเมื่อลูกค้าสแกนจ่าย Omise ส่ง webhook `charge.complete` → ระบบอัปเดต Order เป็น paid และแจ้งร้าน
+
+- **Credit/Debit**  
+  Store POS จะแสดงฟอร์มกรอกบัตร (Omise.js tokenize) → เรียก **POST** `/api/payment-callback/stores/{store_id}/charge-card` ด้วย `{ amount, token, order_id }` → ถ้ามี 3D Secure เปิดหน้าต่างยืนยัน แล้ว poll **GET** `/api/payment-callback/stores/{store_id}/charge-status/{charge_id}` จน status = successful
+
+- **GET** `/api/payment-callback/stores/{store_id}/gateway-info`  
+  คืน `{ provider: "omise", omise_public_key: "pkey_xxx" }` สำหรับให้ Store POS ใช้ Omise.js และเลือก flow QR/บัตร
 
 ---
 

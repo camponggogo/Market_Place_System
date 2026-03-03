@@ -117,7 +117,17 @@ def create_sample_data():
     finally:
         db.close()
 
+def run_migrations():
+    """รัน migration scripts สำหรับคอลัมน์ใหม่ (menus.name_i18n, stores.name_i18n ฯลฯ)"""
+    try:
+        from scripts.migrate_menu_store_i18n import migrate
+        migrate()
+        print("Migrations (menu/store i18n) applied.")
+    except Exception as e:
+        print(f"Migration warning: {e}")
+
 if __name__ == "__main__":
     init_database()
     create_sample_data()
+    run_migrations()
 
