@@ -249,7 +249,8 @@ async def generate_promptpay_qr(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
 
-    # biller_id ต้องเป็นเลขที่ธนาคารออกให้ (ลงทะเบียน Bill Payment) จึงจะจ่ายเงินได้; ถ้าไม่มี ใช้ tax_id+"99" เป็น fallback
+    # biller_id ต้องเป็นเลขที่ธนาคารออกให้ (ลงทะเบียน Bill Payment) แอปธนาคารจึงจะรับ QR ได้; ถ้าไม่มี ใช้ tax_id+"99" เป็น fallback (อาจทำให้แอปแจ้ง "QR ไม่ถูกต้อง")
+    biller_id_source = "registered"
     if getattr(store, "biller_id", None) and store.biller_id.strip():
         b = "".join(filter(str.isdigit, store.biller_id))
         if len(b) == 15:
@@ -259,6 +260,7 @@ async def generate_promptpay_qr(
         else:
             biller_id = b.zfill(15)[:15]
     else:
+        biller_id_source = "tax_id_fallback"
         if not store.tax_id:
             raise HTTPException(status_code=400, detail="Store tax_id or biller_id is required for PromptPay QR Code")
         tax_id_clean = "".join(filter(str.isdigit, store.tax_id))
@@ -286,8 +288,8 @@ async def generate_promptpay_qr(
     db.add(order)
     db.commit()
     db.refresh(order)
-    # ref2 = order_id ใน QR เป็นตัวเลข 10 หลัก (ปัดศูนย์) เพื่อให้ธนาคารยอมรับได้ดี; callback จะส่ง ref2 กลับมา (อาจมี leading zero) ใช้ int(ref2) จับคู่ Order
-    ref2 = str(order.id).zfill(10)[:25]
+    # ref2 = order_id ใน QR เป็นตัวเลข 12 หลัก (ปัดศูนย์) เพื่อให้แอปธนาคารยอมรับได้; callback ส่ง ref2 กลับมา ใช้ int(ref2) จับคู่ Order
+    ref2 = str(order.id).zfill(12)[:12]
     ref3 = (request.ref3 or "").strip() or None
     if ref3:
         ref3 = ref3[:27]
@@ -371,9 +373,10 @@ async def generate_promptpay_qr(
             "ref2": ref2,
             "ref3": ref3,
             "biller_id": biller_id,
+            "biller_id_source": biller_id_source,
             "ref1": ref1,
             "amount": amount,
-            "biller_id_note": "15 หลัก = เลขประจำตัวผู้เสียภาษี 13 หลัก + suffix 99",
+            "biller_id_note": "ถ้าแอปธนาคารแจ้ง 'QR ไม่ถูกต้อง' ให้ลงทะเบียน Biller ID กับธนาคารแล้วใส่ในร้าน (biller_id). ตอนนี้ใช้: " + ("Biller ID ลงทะเบียนแล้ว" if biller_id_source == "registered" else "tax_id+99 (อาจไม่รับจากแอปธนาคาร)"),
         }
         if debug:
             qr_content_tag30 = generate_promptpay_qr_content(

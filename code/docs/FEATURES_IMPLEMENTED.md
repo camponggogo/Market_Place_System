@@ -44,6 +44,15 @@
 - `scripts/migrate_audit_menu.py`: เพิ่ม `audit_logs.source`, `users.is_admin`, `emergency_backup_entries`, `menu_price_logs`, `ad_feeds.store_id`, `ad_feeds.start_at`, `ad_feeds.end_at`
 - `scripts/seed_store_pos_user.py`: สร้าง user `admin` / `admin123` เป็น admin (is_admin=True)
 
+## QR Code / Stripe – สร้าง QR, รับ Webhook, แสดงใน Report
+- **สร้าง QR ด้วย Stripe** – Store POS หรือ API สร้าง PaymentIntent (PromptPay) ผ่าน Stripe โดยส่ง metadata `ref1` (store token), `ref2` (order_id); ฝั่งลูกค้าใช้ Stripe.js แสดง QR จาก `client_secret`
+- **Webhook** – เมื่อชำระสำเร็จ Stripe ส่ง `payment_intent.succeeded` มาที่ `/api/payment-callback/webhook/stripe` ระบบบันทึกลง `promptpay_back_transactions` (ref1, ref2, amount, paid_at, **payment_gateway=stripe**) และอัปเดต Order เป็น paid
+- **Report** – รายงานการชำระ QR/Stripe แสดงใน:
+  - **Admin**: หน้า `/report-qr-payments` (ลิงก์ใน Admin Dashboard แท็บ "รายงาน QR/Stripe") – กรองตามวันที่/ร้าน ได้คอลัมน์ ช่องทาง (stripe, omise ฯลฯ)
+  - **Store POS**: ลิงก์ "รายงาน QR/Stripe" ใน header ชี้ไป `/report-qr-payments` (สามารถใส่ ?store_id= เพื่อกรองร้าน)
+  - **Member**: ประวัติเติมเงิน/ซื้อ E-Coupon ผ่าน Stripe แสดงใน "รายการใช้จ่าย/เติมเงิน" บน Member Dashboard (จาก `MemberActivity`)
+- **API รายงาน**: `GET /api/payment-callback/back-transactions/report?store_id=&start_date=&end_date=&limit=` คืนรายการพร้อม `payment_gateway`
+
 ## การใช้งาน
 - **STRIPE_WEBHOOK_SECRET** ใส่ใน `config.ini` ตาม `docs/STRIPE_NGROK.md` เมื่อใช้ ngrok ทดสอบ Webhook
 - ล็อกอิน Admin: ใช้ user `admin` / `admin123` (หลัง seed) เพื่อเข้า `/emergency-backup`, `/audit-logs` และดูรายการย้อนหลัง

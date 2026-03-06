@@ -75,6 +75,8 @@ COMPANY_NAME = get_config("TAX", "COMPANY_NAME", fallback="", env_var="COMPANY_N
 # Payment Configuration
 PROMPTPAY_ENABLED = get_config("PAYMENT", "PROMPTPAY_ENABLED", fallback=True, env_var="PROMPTPAY_ENABLED", env_type=bool)
 PROMPTPAY_API_URL = get_config("PAYMENT", "PROMPTPAY_API_URL", fallback="", env_var="PROMPTPAY_API_URL")
+# ถ้าแอปธนาคารแสดง "QR/Barcode ไม่ถูกต้อง" ลองตั้งเป็น True เพื่อใช้ CRC-16/XMODEM (init 0)
+PROMPTPAY_QR_CRC_XMODEM = get_config("PAYMENT", "PROMPTPAY_QR_CRC_XMODEM", fallback=False, env_var="PROMPTPAY_QR_CRC_XMODEM", env_type=bool)
 
 # SCB Partners API (Deeplink for Payment) – โครงสร้างตาม Postman
 SCB_BASE_URL = get_config("SCB", "SCB_BASE_URL", fallback="https://api-sandbox.partners.scb", env_var="SCB_BASE_URL")

@@ -23,6 +23,19 @@
         .store-header h1 { font-size: 24px; }
         .store-info { display: flex; gap: 12px; flex-wrap: wrap; }
         .store-info span { font-size: 18px; opacity: 0.95; }
+        .network-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            font-size: 13px;
+        }
+        .network-status.offline { background: rgba(220,53,69,0.4); }
+        .network-status .network-icon { font-size: 16px; }
+        .network-status.offline .network-icon { opacity: 0.8; }
         
         /* หน้าต่างหลัก: สินค้า | Order */
         .pos-window {
@@ -352,8 +365,13 @@
             <span id="store-name">-</span>
             <span>| Store #<span id="store-id">-</span></span>
         </div>
+        <div class="network-status" id="network-status" title="สถานะเครือข่าย">
+            <span class="network-icon" id="network-icon" aria-hidden="true">📶</span>
+            <span class="network-label" id="network-label">เชื่อมต่อ</span>
+        </div>
         <a href="/store-pos-settings" id="link-settings" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">⚙️ <span data-i18n="settings">ตั้งค่า</span></a>
         <a href="/store-menus?store_id=1" id="link-menus" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">📋 <span data-i18n="manage_menu">จัดการเมนู</span></a>
+        <a href="/store-report-qr-payments" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">📊 รายงาน QR/Stripe</a>
         <a href="/store-pos-login" onclick="logoutAndRedirect(event)" style="color:white;padding:6px 12px;background:rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;font-size:14px;">🚪 ออกจากระบบ</a>
     </div>
     
@@ -629,7 +647,38 @@
             });
             window.addEventListener('focus', function() { setTimeout(focusBarcodeInput, 50); });
             window.addEventListener('resize', function() { applyMenuColumns(); });
+            updateNetworkStatus();
+            window.addEventListener('online', updateNetworkStatus);
+            window.addEventListener('offline', updateNetworkStatus);
+            setInterval(updateNetworkStatus, 30000);
         });
+
+        function updateNetworkStatus() {
+            var el = document.getElementById('network-status');
+            var icon = document.getElementById('network-icon');
+            var label = document.getElementById('network-label');
+            if (!el || !icon || !label) return;
+            if (!navigator.onLine) {
+                el.classList.add('offline');
+                icon.textContent = '📵';
+                label.textContent = 'ออฟไลน์';
+                el.title = 'ไม่มีการเชื่อมต่อเครือข่าย';
+                return;
+            }
+            fetch(window.location.origin + '/health', { method: 'GET', cache: 'no-store' }).then(function(r) {
+                return r.ok ? r.json() : Promise.reject();
+            }).then(function() {
+                el.classList.remove('offline');
+                icon.textContent = '📶';
+                label.textContent = 'เชื่อมต่อ';
+                el.title = 'เชื่อมต่อเครือข่ายและเซิร์ฟเวอร์ปกติ';
+            }).catch(function() {
+                el.classList.add('offline');
+                icon.textContent = '⚠️';
+                label.textContent = 'เน็ตขัดข้อง';
+                el.title = 'เครือข่ายเชื่อมได้แต่เซิร์ฟเวอร์ไม่ตอบสนอง';
+            });
+        }
 
         async function loadStoreInfo(storeId) {
             try {
@@ -639,6 +688,7 @@
                 currentStoreId = store.id;
                 document.getElementById('store-name').textContent = store.name || '-';
                 document.getElementById('store-id').textContent = store.id;
+                updateSignageCart();
                 var linkMenus = document.getElementById('link-menus');
                 if (linkMenus) linkMenus.href = '/store-menus?store_id=' + store.id;
                 var linkSettings = document.getElementById('link-settings');
@@ -709,6 +759,7 @@
             if (existing) existing.qty += qty;
             else orderItems.push({ menu: menu, qty: qty, addons: addons });
             renderOrderList();
+            updateSignageCart();
             setTimeout(focusBarcodeInput, 50);
         }
         function parseAddonOptions(jsonStr) {
@@ -843,11 +894,13 @@
             if (isNaN(q) || q < 1) return;
             orderItems[idx].qty = q;
             renderOrderList();
+            updateSignageCart();
         }
 
         function removeOrderItem(idx) {
             orderItems.splice(idx, 1);
             renderOrderList();
+            updateSignageCart();
         }
 
         function getOrderTotal() {
@@ -872,6 +925,23 @@
                     addons: o.addons || []
                 };
             });
+        }
+
+        function updateSignageCart() {
+            if (!currentStoreId) return;
+            var lines = getOrderLines();
+            var total = getOrderTotal();
+            var payload = {
+                store_id: currentStoreId,
+                order_items: lines.map(function(l){ return { name: l.name, qty: l.qty, unit_price: l.unit_price, line_total: l.line_total }; }),
+                amount: total
+            };
+            fetch(API_BASE_URL + '/signage/set-cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            }).then(function(r){ if (!r.ok) console.warn('Signage set-cart failed', r.status); }).catch(function(e){ console.warn('Signage set-cart error', e); });
         }
 
         var currentOrderId = null;
@@ -1230,6 +1300,15 @@
                 generatePromptPayQRBackend().then(function() { printOrderWithQR(); }).catch(function(e){ showAlert('❌ ' + e.message, 'error'); });
                 return;
             }
+            if (qrImg && currentStoreId) {
+                var orderItemsForSignage = lines.map(function(l){ return { name: l.name, qty: l.qty, line_total: l.line_total }; });
+                fetch(API_BASE_URL + '/signage/set-display', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ store_id: currentStoreId, qr_image: qrImg, amount: total, order_items: orderItemsForSignage })
+                }).then(function(r){ if (!r.ok) console.warn('Signage set-display failed', r.status); }).catch(function(e){ console.warn('Signage set-display error', e); });
+            }
             receiptArea.classList.remove('print-active');
             receiptArea.style.display = 'none';
             area.classList.add('print-active');
@@ -1339,6 +1418,7 @@
         function clearOrder() {
             orderItems = [];
             renderOrderList();
+            updateSignageCart();
             currentQRImage = null;
             currentQRAmount = 0;
             currentOrderId = null;

@@ -3,81 +3,456 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>จัดการโฆษณา / ตั้งเวลาปล่อย - Admin</title>
+  <title>จัดการโฆษณา / สื่อ (Video & Image) - Admin</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
     .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 22px; }
-    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .header h1 { margin: 0 0 6px 0; font-size: 22px; }
+    .header p { margin: 0; font-size: 13px; opacity: 0.9; }
+    .back { color: #fff; opacity: 0.95; text-decoration: none; font-size: 14px; margin-right: 12px; }
+    .back:hover { text-decoration: underline; }
     .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
-    label { display: block; margin-bottom: 4px; font-size: 13px; }
-    input, select, button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
-    button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+    label { display: block; margin-bottom: 4px; font-size: 13px; color: #334155; }
+    input, select, button, textarea { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 10px; font-size: 14px; }
+    input[type="checkbox"] { width: auto; margin-right: 8px; }
+    button { background: #2563eb; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    button.btn-secondary { background: #64748b; }
+    button.btn-danger { background: #dc2626; }
+    button.btn-sm { padding: 6px 10px; font-size: 12px; }
+    .form-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .form-row .field { flex: 1; min-width: 160px; }
+    .inline-label { display: inline; margin-left: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 10px; border-bottom: 1px solid #eee; }
-    th { background: #f8fafc; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    th { background: #f8fafc; color: #1e40af; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+    .badge-image { background: #dbeafe; color: #1e40af; }
+    .badge-video { background: #fce7f3; color: #9d174d; }
+    .badge-broadcast { background: #dcfce7; color: #166534; }
     .small { font-size: 12px; color: #64748b; }
+    .media-preview { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; background: #f1f5f9; }
+    .media-preview.video { object-fit: contain; }
+    #ad-list tbody tr:hover { background: #f8fafc; }
+    .msg { font-size: 13px; margin-left: 10px; }
+    .msg.ok { color: #16a34a; }
+    .msg.err { color: #dc2626; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal.show { display: flex; }
+    .modal-content { background: #fff; border-radius: 12px; padding: 24px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal-content h3 { margin: 0 0 16px 0; color: #1f3a8a; }
+    .modal-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/admin" class="back">← กลับ Admin</a>
-    <a href="/admin/calendar" class="back" style="margin-left:12px">ปฏิทิน</a>
-    <h1>จัดการโฆษณา (ตั้งเวลาปล่อย start/end)</h1>
+    <a href="/admin/calendar" class="back">ปฏิทิน</a>
+    <a href="/admin/ads-summary" class="back">สรุปผลโฆษณา</a>
+    <h1>จัดการโฆษณา / สื่อ (Video & Image)</h1>
+    <p>เพิ่ม ลบ แก้ไข จัดเรียง • แยกแต่ละร้าน หรือ Broadcast (ทุกร้าน) • กำหนดเวลา/ช่วงเวลาแสดง</p>
   </div>
+
   <div class="card">
-    <h2>เพิ่มโฆษณา</h2>
-    <label>หัวข้อ</label>
-    <input type="text" id="ad-title" placeholder="หัวข้อโฆษณา">
-    <label>ร้าน (ว่าง = ทุกร้าน)</label>
-    <select id="ad-store"><option value="">ทุกร้าน</option></select>
-    <label>เริ่มแสดง (start_at) YYYY-MM-DDTHH:mm</label>
-    <input type="datetime-local" id="ad-start">
-    <label>สิ้นสุดแสดง (end_at)</label>
-    <input type="datetime-local" id="ad-end">
-    <label>เปิดใช้งาน</label>
-    <input type="checkbox" id="ad-active" checked>
-    <button type="button" id="btn-create">สร้างโฆษณา</button>
-    <span id="create-msg" class="small"></span>
+    <h2>➕ เพิ่มโฆษณา / สไลด์</h2>
+    <div class="form-row">
+      <div class="field" style="flex: 0 0 120px;">
+        <label>ประเภท</label>
+        <select id="new-media-type">
+          <option value="image">ภาพ (Image)</option>
+          <option value="video">วิดีโอ (Video)</option>
+        </select>
+      </div>
+      <div class="field" style="flex: 2; min-width: 200px;">
+        <label>หัวข้อ</label>
+        <input type="text" id="new-title" placeholder="ชื่อโฆษณา / สไลด์">
+      </div>
+    </div>
+    <div id="new-image-field">
+      <label>แหล่งที่มา: URL หรือ path บน Server</label>
+      <input type="text" id="new-image-url" placeholder="https://... หรือ /ad-media/xxx.jpg หรือ /static/imgs/...">
+      <label class="small">หรืออัปโหลดไฟล์จากเครื่อง</label>
+      <input type="file" id="new-image-file" accept="image/*">
+      <span id="new-image-upload-msg" class="msg small"></span>
+    </div>
+    <div id="new-video-field" style="display:none;">
+      <label>แหล่งที่มา: URL หรือ path บน Server</label>
+      <input type="text" id="new-video-url" placeholder="https://... หรือ /videos/xxx.mp4 หรือ /ad-media/xxx.mp4">
+      <label class="small">หรืออัปโหลดไฟล์จากเครื่อง</label>
+      <input type="file" id="new-video-file" accept="video/*">
+      <span id="new-video-upload-msg" class="msg small"></span>
+    </div>
+    <label>การแสดงผลเมื่อเน็ตขัดข้อง</label>
+    <div style="margin-bottom:10px;">
+      <label class="inline-label"><input type="radio" name="new-delivery" value="stream" checked> Stream จาก Server</label>
+      <label class="inline-label"><input type="radio" name="new-delivery" value="download"> อนุญาตดาวน์โหลดลงเครื่องเมื่อเน็ตขัดข้อง</label>
+    </div>
+    <label>ลิงก์เมื่อคลิก (ไม่บังคับ)</label>
+    <input type="url" id="new-link-url" placeholder="https://...">
+    <label>แสดงที่ร้าน</label>
+    <select id="new-store-id">
+      <option value="">📡 Broadcast (ทุกร้าน)</option>
+    </select>
+    <div class="form-row">
+      <div class="field">
+        <label>เริ่มแสดง (เวลา / ช่วงเวลา)</label>
+        <input type="datetime-local" id="new-start-at">
+      </div>
+      <div class="field">
+        <label>สิ้นสุดแสดง</label>
+        <input type="datetime-local" id="new-end-at">
+      </div>
+    </div>
+    <label><input type="checkbox" id="new-active" checked> เปิดใช้งาน</label>
+    <div style="margin-top:12px;">
+      <button type="button" id="btn-create">เพิ่มโฆษณา</button>
+      <span id="create-msg" class="msg"></span>
+    </div>
   </div>
+
   <div class="card">
-    <h2>รายการโฆษณา</h2>
-    <div id="ad-list"></div>
+    <h2>📋 รายการโฆษณา / สไลด์ (ลากหรือใช้ปุ่ม ↑↓ จัดเรียง)</h2>
+    <div id="ad-list-wrap">
+      <table id="ad-list">
+        <thead>
+          <tr>
+            <th style="width:50px;">ลำดับ</th>
+            <th style="width:70px;">สื่อ</th>
+            <th>หัวข้อ</th>
+            <th>ร้าน</th>
+            <th>ช่วงเวลา</th>
+            <th>สถานะ</th>
+            <th style="width:180px;">ดำเนินการ</th>
+          </tr>
+        </thead>
+        <tbody id="ad-tbody"></tbody>
+      </table>
+      <p id="ad-empty" style="display:none; color:#64748b; padding:16px;">ยังไม่มีโฆษณา</p>
+    </div>
   </div>
+
+  <div class="modal" id="edit-modal">
+    <div class="modal-content">
+      <h3 id="edit-modal-title">แก้ไขโฆษณา</h3>
+      <input type="hidden" id="edit-id">
+      <label>ประเภท</label>
+      <select id="edit-media-type">
+        <option value="image">ภาพ (Image)</option>
+        <option value="video">วิดีโอ (Video)</option>
+      </select>
+      <label>หัวข้อ</label>
+      <input type="text" id="edit-title" placeholder="ชื่อโฆษณา">
+      <div id="edit-image-field">
+        <label>URL หรือ path บน Server / อัปโหลดใหม่</label>
+        <input type="text" id="edit-image-url" placeholder="https://... หรือ /ad-media/xxx.jpg">
+        <input type="file" id="edit-image-file" accept="image/*" class="small">
+      </div>
+      <div id="edit-video-field" style="display:none;">
+        <label>URL หรือ path บน Server / อัปโหลดใหม่</label>
+        <input type="text" id="edit-video-url" placeholder="https://... หรือ /videos/xxx.mp4">
+        <input type="file" id="edit-video-file" accept="video/*" class="small">
+      </div>
+      <label>การแสดงผล</label>
+      <div style="margin-bottom:10px;">
+        <label class="inline-label"><input type="radio" name="edit-delivery" value="stream"> Stream จาก Server</label>
+        <label class="inline-label"><input type="radio" name="edit-delivery" value="download"> อนุญาตดาวน์โหลดเมื่อเน็ตขัดข้อง</label>
+      </div>
+      <label>ลิงก์เมื่อคลิก</label>
+      <input type="url" id="edit-link-url" placeholder="https://...">
+      <label>แสดงที่ร้าน</label>
+      <select id="edit-store-id">
+        <option value="">📡 Broadcast (ทุกร้าน)</option>
+      </select>
+      <label>เริ่มแสดง</label>
+      <input type="datetime-local" id="edit-start-at">
+      <label>สิ้นสุดแสดง</label>
+      <input type="datetime-local" id="edit-end-at">
+      <label><input type="checkbox" id="edit-active" checked> เปิดใช้งาน</label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">ยกเลิก</button>
+        <button type="button" id="btn-save-edit">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API = window.location.origin + '/api';
-    async function loadStores() {
-      const r = await fetch(API + '/stores');
-      if (r.ok) {
-        const arr = await r.json();
-        const sel = document.getElementById('ad-store');
-        (arr || []).forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name || 'ร้าน ' + s.id; sel.appendChild(o); });
+    let ads = [];
+    let stores = [];
+
+    function toggleNewMediaFields() {
+      const t = document.getElementById('new-media-type').value;
+      document.getElementById('new-image-field').style.display = t === 'image' ? 'block' : 'none';
+      document.getElementById('new-video-field').style.display = t === 'video' ? 'block' : 'none';
+    }
+    function toggleEditMediaFields() {
+      const t = document.getElementById('edit-media-type').value;
+      document.getElementById('edit-image-field').style.display = t === 'image' ? 'block' : 'none';
+      document.getElementById('edit-video-field').style.display = t === 'video' ? 'block' : 'none';
+    }
+    document.getElementById('new-media-type').addEventListener('change', toggleNewMediaFields);
+    document.getElementById('edit-media-type').addEventListener('change', toggleEditMediaFields);
+
+    function mediaSrc(url) {
+      if (!url) return '';
+      if (url.startsWith('http')) return url;
+      return window.location.origin + (url.startsWith('/') ? url : '/' + url);
+    }
+
+    async function uploadAdFile(fileInput, mediaType, urlInputId, msgId) {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const msgEl = document.getElementById(msgId);
+      if (msgEl) msgEl.textContent = 'กำลังอัปโหลด...';
+      try {
+        const r = await fetch(API + '/admin/ads/upload', { method: 'POST', body: fd });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || 'อัปโหลดไม่สำเร็จ');
+        const url = d.url || '';
+        document.getElementById(urlInputId).value = url;
+        if (msgEl) { msgEl.textContent = 'อัปโหลดเรียบร้อย'; msgEl.className = 'msg ok small'; }
+        fileInput.value = '';
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message; msgEl.className = 'msg err small'; }
       }
     }
+    document.getElementById('new-image-file').addEventListener('change', function() {
+      uploadAdFile(this, 'image', 'new-image-url', 'new-image-upload-msg');
+    });
+    document.getElementById('new-video-file').addEventListener('change', function() {
+      uploadAdFile(this, 'video', 'new-video-url', 'new-video-upload-msg');
+    });
+
+    async function uploadAdFileOnly(fileInput, urlInputId) {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(API + '/admin/ads/upload', { method: 'POST', body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return;
+      const url = d.url || '';
+      document.getElementById(urlInputId).value = url;
+      fileInput.value = '';
+    }
+    document.getElementById('edit-image-file').addEventListener('change', function() {
+      uploadAdFileOnly(this, 'edit-image-url');
+    });
+    document.getElementById('edit-video-file').addEventListener('change', function() {
+      uploadAdFileOnly(this, 'edit-video-url');
+    });
+
+    async function loadStores() {
+      const r = await fetch(API + '/stores/');
+      if (!r.ok) return;
+      const arr = await r.json();
+      stores = arr || [];
+      const selNew = document.getElementById('new-store-id');
+      const selEdit = document.getElementById('edit-store-id');
+      [selNew, selEdit].forEach(sel => {
+        while (sel.options.length > 1) sel.remove(1);
+        stores.forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.id;
+          o.textContent = s.name || 'ร้าน #' + s.id;
+          sel.appendChild(o);
+        });
+      });
+    }
+
     async function loadAds() {
       const r = await fetch(API + '/admin/ads/list');
-      const list = await r.json();
-      const el = document.getElementById('ad-list');
-      if (!list || !list.length) { el.innerHTML = '<p>ยังไม่มีโฆษณา</p>'; return; }
-      el.innerHTML = '<table><thead><tr><th>หัวข้อ</th><th>ร้าน</th><th>เริ่ม</th><th>สิ้นสุด</th><th>สถานะ</th></tr></thead><tbody>' +
-        list.map(a => '<tr><td>' + (a.title || '') + '</td><td>' + (a.store_id ?? 'ทุกร้าน') + '</td><td class="small">' + (a.start_at ? a.start_at.slice(0, 16) : '-') + '</td><td class="small">' + (a.end_at ? a.end_at.slice(0, 16) : '-') + '</td><td>' + (a.is_active ? 'เปิด' : 'ปิด') + '</td></tr>').join('') + '</tbody></table>';
+      ads = await r.json();
+      renderAdList();
     }
-    document.getElementById('btn-create').addEventListener('click', async function() {
-      const title = document.getElementById('ad-title').value.trim();
-      if (!title) { document.getElementById('create-msg').textContent = 'กรอกหัวข้อ'; return; }
-      const storeId = document.getElementById('ad-store').value;
-      const start = document.getElementById('ad-start').value;
-      const end = document.getElementById('ad-end').value;
-      const body = { title, store_id: storeId ? parseInt(storeId, 10) : null, start_at: start || null, end_at: end || null, is_active: document.getElementById('ad-active').checked };
-      const r = await fetch(API + '/admin/ads/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const d = await r.json();
-      document.getElementById('create-msg').textContent = r.ok ? 'สร้างแล้ว id=' + d.id : (d.detail || 'ผิดพลาด');
-      if (r.ok) { loadAds(); document.getElementById('ad-title').value = ''; }
+
+    function storeLabel(storeId) {
+      if (storeId == null || storeId === '') return { text: 'Broadcast', cls: 'badge-broadcast' };
+      const s = stores.find(x => x.id === storeId);
+      return { text: s ? s.name : 'ร้าน #' + storeId, cls: '' };
+    }
+
+    function formatDateTime(iso) {
+      if (!iso) return '-';
+      return iso.slice(0, 16).replace('T', ' ');
+    }
+
+    function renderAdList() {
+      const tbody = document.getElementById('ad-tbody');
+      const empty = document.getElementById('ad-empty');
+      if (!ads || ads.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      tbody.innerHTML = ads.map((a, idx) => {
+        const st = storeLabel(a.store_id);
+        const mediaType = a.media_type || 'image';
+        const thumb = mediaType === 'video'
+          ? (a.video_url ? '<span class="badge badge-video">Video</span>' : '🎬')
+          : (a.image_url ? '<img class="media-preview" src="' + mediaSrc(a.image_url) + '" alt="" onerror="this.style.display=\'none\'">' : '🖼️');
+        return '<tr data-id="' + a.id + '" data-sort="' + a.sort_order + '">' +
+          '<td>' + (idx + 1) + '</td>' +
+          '<td>' + thumb + '</td>' +
+          '<td><strong>' + escapeHtml(a.title || '') + '</strong></td>' +
+          '<td><span class="badge ' + st.cls + '">' + escapeHtml(st.text) + '</span></td>' +
+          '<td class="small">' + formatDateTime(a.start_at) + ' ~ ' + formatDateTime(a.end_at) + '</td>' +
+          '<td>' + (a.is_active ? 'เปิด' : 'ปิด') + '</td>' +
+          '<td>' +
+          '<button type="button" class="btn-sm" onclick="moveAd(' + a.id + ', -1)">↑</button> ' +
+          '<button type="button" class="btn-sm" onclick="moveAd(' + a.id + ', 1)">↓</button> ' +
+          '<button type="button" class="btn-secondary btn-sm" onclick="openEdit(' + a.id + ')">แก้ไข</button> ' +
+          '<button type="button" class="btn-danger btn-sm" onclick="deleteAd(' + a.id + ')">ลบ</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function moveAd(id, delta) {
+      const idx = ads.findIndex(a => a.id === id);
+      if (idx < 0) return;
+      const newIdx = idx + delta;
+      if (newIdx < 0 || newIdx >= ads.length) return;
+      const temp = ads[idx];
+      ads[idx] = ads[newIdx];
+      ads[newIdx] = temp;
+      const order = ads.map((a, i) => ({ id: a.id, sort_order: i }));
+      const r = await fetch(API + '/admin/ads/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: order })
+      });
+      if (r.ok) loadAds();
+    }
+
+    async function deleteAd(id) {
+      if (!confirm('ต้องการลบโฆษณานี้?')) return;
+      const r = await fetch(API + '/admin/ads/' + id, { method: 'DELETE' });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { loadAds(); return; }
+      alert(d.detail || 'ลบไม่สำเร็จ');
+    }
+
+    function openEdit(id) {
+      const a = ads.find(x => x.id === id);
+      if (!a) return;
+      document.getElementById('edit-id').value = a.id;
+      document.getElementById('edit-modal-title').textContent = 'แก้ไข: ' + (a.title || '');
+      document.getElementById('edit-media-type').value = a.media_type || 'image';
+      document.getElementById('edit-title').value = a.title || '';
+      document.getElementById('edit-image-url').value = a.image_url || '';
+      document.getElementById('edit-video-url').value = a.video_url || '';
+      document.getElementById('edit-link-url').value = a.link_url || '';
+      document.getElementById('edit-store-id').value = a.store_id != null ? a.store_id : '';
+      document.getElementById('edit-start-at').value = a.start_at ? a.start_at.slice(0, 16) : '';
+      document.getElementById('edit-end-at').value = a.end_at ? a.end_at.slice(0, 16) : '';
+      document.getElementById('edit-active').checked = !!a.is_active;
+      const delivery = (a.delivery_mode || 'stream');
+      const editDelivery = document.querySelectorAll('input[name="edit-delivery"]');
+      editDelivery.forEach(function(radio) { radio.checked = (radio.value === delivery); });
+      toggleEditMediaFields();
+      document.getElementById('edit-modal').classList.add('show');
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.remove('show');
+    }
+
+    document.getElementById('btn-save-edit').addEventListener('click', async function() {
+      const id = document.getElementById('edit-id').value;
+      const mediaType = document.getElementById('edit-media-type').value;
+      const deliveryMode = (document.querySelector('input[name="edit-delivery"]:checked') || {}).value || 'stream';
+      const body = {
+        title: document.getElementById('edit-title').value.trim(),
+        media_type: mediaType,
+        image_url: document.getElementById('edit-image-url').value.trim() || null,
+        video_url: document.getElementById('edit-video-url').value.trim() || null,
+        link_url: document.getElementById('edit-link-url').value.trim() || null,
+        store_id: document.getElementById('edit-store-id').value ? parseInt(document.getElementById('edit-store-id').value, 10) : null,
+        start_at: document.getElementById('edit-start-at').value || null,
+        end_at: document.getElementById('edit-end-at').value || null,
+        is_active: document.getElementById('edit-active').checked,
+        delivery_mode: deliveryMode
+      };
+      if (!body.start_at) body.start_at = null;
+      else body.start_at = body.start_at + ':00';
+      if (!body.end_at) body.end_at = null;
+      else body.end_at = body.end_at + ':00';
+      const r = await fetch(API + '/admin/ads/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { closeEditModal(); loadAds(); return; }
+      alert(d.detail || 'บันทึกไม่สำเร็จ');
     });
-    loadStores();
-    loadAds();
+
+    document.getElementById('btn-create').addEventListener('click', async function() {
+      const title = document.getElementById('new-title').value.trim();
+      if (!title) { document.getElementById('create-msg').textContent = 'กรุณากรอกหัวข้อ'; document.getElementById('create-msg').className = 'msg err'; return; }
+      const mediaType = document.getElementById('new-media-type').value;
+      const imageUrl = document.getElementById('new-image-url').value.trim() || null;
+      const videoUrl = document.getElementById('new-video-url').value.trim() || null;
+      if (mediaType === 'image' && !imageUrl) { document.getElementById('create-msg').textContent = 'กรุณากรอก URL รูปภาพ'; document.getElementById('create-msg').className = 'msg err'; return; }
+      if (mediaType === 'video' && !videoUrl) { document.getElementById('create-msg').textContent = 'กรุณากรอก URL วิดีโอ'; document.getElementById('create-msg').className = 'msg err'; return; }
+      const storeId = document.getElementById('new-store-id').value;
+      const startAt = document.getElementById('new-start-at').value;
+      const endAt = document.getElementById('new-end-at').value;
+      const deliveryMode = (document.querySelector('input[name="new-delivery"]:checked') || {}).value || 'stream';
+      const body = {
+        title,
+        media_type: mediaType,
+        image_url: mediaType === 'image' ? imageUrl : null,
+        video_url: mediaType === 'video' ? videoUrl : null,
+        link_url: document.getElementById('new-link-url').value.trim() || null,
+        store_id: storeId ? parseInt(storeId, 10) : null,
+        start_at: startAt ? startAt + ':00' : null,
+        end_at: endAt ? endAt + ':00' : null,
+        sort_order: ads.length,
+        is_active: document.getElementById('new-active').checked,
+        delivery_mode: deliveryMode
+      };
+      const r = await fetch(API + '/admin/ads/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        document.getElementById('create-msg').textContent = 'สร้างเรียบร้อย (id=' + d.id + ')';
+        document.getElementById('create-msg').className = 'msg ok';
+        document.getElementById('new-title').value = '';
+        document.getElementById('new-image-url').value = '';
+        document.getElementById('new-video-url').value = '';
+        document.getElementById('new-link-url').value = '';
+        loadAds();
+      } else {
+        document.getElementById('create-msg').textContent = d.detail || 'สร้างไม่สำเร็จ';
+        document.getElementById('create-msg').className = 'msg err';
+      }
+    });
+
+    document.getElementById('edit-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeEditModal();
+    });
+
+    (async function() {
+      await loadStores();
+      await loadAds();
+      toggleNewMediaFields();
+    })();
   </script>
 </body>
 </html>

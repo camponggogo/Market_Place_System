@@ -1,10 +1,13 @@
-https://developer.scb/#/management/apps
-App : QR-PromptPay-1
-API Key : l79417b2c08a8c42b9b7d5c51210c01dbc
-API Secret : 9e96ab1086634cf4b7e4001ffec50908
+# SCB QR Code & Webhook - Test API
+# https://developer.scb/#/management/apps
 
 App Name : QR-PromptPay-1
-Public Description : QR-PromptPay Test 1
-API Key : l79417b2c08a8c42b9b7d5c51210c01dbc
+API Key  : l79417b2c08a8c42b9b7d5c51210c01dbc
 API Secret : 9e96ab1086634cf4b7e4001ffec50908
-Callback URL : http://150.95.85.185/webhook
+
+# Webhook Callback URL (ลงทะเบียนที่ SCB Developer)
+# Local+ngrok: https://[ngrok-url]/api/payment-callback/webhook
+# หรือตั้ง config.ini BACKEND_URL=https://xxx.ngrok-free.app แล้วรัน seed_scb_store2
+
+# ทดสอบ API: python Run/test_scb_api.py
+# Seed store: .\Run\seed_scb_store2.ps1 [store_id]

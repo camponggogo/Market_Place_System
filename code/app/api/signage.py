@@ -61,6 +61,20 @@ def clear_signage_display(store_id: int) -> None:
         del _signage_state[store_id]
 
 
+def set_signage_cart(store_id: int, order_items: List[dict], amount: float) -> None:
+    """ให้ store-pos เรียกเมื่อเพิ่ม/ลด/แก้ไขรายการในตะกร้า (ยังไม่กด PromptPay) – จอที่ 2 แสดงรายการเท่านั้น ไม่แสดง QR"""
+    if not order_items:
+        if store_id in _signage_state and _signage_state[store_id].get("status") == "cart":
+            del _signage_state[store_id]
+        return
+    _signage_state[store_id] = {
+        "status": "cart",
+        "order_items": order_items,
+        "amount": amount,
+        "qr_image": None,
+    }
+
+
 router = APIRouter(prefix="/api/signage", tags=["signage"])
 
 
@@ -71,9 +85,22 @@ class SetDisplayPayload(BaseModel):
     order_items: Optional[List[dict]] = None  # [{ name, qty, line_total }]
 
 
+class SetCartPayload(BaseModel):
+    store_id: int
+    order_items: List[dict]  # [{ name, qty, unit_price?, line_total? }]
+    amount: float
+
+
+@router.post("/set-cart")
+async def post_set_cart(payload: SetCartPayload):
+    """Store-pos เรียกเมื่อเพิ่ม/ลด/ล้างรายการ – จอที่ 2 แสดงรายการสินค้าพร้อมกัน (ไม่แสดง QR จนกว่าจะกด PromptPay/พิมพ์ Order+QR)"""
+    set_signage_cart(payload.store_id, payload.order_items or [], payload.amount)
+    return {"ok": True, "store_id": payload.store_id}
+
+
 @router.post("/set-display")
 async def post_set_display(payload: SetDisplayPayload):
-    """Store-pos เรียกเมื่อกดสร้าง PromptPay QR Code เพื่อให้จอที่ 2 แสดง QR ทันที"""
+    """Store-pos เรียกเมื่อกดสร้าง PromptPay QR Code หรือพิมพ์ Order+QR เพื่อให้จอที่ 2 แสดง QR ทันที"""
     set_signage_display(payload.store_id, payload.qr_image, payload.amount, payload.order_items)
     return {"ok": True, "store_id": payload.store_id}
 

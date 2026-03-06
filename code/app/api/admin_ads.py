@@ -1,10 +1,13 @@
 """
-Admin API - จัดการฟีดโฆษณา (Ad Feed) แสดงในแอปสมาชิก - เลือกทุกร้านหรือเฉพาะร้าน, ตั้งเวลาปล่อย, สรุปผล
+Admin API - จัดการฟีดโฆษณา (Ad Feed) แสดงในแอปสมาชิก - เลือกทุกร้านหรือเฉพาะร้าน, ตั้งเวลาปล่อย, อัปโหลดไฟล์, stream/download
 """
+import os
+import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -14,29 +17,50 @@ from app.models import AdFeed, AdImpression, StorePromotion, Store
 
 router = APIRouter(prefix="/api/admin/ads", tags=["admin-ads"])
 
+# โฟลเดอร์เก็บไฟล์โฆษณาที่อัปโหลด (ต้องตรงกับ main.py ที่ mount /ad-media)
+AD_MEDIA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "ad_media"
+AD_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".ogg", ".mov"}
+
 
 class AdFeedCreate(BaseModel):
     title: str
     body: Optional[str] = None
+    media_type: str = "image"  # image | video
     image_url: Optional[str] = None
+    video_url: Optional[str] = None
     link_url: Optional[str] = None
-    store_id: Optional[int] = None  # null = ทุกร้าน
+    store_id: Optional[int] = None  # null = ทุกร้าน (broadcast)
     start_at: Optional[str] = None  # ISO datetime
     end_at: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
+    delivery_mode: str = "stream"  # stream | download (อนุญาตดาวน์โหลดเมื่อเน็ตขัดข้อง)
 
 
 class AdFeedUpdate(BaseModel):
     title: Optional[str] = None
     body: Optional[str] = None
+    media_type: Optional[str] = None
     image_url: Optional[str] = None
+    video_url: Optional[str] = None
     link_url: Optional[str] = None
     store_id: Optional[int] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+    delivery_mode: Optional[str] = None
+
+
+class AdReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class AdReorderPayload(BaseModel):
+    items: List[AdReorderItem]  # [{ id, sort_order }, ...]
 
 
 def _parse_dt(s: Optional[str]):
@@ -52,11 +76,39 @@ def _parse_dt(s: Optional[str]):
 def list_ads(db: Session = Depends(get_db)):
     rows = db.query(AdFeed).order_by(AdFeed.sort_order, AdFeed.id.desc()).all()
     return [
-        {"id": r.id, "title": r.title, "body": r.body, "image_url": r.image_url, "link_url": r.link_url,
-         "store_id": getattr(r, "store_id", None), "start_at": r.start_at.isoformat() if getattr(r, "start_at", None) else None, "end_at": r.end_at.isoformat() if getattr(r, "end_at", None) else None,
-         "sort_order": r.sort_order, "is_active": r.is_active, "created_at": r.created_at.isoformat() if r.created_at else None}
+        {"id": r.id, "title": r.title, "body": r.body,
+         "media_type": getattr(r, "media_type", None) or "image",
+         "image_url": r.image_url, "video_url": getattr(r, "video_url", None), "link_url": r.link_url,
+         "store_id": getattr(r, "store_id", None),
+         "start_at": r.start_at.isoformat() if getattr(r, "start_at", None) else None,
+         "end_at": r.end_at.isoformat() if getattr(r, "end_at", None) else None,
+         "sort_order": r.sort_order, "is_active": r.is_active,
+         "delivery_mode": getattr(r, "delivery_mode", None) or "stream",
+         "created_at": r.created_at.isoformat() if r.created_at else None}
         for r in rows
     ]
+
+
+@router.post("/upload")
+async def upload_ad_media(file: UploadFile = File(...)):
+    """อัปโหลดไฟล์ภาพหรือวิดีโอสำหรับโฆษณา เก็บใน data/ad_media และให้บริการที่ /ad-media/"""
+    ext = (Path(file.filename or "").suffix or "").lower()
+    if ext in ALLOWED_IMAGE_EXT:
+        media_type = "image"
+    elif ext in ALLOWED_VIDEO_EXT:
+        media_type = "video"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="รองรับเฉพาะภาพ (jpg,png,gif,webp) และวิดีโอ (mp4,webm,ogg,mov)"
+        )
+    name = f"{uuid.uuid4().hex[:12]}{ext}"
+    path = AD_MEDIA_DIR / name
+    content = await file.read()
+    with open(path, "wb") as f:
+        f.write(content)
+    url = f"/ad-media/{name}"
+    return {"url": url, "media_type": media_type, "filename": name}
 
 
 @router.post("/create")
@@ -64,13 +116,16 @@ def create_ad(data: AdFeedCreate, db: Session = Depends(get_db)):
     ad = AdFeed(
         title=data.title,
         body=data.body,
+        media_type=(data.media_type or "image")[:20],
         image_url=data.image_url,
+        video_url=getattr(data, "video_url", None),
         link_url=data.link_url,
         store_id=data.store_id,
         start_at=_parse_dt(data.start_at),
         end_at=_parse_dt(data.end_at),
         sort_order=data.sort_order,
         is_active=data.is_active,
+        delivery_mode=(getattr(data, "delivery_mode", None) or "stream")[:20],
     )
     db.add(ad)
     db.commit()
@@ -87,8 +142,12 @@ def update_ad(ad_id: int, data: AdFeedUpdate, db: Session = Depends(get_db)):
         ad.title = data.title
     if data.body is not None:
         ad.body = data.body
+    if data.media_type is not None:
+        ad.media_type = data.media_type[:20] if data.media_type else "image"
     if data.image_url is not None:
         ad.image_url = data.image_url
+    if data.video_url is not None:
+        ad.video_url = data.video_url
     if data.link_url is not None:
         ad.link_url = data.link_url
     if data.store_id is not None:
@@ -101,9 +160,23 @@ def update_ad(ad_id: int, data: AdFeedUpdate, db: Session = Depends(get_db)):
         ad.sort_order = data.sort_order
     if data.is_active is not None:
         ad.is_active = data.is_active
+    if data.delivery_mode is not None:
+        ad.delivery_mode = data.delivery_mode[:20] if data.delivery_mode else "stream"
     db.add(ad)
     db.commit()
     return {"message": "อัปเดตเรียบร้อย"}
+
+
+@router.post("/reorder")
+def reorder_ads(payload: AdReorderPayload, db: Session = Depends(get_db)):
+    """จัดเรียงลำดับโฆษณา/สไลด์ (ส่งรายการ id กับ sort_order ใหม่)"""
+    for item in payload.items:
+        ad = db.query(AdFeed).filter(AdFeed.id == item.id).first()
+        if ad:
+            ad.sort_order = item.sort_order
+            db.add(ad)
+    db.commit()
+    return {"message": "จัดเรียงเรียบร้อย"}
 
 
 @router.delete("/{ad_id}")

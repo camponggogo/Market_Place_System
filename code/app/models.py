@@ -457,19 +457,22 @@ class ECoupon(Base):
 
 
 class AdFeed(Base):
-    """ฟีดโฆษณาแสดงในแอปสมาชิก - เลือกทุกร้าน (store_id=null) หรือเฉพาะร้านได้ ตั้งเวลา start_at/end_at ได้"""
+    """ฟีดโฆษณา/สื่อ (video หรือภาพ) - เลือกทุกร้าน (store_id=null = broadcast) หรือเฉพาะร้าน ตั้งเวลา start_at/end_at ได้"""
     __tablename__ = "ad_feeds"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=True)
+    media_type = Column(String(20), default="image", nullable=False)  # image | video
     image_url = Column(String(512), nullable=True)
+    video_url = Column(String(512), nullable=True)  # URL วิดีโอ (สำหรับ media_type=video)
     link_url = Column(String(512), nullable=True)
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)  # null = ทุกร้าน
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)  # null = ทุกร้าน (broadcast)
     start_at = Column(DateTime(timezone=True), nullable=True)   # เริ่มแสดง
     end_at = Column(DateTime(timezone=True), nullable=True)      # สิ้นสุดแสดง
     sort_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    delivery_mode = Column(String(20), default="stream", nullable=False)  # stream | download (อนุญาตดาวน์โหลดเมื่อเน็ตขัดข้อง)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -712,6 +715,7 @@ class PromptPayBackTransaction(Base):
     bank_account = Column(String(50), nullable=True)  # เลขที่บัญชี (จาก slip/callback)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)  # ผูกจาก ref1
     status = Column(String(20), default="received")  # received, matched, settled, failed
+    payment_gateway = Column(String(30), nullable=True, index=True)  # stripe, omise, scb_deeplink, kbank, etc. สำหรับ Report
     raw_payload = Column(Text, nullable=True)  # JSON จาก bank callback
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

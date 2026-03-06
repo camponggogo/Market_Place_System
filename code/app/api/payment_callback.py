@@ -43,7 +43,7 @@ router = APIRouter(prefix="/api/payment-callback", tags=["payment-callback"])
 # --- Request/Response models ---
 
 class BackTransactionPayload(BaseModel):
-    """Payload จาก Webhook/Callback ธนาคาร (SCB QR Payment ฯลฯ)"""
+    """Payload จาก Webhook/Callback ธนาคาร (SCB QR Payment, Stripe ฯลฯ)"""
     ref1: str          # store token (20 หลัก)
     amount: float
     paid_at: Optional[str] = None  # ISO datetime ถ้าไม่มีใช้เวลาปัจจุบัน
@@ -51,6 +51,7 @@ class BackTransactionPayload(BaseModel):
     ref3: Optional[str] = None
     slip_reference: Optional[str] = None
     bank_account: Optional[str] = None  # เลขที่บัญชี
+    payment_gateway: Optional[str] = None  # stripe, omise, scb_deeplink, kbank สำหรับ Report
     raw_payload: Optional[Any] = None
 
 
@@ -267,7 +268,7 @@ async def create_gateway_qr(
             pi = stripe_promptpay.create_payment_intent_promptpay(
                 secret_key=sk,
                 amount_satang=amount_satang,
-                metadata={"ref1": ref1, "store_id": str(store_id)},
+                metadata=metadata,
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -286,7 +287,7 @@ async def create_gateway_qr(
             pi = stripe_promptpay.create_payment_intent_apple_pay(
                 secret_key=sk,
                 amount_satang=amount_satang,
-                metadata={"ref1": ref1, "store_id": str(store_id)},
+                metadata=metadata,
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -464,6 +465,7 @@ async def post_back_transaction(
             ref3=payload.ref3,
             slip_reference=payload.slip_reference,
             bank_account=payload.bank_account,
+            payment_gateway=payload.payment_gateway,
             raw_payload=raw,
         )
         if back.store_id:
@@ -569,7 +571,7 @@ async def webhook_omise_receive(request: Request, db: Session = Depends(get_db))
         logger.warning("Omise webhook: charge %s has no metadata.ref1", charge.get("id"))
         return {"received": True}
     logger.info("Omise webhook: charge.complete ref1=%s amount=%.2f ref2=%s", ref1[:20], amount_baht, ref2)
-    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, ref2=ref2, ref3=ref3, raw_payload=body)
+    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, ref2=ref2, ref3=ref3, payment_gateway="omise", raw_payload=body)
     return await post_back_transaction(payload=payload, db=db)
 
 
@@ -685,8 +687,17 @@ async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)
     if not ref1:
         logger.warning("Stripe webhook: payment_intent %s has no metadata.ref1 or member metadata", data.get("id"))
         return {"received": True}
-    logger.info("Stripe webhook: payment_intent.succeeded ref1=%s amount=%.2f", ref1[:20], amount_baht)
-    payload = BackTransactionPayload(ref1=ref1, amount=amount_baht, raw_payload=body)
+    ref2 = meta.get("ref2") or ""
+    ref3 = meta.get("ref3") or ""
+    logger.info("Stripe webhook: payment_intent.succeeded ref1=%s ref2=%s amount=%.2f", ref1[:20], ref2, amount_baht)
+    payload = BackTransactionPayload(
+        ref1=ref1,
+        amount=amount_baht,
+        ref2=ref2 if ref2 else None,
+        ref3=ref3 if ref3 else None,
+        payment_gateway="stripe",
+        raw_payload=body,
+    )
     return await post_back_transaction(payload=payload, db=db)
 
 

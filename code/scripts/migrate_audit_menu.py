@@ -79,6 +79,32 @@ def main():
             except Exception:
                 conn.rollback()
                 pass
+        # ad_feeds: media_type, video_url (รองรับ video หรือภาพ slide)
+        for col, defn in [
+            ("media_type", "VARCHAR(20) NOT NULL DEFAULT 'image'"),
+            ("video_url", "VARCHAR(512) NULL"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE ad_feeds ADD COLUMN {col} {defn}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                pass
+        # ad_feeds: delivery_mode (stream | download)
+        try:
+            conn.execute(text("ALTER TABLE ad_feeds ADD COLUMN delivery_mode VARCHAR(20) NOT NULL DEFAULT 'stream'"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+        # promptpay_back_transactions: payment_gateway (stripe, omise, ฯลฯ สำหรับ Report)
+        try:
+            conn.execute(text("ALTER TABLE promptpay_back_transactions ADD COLUMN payment_gateway VARCHAR(30) NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
+
         # ad_impressions สำหรับสรุปผลการตอบรับโฆษณา
         run_sql(conn, """
         CREATE TABLE IF NOT EXISTS ad_impressions (

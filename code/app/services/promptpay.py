@@ -12,31 +12,38 @@ from typing import Optional
 
 def calculate_crc16_ccitt(data: bytes) -> int:
     """
-    คำนวณ CRC16-CCITT สำหรับ PromptPay QR Code
+    คำนวณ CRC16-CCITT (init 0xFFFF) สำหรับ PromptPay QR Code
     ตามมาตรฐาน EMV QR Code (Thai QR Payment)
-    
-    มาตรฐาน: EMV QR Code Specification
-    Polynomial: 0x1021
-    Initial value: 0xFFFF
-    
-    อ้างอิง: 
-    - มาตรฐานการรับชำระเงินด้วย QR ของธนาคารแห่งประเทศไทย
-    - https://medium.com/i-gear-geek/build-promptpay-qr-step-by-step-e67ddacf36af
+    Polynomial: 0x1021, Initial value: 0xFFFF
     """
     crc = 0xFFFF
     polynomial = 0x1021
-    
     for byte_val in data:
-        # XOR with byte (shift left 8 bits)
-        crc ^= (byte_val << 8) & 0xFFFF
-        
-        # Process 8 bits
+        b = byte_val & 0xFF
+        crc ^= (b << 8) & 0xFFFF
         for _ in range(8):
             if crc & 0x8000:
                 crc = ((crc << 1) ^ polynomial) & 0xFFFF
             else:
                 crc = (crc << 1) & 0xFFFF
-    
+    return crc & 0xFFFF
+
+
+def calculate_crc16_xmodem(data: bytes) -> int:
+    """
+    CRC-16/XMODEM (init 0x0000) - บางแอปธนาคารใช้ variant นี้
+    Polynomial: 0x1021
+    """
+    crc = 0x0000
+    polynomial = 0x1021
+    for byte_val in data:
+        b = byte_val & 0xFF
+        crc ^= (b << 8) & 0xFFFF
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ polynomial) & 0xFFFF
+            else:
+                crc = (crc << 1) & 0xFFFF
     return crc & 0xFFFF
 
 
@@ -81,18 +88,8 @@ def calculate_crc16_custom(data: bytes) -> int:
 def calculate_crc16(data: bytes, use_ccitt: bool = True) -> int:
     """
     คำนวณ CRC16 สำหรับ PromptPay QR Code
-    
-    Args:
-        data: ข้อมูลที่ต้องการคำนวณ CRC16
-        use_ccitt: True = ใช้ CRC16-CCITT (มาตรฐาน EMV - default), False = ใช้ Custom algorithm
-    
-    Returns:
-        CRC16 checksum (16-bit)
-    
-    หมายเหตุ:
-    - Default ใช้ CRC16-CCITT (polynomial 0x1021) ตามมาตรฐาน EMV และบทความ Medium
-    - อ้างอิง: https://medium.com/i-gear-geek/build-promptpay-qr-step-by-step-e67ddacf36af
-    - สามารถเปลี่ยนเป็น Custom algorithm ได้โดยตั้ง use_ccitt=False
+    use_ccitt=True (default) = CRC16-CCITT init 0xFFFF (EMV)
+    use_ccitt=False = Custom algorithm
     """
     if use_ccitt:
         return calculate_crc16_ccitt(data)
@@ -115,14 +112,19 @@ def format_tag(tag: str, value: str) -> str:
 def finalize_with_crc(payload_without_crc_tag: str, use_ccitt: bool = True) -> str:
     """
     เติม CRC16 (Tag63) ตามมาตรฐาน EMV
-
-    หมายเหตุสำคัญ:
-    - CRC16 ต้องคำนวณบน payload ที่ "เติม 6304" (Tag 63 + Length 04) แล้ว
-      แต่ยังไม่ใส่ค่า CRC (4 chars) เข้าไป
-    - แล้วจึงค่อย append ค่า CRC 4 ตัวอักษร (HEX) ต่อท้าย
+    - CRC ต้องคำนวณบน payload + "6304" (ยังไม่ใส่ค่า CRC) แล้ว append ค่า CRC 4 ตัวอักษร HEX
+    - ถ้า config PROMPTPAY_QR_CRC_XMODEM=True ใช้ CRC-16/XMODEM (init 0) แทน CCITT
     """
     payload_for_crc = f"{payload_without_crc_tag}6304"
-    crc = calculate_crc16(payload_for_crc.encode("utf-8"), use_ccitt=use_ccitt)
+    data = payload_for_crc.encode("utf-8")
+    try:
+        from app.config import PROMPTPAY_QR_CRC_XMODEM
+        if PROMPTPAY_QR_CRC_XMODEM:
+            crc = calculate_crc16_xmodem(data)
+        else:
+            crc = calculate_crc16(data, use_ccitt=use_ccitt)
+    except Exception:
+        crc = calculate_crc16(data, use_ccitt=use_ccitt)
     return f"{payload_for_crc}{crc:04X}"
 
 
@@ -176,17 +178,19 @@ def generate_promptpay_qr_content(
     
     merchant_info += format_tag("01", biller_id_clean)
     
-    # Reference 1 (Required) - ต้องไม่ว่าง, ตัดช่องว่างหัวท้าย
-    ref1_str = (str(ref1) or "").strip()
+    # Reference 1 (Required) - ตัวเลขเท่านั้น 20 หลัก (แอปธนาคารส่วนใหญ่รับเฉพาะ numeric)
+    ref1_str = "".join(c for c in (str(ref1) or "") if c.isdigit())
     if not ref1_str:
-        raise ValueError("Reference 1 (ref1) is required")
-    ref1_clean = ref1_str[:20]
+        ref1_str = "0"
+    ref1_clean = ref1_str[:20].zfill(20)  # เสมอ 20 หลัก
     merchant_info += format_tag("02", ref1_clean)
     
-    # Reference 2 (Optional)
-    if ref2:
-        ref2_clean = str(ref2)[:25]
-        merchant_info += format_tag("03", ref2_clean)
+    # Reference 2 (Optional) - ตัวเลขเท่านั้น สูงสุด 12 หลัก เพื่อความเข้ากันได้กับแอปธนาคาร
+    if ref2 is not None and str(ref2).strip() != "":
+        ref2_str = "".join(c for c in str(ref2) if c.isdigit())[:12]
+        if ref2_str:
+            ref2_clean = ref2_str.zfill(12)  # 12 หลัก
+            merchant_info += format_tag("03", ref2_clean)
     
     # Reference 3 (Optional)
     if ref3:

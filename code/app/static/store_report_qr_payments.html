@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายงาน QR/Stripe - ร้านของฉัน</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #1a1d23; color: #e4e6eb; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0 0 8px 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.95; text-decoration: none; font-size: 14px; }
+    .back:hover { text-decoration: underline; }
+    .card { background: #252830; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .card h2 { font-size: 16px; color: #28a745; margin-bottom: 12px; }
+    .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .filters label { margin-right: 4px; color: #aaa; }
+    .filters input, .filters select { padding: 8px 12px; border: 1px solid #444; border-radius: 8px; background: #1e2128; color: #fff; }
+    .filters button { padding: 8px 16px; background: #28a745; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .filters button:hover { background: #218838; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+    th { background: #1e2128; color: #28a745; }
+    .num { text-align: right; }
+    .gateway { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: rgba(40,167,69,0.2); color: #28a745; }
+    #loading, #no-data, #need-login { display: none; }
+    .need-login { color: #888; padding: 24px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/store-pos" class="back">← กลับไป Store POS</a>
+    <h1>รายงานการชำระ QR / Stripe (เฉพาะร้านของฉัน)</h1>
+    <p style="margin:0;font-size:14px;opacity:0.9;">แสดงเฉพาะร้านที่คุณมีสิทธิ์เท่านั้น</p>
+  </div>
+  <div id="need-login" class="card">
+    <p class="need-login">กรุณาล็อกอิน Store POS ก่อน</p>
+  </div>
+  <div class="card" id="card-report">
+    <h2>กรอง</h2>
+    <div class="filters">
+      <label>จากวันที่ <input type="date" id="from-date"></label>
+      <label>ถึง <input type="date" id="to-date"></label>
+      <label>ร้าน <select id="store-id"><option value="">-- เลือกร้าน --</option></select></label>
+      <button type="button" id="btn-load">โหลด</button>
+    </div>
+    <div id="loading">กำลังโหลด...</div>
+    <table id="tbl" style="display:none;">
+      <thead>
+        <tr><th>วันที่/เวลา</th><th>ร้าน</th><th>ref2 (order)</th><th>ช่องทาง</th><th>จำนวน (บาท)</th><th>สถานะ</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p id="no-data" style="display:none; color:#888;">ไม่มีรายการ</p>
+  </div>
+  <script>
+    const API = window.location.origin;
+    const paymentCallback = API + '/api/payment-callback';
+    let myStores = [];
+
+    function defaultDates() {
+      const d = new Date();
+      const to = d.toISOString().slice(0, 10);
+      d.setDate(d.getDate() - 30);
+      const from = d.toISOString().slice(0, 10);
+      return { from, to };
+    }
+    const def = defaultDates();
+    document.getElementById('from-date').value = def.from;
+    document.getElementById('to-date').value = def.to;
+
+    async function loadMe() {
+      try {
+        const r = await fetch(API + '/api/auth/me', { credentials: 'include' });
+        if (!r.ok) {
+          if (r.status === 401) {
+            window.location.href = '/store-pos-login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return null;
+          }
+          throw new Error('โหลดข้อมูลไม่สำเร็จ');
+        }
+        const data = await r.json();
+        myStores = data.stores || [];
+        return data;
+      } catch (e) {
+        document.getElementById('need-login').style.display = 'block';
+        document.getElementById('card-report').style.display = 'none';
+        return null;
+      }
+    }
+
+    function fillStoreSelect() {
+      const sel = document.getElementById('store-id');
+      sel.innerHTML = '<option value="">-- เลือกร้าน --</option>';
+      myStores.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.name || 'ร้าน #' + s.id;
+        sel.appendChild(o);
+      });
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('store_id');
+      if (sid && myStores.some(s => String(s.id) === sid)) sel.value = sid;
+      else if (myStores.length === 1) sel.value = myStores[0].id;
+    }
+
+    async function loadReport() {
+      const storeId = document.getElementById('store-id').value;
+      if (!storeId) {
+        document.getElementById('no-data').textContent = 'กรุณาเลือกร้าน';
+        document.getElementById('no-data').style.display = 'block';
+        document.getElementById('tbl').style.display = 'none';
+        return;
+      }
+      const from = document.getElementById('from-date').value;
+      const to = document.getElementById('to-date').value;
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('tbl').style.display = 'none';
+      document.getElementById('no-data').style.display = 'none';
+      let url = paymentCallback + '/back-transactions/report?limit=500&store_id=' + storeId;
+      if (from) url += '&start_date=' + from;
+      if (to) url += '&end_date=' + to;
+      try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        document.getElementById('loading').style.display = 'none';
+        const items = data.items || [];
+        if (!items.length) {
+          document.getElementById('no-data').textContent = 'ไม่มีรายการ';
+          document.getElementById('no-data').style.display = 'block';
+          return;
+        }
+        document.getElementById('tbl').style.display = 'table';
+        document.getElementById('tbody').innerHTML = items.map(i => {
+          const d = (i.paid_at || i.created_at || '').slice(0, 19).replace('T', ' ');
+          const gw = (i.payment_gateway || '-');
+          return '<tr><td>' + d + '</td><td>' + (i.store_name || 'ร้าน #' + (i.store_id || '')) + '</td><td>' + (i.ref2 || '-') + '</td><td><span class="gateway">' + gw + '</span></td><td class="num">' + (i.amount != null ? Number(i.amount).toFixed(2) : '-') + '</td><td>' + (i.status || '') + '</td></tr>';
+        }).join('');
+      } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('no-data').textContent = 'โหลดไม่สำเร็จ';
+        document.getElementById('no-data').style.display = 'block';
+      }
+    }
+
+    document.getElementById('btn-load').addEventListener('click', loadReport);
+    (async function() {
+      const me = await loadMe();
+      if (!me) return;
+      fillStoreSelect();
+      loadReport();
+    })();
+  </script>
+</body>
+</html>

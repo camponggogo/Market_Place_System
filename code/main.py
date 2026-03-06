@@ -100,6 +100,11 @@ _videos_dir = os.path.join(os.path.dirname(_BASE_DIR), "videos")
 if os.path.exists(_videos_dir):
     app.mount("/videos", StaticFiles(directory=_videos_dir), name="videos")
 
+# โฟลเดอร์สื่อโฆษณา (upload จาก Admin) - ใช้ path บน server หรืออัปโหลด
+_ad_media_dir = os.path.join(_BASE_DIR, "data", "ad_media")
+os.makedirs(_ad_media_dir, exist_ok=True)
+app.mount("/ad-media", StaticFiles(directory=_ad_media_dir), name="ad_media")
+
 # Redirect root to admin dashboard
 @app.get("/admin")
 async def admin_dashboard():
@@ -311,6 +316,29 @@ async def admin_ads_manage_page():
     """จัดการโฆษณา / ตั้งเวลาปล่อย (start_at, end_at, store)"""
     from fastapi.responses import FileResponse
     path = os.path.join(_BASE_DIR, "app", "static", "admin_ads_manage.html")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
+
+
+@app.get("/report-qr-payments")
+async def report_qr_payments_page():
+    """รายงานการชำระ QR / Stripe (Back Transactions) - สำหรับ Admin (ทุกร้าน)"""
+    from fastapi.responses import FileResponse
+    path = os.path.join(_BASE_DIR, "app", "static", "report_qr_payments.html")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
+
+
+@app.get("/store-report-qr-payments")
+async def store_report_qr_payments_page(request: Request):
+    """รายงาน QR/Stripe เฉพาะร้าน – ต้องล็อกอิน Store POS; แสดงเฉพาะร้านที่ user มีสิทธิ์"""
+    from fastapi.responses import FileResponse, RedirectResponse
+    session = getattr(request, "session", None)
+    if not session or not session.get("user_id"):
+        return RedirectResponse(url="/store-pos-login?next=/store-report-qr-payments", status_code=302)
+    path = os.path.join(_BASE_DIR, "app", "static", "store_report_qr_payments.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path)

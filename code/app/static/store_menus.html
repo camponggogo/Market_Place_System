@@ -21,14 +21,24 @@
         .header h1 { font-size: 22px; }
         .header a { color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; font-weight: bold; }
         .header a:hover { background: rgba(255,255,255,0.3); }
+        .header .btn-add-menu-top:hover { background: #d4edda !important; color: #155724 !important; }
         .container { max-width: 720px; margin: 24px auto; padding: 0 20px; }
+        @media (min-width: 900px) { .container { max-width: 1000px; } }
         .card { background: #252830; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
         .card h2 { font-size: 20px; color: #28a745; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #333; }
-        .menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #333; gap: 12px; flex-wrap: wrap; }
-        .menu-item:last-child { border-bottom: none; }
+        #menu-list { display: grid; grid-template-columns: 1fr; gap: 12px 16px; }
+        @media (min-width: 560px) { #menu-list { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 900px) { #menu-list { grid-template-columns: repeat(3, 1fr); } }
+        .menu-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 12px; border: 1px solid #333; border-radius: 10px; gap: 10px; flex-wrap: wrap; background: #1e2128; }
+        .menu-item:last-child { border-bottom: 1px solid #333; }
+        .menu-item-thumb-wrap { flex-shrink: 0; }
+        .menu-item-thumb { width: 56px; height: 56px; min-width: 56px; border-radius: 8px; object-fit: cover; background: #1e2128; border: 1px solid #444; display: block; }
+        .menu-item-thumb-placeholder { width: 56px; height: 56px; min-width: 56px; border-radius: 8px; background: #1e2128; border: 1px dashed #444; display: flex; align-items: center; justify-content: center; color: #666; font-size: 22px; }
         .menu-item .name { font-weight: bold; }
         .menu-item .price { color: #28a745; }
-        .menu-item .addon-preview { font-size: 14px; color: #888; }
+        .menu-item .addon-preview { font-size: 13px; color: #888; margin-top: 2px; }
+        .menu-item-info { flex: 1; min-width: 0; }
+        .menu-item .menu-item-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; margin-bottom: 6px; color: #aaa; font-size: 15px; }
         .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 2px solid #444; border-radius: 8px; background: #1e2128; color: #fff; font-size: 16px; }
@@ -60,19 +70,59 @@
         .addon-row .btn-fetch-img { padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
         .addon-row .btn-fetch-img:hover { background: #138496; }
         .addon-row .row-img label { font-size: 13px; color: #888; }
+        .cards-row { display: flex; flex-direction: column; gap: 20px; }
+        @media (min-width: 960px) {
+            .cards-row { flex-direction: row; align-items: flex-start; }
+            .cards-row .card-add-menu { flex: 0 0 360px; min-width: 0; }
+            .cards-row .card-menu-list { flex: 1; min-width: 0; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📋 <span data-i18n="manage_menu_title">จัดการเมนู</span></h1>
-        <a href="/store-pos" id="link-back">← <span data-i18n="back_to_pos">กลับไป Store POS</span></a>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <a href="#card-add-menu" class="btn-add-menu-top" style="background:#fff; color:#28a745; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:bold;">➕ <span data-i18n="add_menu">เพิ่มเมนู</span></a>
+            <a href="/store-pos" id="link-back">← <span data-i18n="back_to_pos">กลับไป Store POS</span></a>
+        </div>
     </div>
     <div class="container">
         <div id="alert-container"></div>
-        <div class="card">
+        <div class="cards-row">
+        <div class="card card-add-menu" id="card-add-menu" style="display:block !important;">
+            <h2>➕ <span data-i18n="add_menu">เพิ่มรายการเมนู</span></h2>
+            <p style="color:#888;margin-bottom:16px;">ชื่อเมนู, ราคา, รูปภาพ, เมนูพิเศษ (Add-on)</p>
+            <div class="form-group">
+                <label><span data-i18n="menu_name">ชื่อเมนู</span></label>
+                <input type="text" id="new-menu-name" placeholder="เช่น ข้าวผัดกระเพรา" required>
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="menu_price">ราคาเมนู</span> (บาท)</label>
+                <input type="number" id="new-menu-price" placeholder="0" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="menu_description">รายละเอียด</span> (ไม่บังคับ)</label>
+                <input type="text" id="new-menu-description" placeholder="">
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="menu_image">รูปเมนู</span> (URL ไม่บังคับ)</label>
+                <input type="url" id="new-menu-image-url" placeholder="https://...">
+                <small>หรือกด "รูป" ที่รายการเมนูหลังเพิ่มแล้ว เพื่อดึงรูปจาก URL / อัปโหลด</small>
+            </div>
+            <div class="form-group">
+                <label><span data-i18n="addon_options">เมนูพิเศษ (Add-on)</span></label>
+                <div id="new-addon-rows-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addNewAddonRow()">+ <span data-i18n="add_addon">เพิ่มเมนูพิเศษ</span></button>
+            </div>
+            <div style="margin-top:16px;">
+                <button type="button" class="btn btn-primary" id="btn-create-menu" onclick="createMenu()">✓ <span data-i18n="add_menu">เพิ่มรายการเมนู</span></button>
+            </div>
+        </div>
+        <div class="card card-menu-list">
             <h2><span data-i18n="menu_list">รายการเมนู</span> (ร้าน #<span id="store-id">-</span>)</h2>
             <p style="color:#888;margin-bottom:16px;">ตั้งค่าเมนูพิเศษ (Add-on) แต่ละรายการ: ชื่อ, ราคา, รูปภาพ</p>
             <div id="menu-list"></div>
+        </div>
         </div>
     </div>
 
@@ -92,12 +142,21 @@
 
     <div class="modal" id="edit-modal">
         <div class="modal-content" style="max-width:560px;">
-            <h3 id="edit-modal-title">แก้ไขเมนูพิเศษ (Add-on)</h3>
+            <h3 id="edit-modal-title">แก้ไขเมนู</h3>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label><span data-i18n="menu_name">ชื่อเมนู</span></label>
+                <input type="text" id="edit-menu-name" placeholder="ชื่อเมนู">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label><span data-i18n="menu_price">ราคาเมนู</span> (บาท)</label>
+                <input type="number" id="edit-menu-price" placeholder="0" min="0" step="0.01">
+            </div>
+            <label style="display:block;margin-bottom:8px;color:#aaa;"><span data-i18n="add_addon">เมนูพิเศษ (Add-on)</span></label>
             <div id="addon-rows-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
             <button type="button" class="btn btn-secondary" onclick="addAddonRow()" style="margin-bottom:16px;">+ <span data-i18n="add_addon">เพิ่มเมนูพิเศษ</span></button>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeEditModal()"><span data-i18n="cancel">ยกเลิก</span></button>
-                <button class="btn btn-primary" onclick="saveAddonOptions()"><span data-i18n="save">บันทึก</span></button>
+                <button class="btn btn-primary" onclick="saveMenuEdit()"><span data-i18n="save">บันทึก</span></button>
             </div>
         </div>
     </div>
@@ -140,6 +199,71 @@
             loadLocaleSettings().then(function() { loadMenus(); });
         });
 
+        function addNewAddonRow() {
+            var container = document.getElementById('new-addon-rows-container');
+            var idx = container.querySelectorAll('.addon-row').length;
+            container.appendChild(createAddonRow({}, idx));
+        }
+
+        function collectNewAddonRows() {
+            var rows = document.querySelectorAll('#new-addon-rows-container .addon-row');
+            var arr = [];
+            rows.forEach(function(row){
+                var name = (row.querySelector('.addon-name').value || '').trim();
+                if (!name) return;
+                var price = parseFloat(row.querySelector('.addon-price').value) || 0;
+                var imgUrl = (row.querySelector('.addon-img-url').value || '').trim();
+                var imgB64 = row.querySelector('.addon-img-file').dataset.b64 || '';
+                var obj = { name: name, price: price };
+                if (imgUrl) obj.image_url = imgUrl;
+                if (imgB64) obj.image_base64 = imgB64;
+                arr.push(obj);
+            });
+            return arr;
+        }
+
+        async function createMenu() {
+            var name = (document.getElementById('new-menu-name').value || '').trim();
+            var price = parseFloat(document.getElementById('new-menu-price').value);
+            if (!name) { showAlert('กรุณาระบุชื่อเมนู', 'error'); return; }
+            if (isNaN(price) || price < 0) { showAlert('กรุณาระบุราคาที่ถูกต้อง', 'error'); return; }
+            var description = (document.getElementById('new-menu-description').value || '').trim() || null;
+            var imageUrl = (document.getElementById('new-menu-image-url').value || '').trim() || null;
+            var addons = collectNewAddonRows();
+            var addonOptions = addons.length > 0 ? JSON.stringify(addons) : null;
+            var btn = document.getElementById('btn-create-menu');
+            btn.disabled = true;
+            try {
+                var res = await fetch(API + '/menus/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_id: parseInt(storeId, 10),
+                        name: name,
+                        description: description,
+                        unit_price: price,
+                        image_url: imageUrl,
+                        addon_options: addonOptions,
+                        is_active: true
+                    })
+                });
+                if (!res.ok) {
+                    var err = await res.json().catch(function(){ return {}; });
+                    throw new Error(err.detail || res.statusText || 'เพิ่มเมนูไม่สำเร็จ');
+                }
+                showAlert('เพิ่มเมนูเรียบร้อย', 'success');
+                document.getElementById('new-menu-name').value = '';
+                document.getElementById('new-menu-price').value = '';
+                document.getElementById('new-menu-description').value = '';
+                document.getElementById('new-menu-image-url').value = '';
+                document.getElementById('new-addon-rows-container').innerHTML = '';
+                loadMenus();
+            } catch (e) {
+                showAlert('❌ ' + e.message, 'error');
+            }
+            btn.disabled = false;
+        }
+
         async function loadMenus() {
             try {
                 const res = await fetch(API + '/menus/store/' + storeId);
@@ -162,17 +286,23 @@
                 var addons = [];
                 try {
                     if (m.addon_options) {
-                        var arr = JSON.parse(m.addon_options);
+                        var arr = typeof m.addon_options === 'string' ? JSON.parse(m.addon_options) : m.addon_options;
                         if (Array.isArray(arr)) addons = arr;
                     }
                 } catch(e){}
-                var preview = addons.length > 0 ? addons.map(function(a){ return a.name + (a.price > 0 ? ' +' + a.price : ''); }).join(', ') : '-';
+                var preview = addons.length > 0 ? addons.map(function(a){ return (a && a.name) + (a && a.price > 0 ? ' +' + a.price : ''); }).join(', ') : '-';
+                var imgSrc = (m.image_src || m.image_url || '').trim();
+                var thumbHtml = imgSrc
+                    ? '<div class="menu-item-thumb-wrap"><img class="menu-item-thumb" src="' + escapeHtml(imgSrc) + '" alt="" onerror="this.style.display=\'none\';var p=this.nextElementSibling;if(p)p.style.display=\'flex\';">' +
+                      '<span class="menu-item-thumb-placeholder" style="display:none;">📷</span></div>'
+                    : '<div class="menu-item-thumb-wrap"><span class="menu-item-thumb-placeholder">📷</span></div>';
                 return '<div class="menu-item">' +
-                    '<div><span class="name">' + escapeHtml(m.name) + '</span> <span class="price">' + formatMoney(m.unit_price) + '</span>' +
-                    '<div class="addon-preview">Add-on: ' + escapeHtml(preview) + '</div></div>' +
-                    '<div style="display:flex;gap:8px;">' +
-                    '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + m.id + ')">' + (t('edit_addon') || 'แก้ไข Add-on') + '</button>' +
-                    '<button class="btn btn-secondary btn-sm" onclick="openImageModal(' + m.id + ')">📷 ' + (t('image') || 'รูป') + '</button>' +
+                    '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' + thumbHtml +
+                    '<div class="menu-item-info"><span class="name">' + escapeHtml(m.name) + '</span> <span class="price">' + formatMoney(m.unit_price) + '</span>' +
+                    '<div class="addon-preview">Add-on: ' + escapeHtml(preview) + '</div></div></div>' +
+                    '<div class="menu-item-actions">' +
+                    '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + m.id + ')">' + (t('edit_addon') || 'แก้ไข') + '</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="openImageModal(' + m.id + ')">📷</button>' +
                     '</div></div>';
             }).join('');
         }
@@ -283,7 +413,9 @@
         function openEditModal(menuId) {
             editingMenuId = menuId;
             var m = menus.find(function(x){ return x.id === menuId; });
-            document.getElementById('edit-modal-title').textContent = (t('edit_addon') || 'แก้ไข Add-on') + ': ' + (m ? m.name : '');
+            document.getElementById('edit-modal-title').textContent = (t('edit_addon') || 'แก้ไขเมนู') + ': ' + (m ? m.name : '');
+            document.getElementById('edit-menu-name').value = m ? (m.name || '') : '';
+            document.getElementById('edit-menu-price').value = m && m.unit_price != null ? m.unit_price : '';
             var container = document.getElementById('addon-rows-container');
             container.innerHTML = '';
             var addons = parseAddonsJson(m && m.addon_options ? m.addon_options : '');
@@ -344,18 +476,23 @@
             return arr;
         }
 
-        async function saveAddonOptions() {
+        async function saveMenuEdit() {
             if (!editingMenuId) return;
+            var name = (document.getElementById('edit-menu-name').value || '').trim();
+            var price = parseFloat(document.getElementById('edit-menu-price').value);
+            if (!name) { showAlert('กรุณาระบุชื่อเมนู', 'error'); return; }
+            if (isNaN(price) || price < 0) { showAlert('กรุณาระบุราคาที่ถูกต้อง', 'error'); return; }
             var arr = collectAddonRows();
-            var val = arr.length > 0 ? JSON.stringify(arr) : null;
+            var addonVal = arr.length > 0 ? JSON.stringify(arr) : null;
+            var body = { name: name, unit_price: price, addon_options: addonVal };
             try {
                 const res = await fetch(API + '/menus/' + editingMenuId, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ addon_options: val })
+                    body: JSON.stringify(body)
                 });
                 if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
-                showAlert('บันทึกเมนูพิเศษเรียบร้อย', 'success');
+                showAlert('บันทึกเมนูเรียบร้อย', 'success');
                 closeEditModal();
                 loadMenus();
             } catch (e) {

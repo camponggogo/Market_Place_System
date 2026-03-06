@@ -56,7 +56,7 @@
             object-fit: contain;
         }
 
-        /* ขวา 50%: QR + รายการสินค้า (background) */
+        /* ขวา 50%: ช่องรอชำระ PromptPay (QR ด้านบน + รายการสินค้าด้านล่าง) */
         .signage-right-section {
             flex: 0 0 50%;
             display: flex;
@@ -68,11 +68,30 @@
             min-width: 0;
         }
 
+        /* กล่องเดียว: ด้านบน = QR หรือข้อความรอ, ด้านล่าง = รายการสินค้า */
+        .payment-channel {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .payment-channel-top {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
         .signage-right-section .qr-wrap {
             background: #fff;
             padding: 20px;
             border-radius: 16px;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
         .signage-right-section .qr-wrap img.qr-banner {
@@ -89,19 +108,47 @@
             min-height: 120px;
             background: #f8f9fa;
         }
-        .signage-right-section .amount {
+        .signage-right-section .payment-channel .amount {
             font-size: clamp(1.6rem, 4vw, 2.5rem);
             font-weight: 700;
             color: #28a745;
-            margin-bottom: 16px;
+            margin-bottom: 0;
+        }
+        .payment-channel-top .price-label {
+            font-size: clamp(0.95rem, 2vw, 1.1rem);
+            color: rgba(255,255,255,0.85);
+            margin-bottom: 4px;
+        }
+        .signage-right-section .idle-msg {
+            font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+            opacity: 0.9;
+            text-align: center;
+        }
+        #idle-block .amount { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; color: #28a745; }
+        .qr-hint { font-size: clamp(0.75rem, 1.5vw, 0.9rem); color: rgba(255,255,255,0.6); margin-top: 8px; text-align: center; }
+
+        /* รายการสินค้า – อยู่ด้านล่าง QR ในช่องเดียวกัน */
+        .payment-channel-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            max-height: 35vh;
+        }
+        .payment-channel-list .list-title {
+            font-size: clamp(1rem, 2.2vw, 1.25rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: rgba(255,255,255,0.95);
         }
         .signage-right-section .product-list {
             text-align: left;
             font-size: clamp(0.95rem, 2vw, 1.2rem);
-            max-height: 25vh;
             overflow-y: auto;
+            flex: 1;
+            min-height: 0;
             width: 100%;
-            max-width: 320px;
             padding: 12px;
             background: rgba(255,255,255,0.08);
             border-radius: 12px;
@@ -111,9 +158,18 @@
             border-bottom: 1px solid rgba(255,255,255,0.15);
         }
         .signage-right-section .product-list .product-item:last-child { border-bottom: none; }
-        .signage-right-section .idle-msg {
-            font-size: clamp(1.2rem, 2.5vw, 1.6rem);
-            opacity: 0.9;
+        .payment-channel-list .list-total {
+            font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+            font-weight: 700;
+            color: #28a745;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        .payment-channel-list .list-empty {
+            font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+            color: rgba(255,255,255,0.6);
+            padding: 12px;
         }
 
         /* Paid mode - full overlay */
@@ -151,17 +207,31 @@
             <video id="signage-video" muted playsinline loop autoplay></video>
         </div>
 
-        <!-- ขวา 50%: QR + รายการสินค้า (background) -->
+        <!-- ขวา 50%: ช่องรอชำระ PromptPay – QR ด้านบน, รายการสินค้าด้านล่าง (ช่องเดียวกัน) -->
         <div class="signage-right-section">
-            <div id="qr-block" style="display:none;">
-                <div class="qr-wrap">
-                    <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
-                    <img id="signage-qr" src="" alt="QR Code">
+            <div class="payment-channel">
+                <div class="payment-channel-top">
+                    <div id="qr-block" style="display:none;">
+                        <div class="qr-wrap">
+                            <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
+                            <img id="signage-qr" src="" alt="QR Code">
+                        </div>
+                        <p class="price-label">ราคาอาหาร</p>
+                        <div class="amount" id="signage-amount">0.00 บาท</div>
+                    </div>
+                    <div id="idle-block">
+                        <p class="price-label">ราคาอาหาร</p>
+                        <p class="idle-msg" id="idle-msg-text">รอยืนยันการชำระเงิน</p>
+                        <div class="amount" id="idle-amount" style="display:none;">0.00 บาท</div>
+                    </div>
                 </div>
-                <div class="amount" id="signage-amount">0.00 บาท</div>
+                <div class="payment-channel-list">
+                    <div class="list-title" id="product-list-title">รายการอาหาร</div>
+                    <div class="product-list" id="product-list"></div>
+                    <div class="list-total" id="product-list-total" style="display:none;"></div>
+                    <div class="list-empty" id="product-list-empty">ยังไม่มีรายการ – เลือกที่หน้าจอ 1 แล้วรายการจะแสดงแบบ Real time</div>
+                </div>
             </div>
-            <div id="idle-block" class="idle-msg">รอการชำระเงินผ่าน PromptPay</div>
-            <div class="product-list" id="product-list"></div>
         </div>
     </div>
 
@@ -198,27 +268,52 @@
                 qrEl.style.visibility = qrImage ? 'visible' : 'hidden';
             }
             document.getElementById('signage-amount').textContent = parseFloat(amount || 0).toFixed(2) + ' บาท';
-            renderProductList(orderItems || []);
+            renderProductList(orderItems || [], amount);
+        }
+
+        function showCartOnlyMode(orderItems, amount) {
+            document.getElementById('qr-block').style.display = 'none';
+            var idleBlock = document.getElementById('idle-block');
+            idleBlock.style.display = 'block';
+            idleBlock.innerHTML = '<p class="price-label">ราคาอาหาร</p><p class="idle-msg" id="idle-msg-text">รอยืนยันการชำระเงิน</p><div class="amount" id="idle-amount">' + parseFloat(amount || 0).toFixed(2) + ' บาท</div><p class="qr-hint">QR-Code แสดงเมื่อกด PromptPay หรือ ออก Order + QR ที่หน้าจอ 1</p>';
+            document.getElementById('idle-amount').style.display = 'block';
+            renderProductList(orderItems || [], amount);
         }
 
         function showIdleMode() {
             document.getElementById('qr-block').style.display = 'none';
-            document.getElementById('idle-block').style.display = 'block';
-            document.getElementById('product-list').innerHTML = '';
+            var idleBlock = document.getElementById('idle-block');
+            idleBlock.style.display = 'block';
+            idleBlock.innerHTML = '<p class="price-label">ราคาอาหาร</p><p class="idle-msg" id="idle-msg-text">รอยืนยันการชำระเงิน</p><div class="amount" id="idle-amount" style="display:none;">0.00 บาท</div>';
+            renderProductList([], 0);
         }
 
-        function renderProductList(items) {
-            const el = document.getElementById('product-list');
+        function renderProductList(items, totalAmount) {
+            var el = document.getElementById('product-list');
+            var titleEl = document.getElementById('product-list-title');
+            var totalEl = document.getElementById('product-list-total');
+            var emptyEl = document.getElementById('product-list-empty');
             if (!items || items.length === 0) {
                 el.innerHTML = '';
+                if (titleEl) titleEl.style.display = 'block';
+                if (totalEl) totalEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'block';
                 return;
             }
+            if (emptyEl) emptyEl.style.display = 'none';
             el.innerHTML = items.map(function(it) {
-                const name = it.name || '-';
-                const qty = it.qty || 1;
-                const total = (it.line_total != null ? it.line_total : (it.unit_price || 0) * qty);
+                var name = it.name || '-';
+                var qty = it.qty || 1;
+                var total = (it.line_total != null ? it.line_total : (it.unit_price || 0) * qty);
                 return '<div class="product-item">' + name + ' x' + qty + ' = ' + total.toFixed(2) + ' บาท</div>';
             }).join('');
+            var sum = typeof totalAmount === 'number' && totalAmount > 0 ? totalAmount : items.reduce(function(acc, it) {
+                return acc + (it.line_total != null ? it.line_total : (it.unit_price || 0) * (it.qty || 1));
+            }, 0);
+            if (totalEl) {
+                totalEl.textContent = 'รวม ' + sum.toFixed(2) + ' บาท';
+                totalEl.style.display = 'block';
+            }
         }
 
         function showPaidMode(amount) {
@@ -283,6 +378,12 @@
                     paidShownAt = null;
                     hidePaidMode();
                     showQRMode(data.qr_image, data.amount, data.order_items);
+                    return;
+                }
+                if (data.status === 'cart' && data.order_items && data.order_items.length > 0) {
+                    paidShownAt = null;
+                    hidePaidMode();
+                    showCartOnlyMode(data.order_items, data.amount);
                     return;
                 }
                 if (data.status === 'waiting_payment' && !data.qr_image) {

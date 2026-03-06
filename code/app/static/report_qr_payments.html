@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายงานการชำระ QR / Stripe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #1f3a8a; margin-bottom: 12px; }
+    .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .filters label { margin-right: 4px; }
+    .filters input, .filters select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .filters button { padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8fafc; color: #1f3a8a; }
+    .num { text-align: right; }
+    .gateway { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← Admin</a>
+    <a href="/store-pos" class="back" style="margin-left:12px">Store POS</a>
+    <h1>รายงานการชำระ QR / Stripe (Back Transactions)</h1>
+  </div>
+  <div class="card">
+    <h2>กรอง</h2>
+    <div class="filters">
+      <label>จากวันที่ <input type="date" id="from-date"></label>
+      <label>ถึง <input type="date" id="to-date"></label>
+      <label>ร้าน <select id="store-id"><option value="">ทุกร้าน</option></select></label>
+      <button type="button" id="btn-load">โหลด</button>
+    </div>
+    <div id="loading" style="display:none;">กำลังโหลด...</div>
+    <table id="tbl" style="display:none;">
+      <thead>
+        <tr><th>วันที่/เวลา</th><th>ร้าน</th><th>ref2 (order)</th><th>ช่องทาง</th><th>จำนวน (บาท)</th><th>สถานะ</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p id="no-data" style="display:none; color:#64748b;">ไม่มีรายการ</p>
+  </div>
+  <script>
+    const API = window.location.origin;
+    const paymentCallback = API + '/api/payment-callback';
+
+    function defaultDates() {
+      const d = new Date();
+      const to = d.toISOString().slice(0, 10);
+      d.setDate(d.getDate() - 30);
+      const from = d.toISOString().slice(0, 10);
+      return { from, to };
+    }
+    const def = defaultDates();
+    document.getElementById('from-date').value = def.from;
+    document.getElementById('to-date').value = def.to;
+
+    async function loadStores() {
+      try {
+        const r = await fetch(API + '/api/stores/', { credentials: 'include' });
+        const list = await r.json();
+        const sel = document.getElementById('store-id');
+        (list || []).forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.id;
+          o.textContent = s.name || 'ร้าน ' + s.id;
+          sel.appendChild(o);
+        });
+      } catch (e) {}
+    }
+
+    async function loadReport() {
+      const from = document.getElementById('from-date').value;
+      const to = document.getElementById('to-date').value;
+      const storeId = document.getElementById('store-id').value;
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('tbl').style.display = 'none';
+      document.getElementById('no-data').style.display = 'none';
+      let url = paymentCallback + '/back-transactions/report?limit=500';
+      if (from) url += '&start_date=' + from;
+      if (to) url += '&end_date=' + to;
+      if (storeId) url += '&store_id=' + storeId;
+      try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        document.getElementById('loading').style.display = 'none';
+        const items = data.items || [];
+        if (!items.length) {
+          document.getElementById('no-data').style.display = 'block';
+          return;
+        }
+        document.getElementById('tbl').style.display = 'table';
+        document.getElementById('tbody').innerHTML = items.map(i => {
+          const d = (i.paid_at || i.created_at || '').slice(0, 19).replace('T', ' ');
+          const gw = (i.payment_gateway || '-');
+          return '<tr><td>' + d + '</td><td>' + (i.store_name || 'ร้าน #' + (i.store_id || '')) + '</td><td>' + (i.ref2 || '-') + '</td><td><span class="gateway">' + gw + '</span></td><td class="num">' + (i.amount != null ? Number(i.amount).toFixed(2) : '-') + '</td><td>' + (i.status || '') + '</td></tr>';
+        }).join('');
+      } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('no-data').textContent = 'โหลดไม่สำเร็จ';
+        document.getElementById('no-data').style.display = 'block';
+      }
+    }
+
+    document.getElementById('btn-load').addEventListener('click', loadReport);
+    (async function() {
+      await loadStores();
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('store_id');
+      if (sid) document.getElementById('store-id').value = sid;
+      loadReport();
+    })();
+  </script>
+</body>
+</html>

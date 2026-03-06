@@ -41,6 +41,7 @@ def receive_back_transaction(
     ref3: Optional[str] = None,
     slip_reference: Optional[str] = None,
     bank_account: Optional[str] = None,
+    payment_gateway: Optional[str] = None,
     raw_payload: Optional[str] = None,
 ) -> PromptPayBackTransaction:
     """
@@ -75,6 +76,7 @@ def receive_back_transaction(
         bank_account=bank_account,
         store_id=store_id,
         status="received",
+        payment_gateway=(payment_gateway or "").strip() or None,
         raw_payload=raw_payload,
     )
     db.add(back)
@@ -178,6 +180,7 @@ def get_back_transactions_report(
             "store_id": r.store_id,
             "store_name": r.store.name if r.store else None,
             "status": r.status,
+            "payment_gateway": getattr(r, "payment_gateway", None),
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }
         for r in rows
