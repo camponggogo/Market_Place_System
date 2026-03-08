@@ -42,6 +42,7 @@
   <div id="permissionBlock" class="permission">
     <p style="margin-bottom:12px;">เพื่อสแกน QR ระบบต้องใช้กล้อง</p>
     <button type="button" id="btnAllowCamera">อนุญาตใช้กล้อง</button>
+    <p id="cameraHint" style="margin-top:12px;font-size:12px;opacity:.8;display:none;">ถ้ากดแล้วไม่ขึ้นหน้าต่างอนุญาต: ตรวจสอบว่าเปิดลิงก์นี้โดยตรง (ไม่ผ่าน iframe) และเปิดด้วย HTTPS</p>
   </div>
 
   <div id="cameraBlock" style="display:none;">
@@ -51,6 +52,7 @@
       <div class="scan-line" id="scanLine"></div>
     </div>
     <p id="scanStatus" style="text-align:center;font-size:14px;color:#888;">กำลังสแกน...</p>
+    <p style="text-align:center;font-size:12px;color:#666;margin-top:6px;">ให้ QR อยู่ภายในกรอบและแสงพอดี</p>
   </div>
 
   <div class="manual">
@@ -84,7 +86,19 @@
     <a href="/member/dashboard#profile"><span class="icon">👤</span> สมาชิก</a>
   </nav>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js" id="jsqr-script"></script>
+  <script>
+    (function ensureJsQR() {
+      if (typeof jsQR !== 'undefined') return;
+      var el = document.getElementById('jsqr-script');
+      if (el && el.getAttribute('data-fallback')) return;
+      el && el.setAttribute('data-fallback', '1');
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js';
+      s.onload = function() { if (typeof jsQR !== 'undefined') document.getElementById('scanStatus') && (document.getElementById('scanStatus').textContent = 'กำลังสแกน...'); };
+      document.head.appendChild(s);
+    })();
+  </script>
   <script>
     const API = window.location.origin;
     const token = localStorage.getItem('member_token');
@@ -100,40 +114,111 @@
 
     let stream = null;
     let lastQr = '';
-    let scanAnimation = null;
+    var scanInterval = null;
+    var QR_READ_INTERVAL_MS = 400;
+    var barcodeDetector = null;
+    var lastBarcodeDetectTime = 0;
+    var barcodeDetectInProgress = false;
+    try {
+      if (typeof BarcodeDetector !== 'undefined') {
+        barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      }
+    } catch (e) {}
 
     function showResult(msg, isError) {
       resultEl.textContent = msg;
       resultEl.className = 'result show ' + (isError ? 'error' : 'success');
     }
 
-    document.getElementById('btnAllowCamera').onclick = async function() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    function startCamera() {
+      var btn = document.getElementById('btnAllowCamera');
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        scanStatus.textContent = 'เบราว์เซอร์ไม่รองรับการเข้าถึงกล้อง (ใช้ HTTPS หรือ localhost)';
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'กำลังเปิดกล้อง...';
+      scanStatus.textContent = 'กำลังขออนุญาตกล้อง...';
+
+      function onStream(s) {
+        stream = s;
         permissionBlock.style.display = 'none';
         cameraBlock.style.display = 'block';
         video.srcObject = stream;
-        video.play();
-        requestAnimationFrame(tick);
-      } catch (e) {
-        scanStatus.textContent = 'ไม่สามารถเปิดกล้องได้: ' + (e.message || 'ถูกปฏิเสธ');
+        var playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(function(playErr) {
+            console.warn('video.play', playErr);
+          });
+        }
+        scanStatus.textContent = 'กำลังสแกน... (อ่าน QR ทุก ' + (QR_READ_INTERVAL_MS / 1000) + ' วินาที)';
+        if (scanInterval) clearInterval(scanInterval);
+        scanInterval = setInterval(doIntervalRead, QR_READ_INTERVAL_MS);
       }
-    };
 
-    function tick() {
-      if (!video.videoWidth) { requestAnimationFrame(tick); return; }
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
-      if (code && code.data && code.data !== lastQr) {
-        lastQr = code.data;
-        scanStatus.textContent = 'สแกนได้: ' + code.data.substring(0, 50) + '...';
-        document.getElementById('qrText').value = code.data;
-        doPayWithQr(code.data);
+      function onError(e) {
+        if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+        btn.disabled = false;
+        btn.textContent = 'อนุญาตใช้กล้อง';
+        var hintEl = document.getElementById('cameraHint');
+        if (hintEl) hintEl.style.display = 'block';
+        var msg = (e && e.name) ? e.name + ': ' + (e.message || '') : (e && e.message) || 'ถูกปฏิเสธ';
+        if (e && e.name === 'NotAllowedError') {
+          msg = 'ถูกปฏิเสธ: กรุณากดอนุญาตในหน้าต่างที่เบราว์เซอร์ถาม หรือไปที่ การตั้งค่าไซต์ > กล้อง > อนุญาต';
+        } else if (e && e.name === 'NotFoundError') {
+          msg = 'ไม่พบกล้องในอุปกรณ์';
+        } else if (e && e.name === 'OverconstrainedError') {
+          msg = 'กล้องไม่รองรับโหมดที่เลือก กำลังลองอีกครั้ง...';
+        }
+        scanStatus.textContent = 'ไม่สามารถเปิดกล้องได้: ' + msg;
       }
-      requestAnimationFrame(tick);
+
+      var optsEnv = { video: { facingMode: 'environment' } };
+      navigator.mediaDevices.getUserMedia(optsEnv).then(onStream).catch(function(e) {
+        if (e && e.name === 'OverconstrainedError') {
+          navigator.mediaDevices.getUserMedia({ video: true }).then(onStream).catch(onError);
+        } else {
+          onError(e);
+        }
+      });
+    }
+    document.getElementById('btnAllowCamera').addEventListener('click', startCamera);
+
+    function onQrDecoded(data) {
+      if (!data || data === lastQr) return;
+      lastQr = data;
+      scanStatus.textContent = 'สแกนได้: ' + data.substring(0, 50) + (data.length > 50 ? '...' : '');
+      var qrTextEl = document.getElementById('qrText');
+      if (qrTextEl) qrTextEl.value = data;
+      doPayWithQr(data);
+    }
+
+    function doIntervalRead() {
+      if (!video.videoWidth) return;
+      var w = video.videoWidth;
+      var h = video.videoHeight;
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(video, 0, 0, w, h);
+
+      if (barcodeDetector && !barcodeDetectInProgress) {
+        barcodeDetectInProgress = true;
+        lastBarcodeDetectTime = Date.now();
+        barcodeDetector.detect(video).then(function(barcodes) {
+          barcodeDetectInProgress = false;
+          if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+            onQrDecoded(barcodes[0].rawValue);
+          }
+        }).catch(function() { barcodeDetectInProgress = false; });
+      }
+
+      if (typeof jsQR !== 'undefined') {
+        var imageData = ctx.getImageData(0, 0, w, h);
+        var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) onQrDecoded(code.data);
+      } else if (scanStatus && scanStatus.textContent.indexOf('โหลดไลบรารี') === -1) {
+        scanStatus.textContent = 'กำลังโหลดไลบรารีสแกน QR...';
+      }
     }
 
     async function doPayWithQr(qrText) {
@@ -189,10 +274,20 @@
     };
 
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.permissions.query({ name: 'camera' }).then(function(p) {
-        if (p.state === 'granted') document.getElementById('btnAllowCamera').click();
-      }).catch(function() {});
+      if (typeof navigator.permissions !== 'undefined' && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'camera' }).then(function(p) {
+          if (p.state === 'granted') startCamera();
+        }).catch(function() {});
+      }
     }
+
+    window.addEventListener('pagehide', function() {
+      if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        stream = null;
+      }
+    });
   </script>
 </body>
 </html>

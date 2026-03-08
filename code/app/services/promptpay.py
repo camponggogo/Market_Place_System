@@ -248,10 +248,10 @@ def generate_promptpay_qr_image(
     merchant_name: str = "NA",
     merchant_city: str = "BANGKOK",
     include_emv_tags: bool = True,
-    size: int = 300
+    size: int = 360
 ) -> str:
     """
-    สร้าง PromptPay QR Code Image และแปลงเป็น Base64
+    สร้าง PromptPay QR Code Image และแปลงเป็น Base64 (ขนาด 360px เพื่อให้สแกนง่าย)
     
     Args:
         biller_id: เลขประจำตัวผู้เสียภาษี + suffix 2 หลัก
@@ -411,10 +411,10 @@ def generate_promptpay_credit_transfer_image(
     merchant_name: str = "NA",
     merchant_city: str = "BANGKOK",
     include_emv_tags: bool = True,
-    size: int = 300
+    size: int = 360
 ) -> str:
     """
-    สร้าง PromptPay QR Code Image (Tag29 - Credit Transfer) และแปลงเป็น Base64
+    สร้าง PromptPay QR Code Image (Tag29 - Credit Transfer) และแปลงเป็น Base64 (ขนาด 360px)
     
     Args:
         mobile_number: เบอร์โทรศัพท์ (10 หลัก)

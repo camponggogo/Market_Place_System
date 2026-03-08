@@ -16,10 +16,11 @@ from app.database import get_db
 from app.models import Store
 
 _SIGNAGE_MEDIA_FILE = Path(__file__).resolve().parent.parent / "data" / "signage_media.json"
-_SMARTPARKING_VIDEO = "/videos/Smartparking.mp4"
 
 DEFAULT_SIGNAGE_MEDIA = [
-    {"type": "video", "url": _SMARTPARKING_VIDEO, "duration": 30},
+    {"type": "image", "url": "https://picsum.photos/1200/800?random=1", "duration": 2},
+    {"type": "image", "url": "https://picsum.photos/1200/800?random=2", "duration": 2},
+    {"type": "image", "url": "https://picsum.photos/1200/800?random=3", "duration": 2},
 ]
 
 # In-memory state ต่อร้าน: store_id -> { qr_image, amount, status, order_items, ... }

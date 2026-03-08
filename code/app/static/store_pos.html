@@ -291,7 +291,14 @@
             pointer-events: auto;
         }
         .qr-modal-content img { max-width: 100%; border-radius: 8px; }
+        #qr-modal-image, #qr-modal-image-legacy { min-width: 280px; min-height: 280px; width: 100%; max-width: 380px; margin: 0 auto; display: block; background: #fff; padding: 8px; border-radius: 8px; object-fit: contain; }
         .qr-modal-content .amount { font-size: 28px; color: #28a745; margin: 16px 0; }
+        #qr-modal-comparison { display: grid !important; }
+        #qr-modal-comparison[style*="display: none"] { display: none !important; }
+        .qr-modal-content.qr-modal-compare { max-width: 720px; }
+        .qr-slot { background: #1e2128; border-radius: 10px; padding: 12px; border: 1px solid #444; }
+        .qr-slot-label { font-size: 13px; color: #28a745; margin-bottom: 8px; font-weight: 600; }
+        #qr-modal-stripe-element { min-height: 320px; }
         .qr-modal-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .qr-modal-actions .btn { pointer-events: auto; cursor: pointer; }
         /* Cash modal */
@@ -356,6 +363,7 @@
         .alert-info { background: #0c5460; color: #d1ecf1; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.omise.co/omise.js"></script>
 </head>
 <body>
@@ -423,10 +431,22 @@
     
     <!-- QR Modal (PromptPay) - รอ API Success แล้วแสดง QR + รายการ + เวลารอ -->
     <div class="qr-modal" id="qr-modal" onclick="if(event.target===this) closeQRModal();">
-        <div class="qr-modal-content" onclick="event.stopPropagation();">
+        <div class="qr-modal-content" id="qr-modal-content" onclick="event.stopPropagation();">
             <p>สแกน QR เพื่อชำระเงิน (PromptPay)</p>
             <div id="qr-modal-details" class="qr-modal-details"></div>
+            <!-- โหมดเดี่ยว: QR เดิม (เมื่อไม่ใช้ Stripe) -->
             <img id="qr-modal-image" src="" alt="QR">
+            <!-- โหมดเปรียบเทียบ: Stripe + QR เดิม (เมื่อใช้ Stripe) -->
+            <div id="qr-modal-comparison" style="display:none; grid-template-columns: 1fr 1fr; gap:16px; margin:12px 0; align-items: start;">
+                <div class="qr-slot qr-slot-stripe">
+                    <div class="qr-slot-label">QR จาก Stripe (สร้างจากข้อมูล Local)</div>
+                    <div id="qr-modal-stripe-local" style="min-height:260px; display:flex; align-items:center; justify-content:center; background:#fff; border-radius:8px;"></div>
+                </div>
+                <div class="qr-slot qr-slot-legacy">
+                    <div class="qr-slot-label">QR PromptPay เดิม (EMV)</div>
+                    <img id="qr-modal-image-legacy" src="" alt="QR เดิม" style="min-width:260px; min-height:260px; max-width:100%; height:auto; border-radius:8px; background:#fff; display:block;">
+                </div>
+            </div>
             <div class="amount" id="qr-modal-amount">0.00 บาท</div>
             <div id="qr-modal-order-id" class="text-muted" style="font-size:14px;margin-bottom:4px;"></div>
             <div class="wait-timer" id="qr-wait-timer">รอชำระเงิน...</div>
@@ -531,7 +551,11 @@
         let recentPaidPollInterval = null;
         let currentQRImage = null;
         let currentQRAmount = 0;
-        let gatewayInfo = { provider: null, omise_public_key: '' };
+        let gatewayInfo = { provider: null, omise_public_key: '', stripe_publishable_key: '' };
+        let stripePOSInstance = null;
+        let stripePOSElement = null;
+        let stripePOSElements = null;
+        let currentStripeClientSecret = null;
         let currentOmiseChargeId = null;
         let paymentSettings = { payment_promptpay_enabled: true, payment_credit_debit_enabled: true, payment_cash_enabled: true, menu_columns: 6 };
         let localeSettings = { currency_symbol: '\u0e3f', translations: {} };
@@ -965,10 +989,19 @@
                 if (el) el.textContent = 'รอชำระเงิน... ' + sec + ' วินาที';
             }, 1000);
             function showQR(data) {
+                var comp = document.getElementById('qr-modal-comparison');
+                var imgSingle = document.getElementById('qr-modal-image');
+                comp.style.display = 'none';
+                document.getElementById('qr-modal-content').classList.remove('qr-modal-compare');
+                imgSingle.style.display = '';
+                imgSingle.src = '';
+                document.getElementById('qr-modal-image-legacy').src = '';
+                if (stripePOSElement) { try { stripePOSElement.unmount(); } catch (e) {} stripePOSElement = null; }
+                document.getElementById('qr-modal-stripe-element').innerHTML = '';
                 currentQRImage = data.qr_code_tag30 || data.qr_image;
                 currentQRAmount = total;
                 currentOrderId = data.order_id || null;
-                document.getElementById('qr-modal-image').src = currentQRImage || '';
+                imgSingle.src = currentQRImage || '';
                 document.getElementById('qr-modal-amount').textContent = formatMoney(total);
                 var orderIdEl = document.getElementById('qr-modal-order-id');
                 if (orderIdEl) orderIdEl.textContent = currentOrderId ? 'Order #' + currentOrderId : '';
@@ -984,7 +1017,7 @@
                     }).then(function(r) { if (!r.ok) console.warn('Signage set-display failed', r.status); }).catch(function(e) { console.warn('Signage set-display error', e); });
                 }
             }
-            if (gatewayInfo.provider === 'omise' || gatewayInfo.provider === 'scb_deeplink') {
+            if (gatewayInfo.provider === 'stripe' || gatewayInfo.provider === 'omise' || gatewayInfo.provider === 'scb_deeplink') {
                 fetch(API_BASE_URL + '/payment-callback/stores/' + currentStoreId + '/create-gateway-qr', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -995,6 +1028,43 @@
                     return res.json();
                 })
                 .then(function(data) {
+                    if (data.provider === 'stripe' && (data.client_secret || data.promptpay_qr_data)) {
+                        currentOrderId = data.order_id || null;
+                        currentQRAmount = total;
+                        document.getElementById('qr-modal-details').innerHTML = getOrderLines().map(function(l){ return l.name + ' x' + l.qty + ' ' + formatMoney(l.line_total); }).join('<br>') || '-';
+                        document.getElementById('qr-modal-amount').textContent = formatMoney(total);
+                        var orderIdEl = document.getElementById('qr-modal-order-id');
+                        if (orderIdEl) orderIdEl.textContent = currentOrderId ? 'Order #' + currentOrderId : '';
+                        document.getElementById('qr-modal-image').style.display = 'none';
+                        document.getElementById('qr-modal-image').src = '';
+                        var comp = document.getElementById('qr-modal-comparison');
+                        comp.style.display = 'grid';
+                        document.getElementById('qr-modal-content').classList.add('qr-modal-compare');
+                        var stripeLocalEl = document.getElementById('qr-modal-stripe-local');
+                        if (stripeLocalEl) stripeLocalEl.innerHTML = '';
+                        document.getElementById('qr-modal-image-legacy').src = '';
+                        fetch(API_BASE_URL + '/stores/' + currentStoreId + '/generate-promptpay-qr', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ amount: total, order_lines: orderLines })
+                        }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }).then(function(legacyData) {
+                            if (legacyData && (legacyData.qr_code_tag30 || legacyData.qr_image)) {
+                                document.getElementById('qr-modal-image-legacy').src = legacyData.qr_code_tag30 || legacyData.qr_image || '';
+                            }
+                        });
+                        if (data.promptpay_qr_data && typeof QRCode !== 'undefined' && stripeLocalEl) {
+                            new QRCode(stripeLocalEl, {
+                                text: data.promptpay_qr_data,
+                                width: 256,
+                                height: 256,
+                                colorDark: '#000',
+                                colorLight: '#fff'
+                            });
+                        } else if (stripeLocalEl) {
+                            stripeLocalEl.innerHTML = '<p style="padding:20px;color:#666;">ใช้ QR PromptPay ด้านขวา (EMV)</p>';
+                        }
+                        return;
+                    }
                     var qrImg = data.qr_image || data.qr_code_tag30;
                     if (qrImg) {
                         showQR({ qr_code_tag30: qrImg, qr_image: qrImg, order_id: data.order_id });
@@ -1041,6 +1111,12 @@
 
         function closeQRModal() {
             if (qrWaitTimerInterval) { clearInterval(qrWaitTimerInterval); qrWaitTimerInterval = null; }
+            document.getElementById('qr-modal-comparison').style.display = 'none';
+            document.getElementById('qr-modal-content').classList.remove('qr-modal-compare');
+            var stripeLocal = document.getElementById('qr-modal-stripe-local');
+            if (stripeLocal) stripeLocal.innerHTML = '';
+            document.getElementById('qr-modal-image-legacy').src = '';
+            document.getElementById('qr-modal-image').style.display = '';
             var modal = document.getElementById('qr-modal');
             if (modal) modal.classList.remove('show');
             if (currentStoreId) {

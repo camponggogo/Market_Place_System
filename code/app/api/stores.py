@@ -309,7 +309,7 @@ async def generate_promptpay_qr(
             amount=None,
             merchant_name="NA",
             merchant_city="BANGKOK",
-            size=300,
+            size=360,
         )
         # Tag30 Dynamic - Bill Payment (มี amount)
         qr_image_tag30 = generate_promptpay_qr_image(
@@ -320,7 +320,7 @@ async def generate_promptpay_qr(
             amount=amount,
             merchant_name="NA",
             merchant_city="BANGKOK",
-            size=300,
+            size=360,
         )
         
         # Tag29 - Credit Transfer (ถ้ามี mobile หรือ national_id)
@@ -333,7 +333,7 @@ async def generate_promptpay_qr(
                 qr_image_tag29 = generate_promptpay_credit_transfer_image(
                     mobile_number=request.promptpay_mobile,
                     amount=amount,
-                    size=300
+                    size=360
                 )
                 tag29_type = "mobile"
             except Exception as e:
@@ -346,7 +346,7 @@ async def generate_promptpay_qr(
                 qr_image_tag29 = generate_promptpay_credit_transfer_image(
                     national_id=request.promptpay_national_id,
                     amount=amount,
-                    size=300
+                    size=360
                 )
                 tag29_type = "national_id"
             except Exception as e:
@@ -358,7 +358,7 @@ async def generate_promptpay_qr(
                 qr_image_tag29 = generate_promptpay_credit_transfer_image(
                     national_id=tax_id_clean,
                     amount=amount,
-                    size=300
+                    size=360
                 )
                 tag29_type = "national_id_from_tax"
             except Exception as e:

@@ -893,6 +893,12 @@
                             <input type="text" id="webhook-url-stripe" readonly style="flex:1;background:#f5f5f5;">
                             <button type="button" class="btn btn-primary" onclick="copyWebhookUrl('stripe')">Copy</button>
                         </div>
+                        <p style="margin-top:8px;font-size:12px;color:#666;">เมื่อ ngrok เปลี่ยน URL ให้กดปุ่มด้านล่างเพื่ออัปเดต Webhook ที่ Stripe ให้ตรงกับ URL ปัจจุบัน</p>
+                        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+                            <input type="text" id="webhook-stripe-base-url" placeholder="Base URL (ว่าง = ใช้จากระบบ)" style="flex:1;min-width:200px;">
+                            <button type="button" class="btn btn-primary" id="btn-update-stripe-webhook" onclick="updateStripeWebhookUrl()">อัปเดต Webhook URL ที่ Stripe</button>
+                        </div>
+                        <p id="webhook-stripe-update-result" style="margin-top:6px;font-size:12px;display:none;"></p>
                     </div>
                 </div>
             </div>
@@ -1086,6 +1092,42 @@
             const el = document.getElementById(id);
             if (!el || !el.value) return;
             navigator.clipboard.writeText(el.value).then(() => showAlert('คัดลอก URL แล้ว', 'success')).catch(() => alert(el.value));
+        }
+
+        async function updateStripeWebhookUrl() {
+            const btn = document.getElementById('btn-update-stripe-webhook');
+            const resultEl = document.getElementById('webhook-stripe-update-result');
+            const baseInput = document.getElementById('webhook-stripe-base-url');
+            const baseUrl = (baseInput && baseInput.value) ? baseInput.value.trim() : null;
+            if (btn) btn.disabled = true;
+            if (resultEl) { resultEl.style.display = 'block'; resultEl.textContent = 'กำลังอัปเดต...'; resultEl.style.color = ''; }
+            try {
+                const body = baseUrl ? { url: baseUrl } : {};
+                const res = await fetch(API_BASE_URL + '/payment-callback/webhook/stripe/update-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (resultEl) resultEl.textContent = data.detail || res.statusText || 'เกิดข้อผิดพลาด';
+                    if (resultEl) resultEl.style.color = '#c00';
+                    return;
+                }
+                const n = (data.updated || []).length;
+                const errs = (data.errors || []).length;
+                if (resultEl) {
+                    resultEl.textContent = n > 0
+                        ? 'อัปเดต Stripe webhook สำเร็จ ' + n + ' endpoint' + (errs > 0 ? ' (มีข้อผิดพลาด ' + errs + ' รายการ)' : '')
+                        : (errs > 0 ? 'ไม่พบ endpoint ที่ตรงกับ path หรือเกิดข้อผิดพลาด' : 'ไม่พบ webhook endpoint ที่ path /api/payment-callback/webhook/stripe ใน Stripe');
+                    resultEl.style.color = n > 0 ? '#0a0' : '#666';
+                }
+                if (n > 0) showAlert('อัปเดต Stripe webhook URL แล้ว', 'success');
+            } catch (e) {
+                if (resultEl) { resultEl.textContent = e.message || 'เกิดข้อผิดพลาด'; resultEl.style.color = '#c00'; }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         function bankingScopeChange() {

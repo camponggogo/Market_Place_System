@@ -29,7 +29,15 @@
     .topup-methods { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
     .topup-method { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
     .topup-method input { accent-color: #28a745; }
+    .topup-amount-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .topup-amount-btn { padding: 10px 14px; min-width: 52px; background: #1e2128; border: 2px solid #444; border-radius: 8px; color: #e4e6eb; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+    .topup-amount-btn:hover { border-color: #28a745; background: #252830; }
+    .topup-amount-btn.selected { background: linear-gradient(135deg, #28a745, #20c997); border-color: #28a745; color: #fff; }
+    .topup-amount-custom-wrap { margin-top: 8px; }
+    .topup-amount-custom-wrap label { font-size: 13px; color: #aaa; display: block; margin-bottom: 4px; }
     .topup-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .topup-payment-element-wrap { background: #1e2128; border-radius: 10px; padding: 16px; border: 1px solid #444; }
+    .topup-payment-element-wrap iframe { min-height: 320px !important; }
     .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .history-table th, .history-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #333; }
     .history-table th { color: #28a745; }
@@ -58,9 +66,21 @@
     <h2>เติมเงิน</h2>
     <div class="card" id="topup-block">
       <p style="font-size:13px; color:#aaa; margin-bottom:12px;">เลือกวิธีชำระ: PromptPay, e-Wallet (TrueWallet ฯลฯ) หรือ บัตรเครดิต/เดบิต (Stripe)</p>
-      <div class="row" style="margin-bottom:10px">
-        <label>จำนวน (บาท)</label>
-        <input type="number" id="topup-amount" min="20" step="1" value="50" style="width:90px; padding:8px; background:#1e2128; border:1px solid #444; border-radius:6px; color:#e4e6eb;">
+      <div style="margin-bottom:10px">
+        <span style="font-size:13px; color:#aaa;">จำนวน (บาท)</span>
+        <div class="topup-amount-btns" id="topup-amount-btns">
+          <button type="button" class="topup-amount-btn selected" data-amount="custom" id="topup-btn-custom">กำหนดเอง</button>
+          <button type="button" class="topup-amount-btn" data-amount="20">20</button>
+          <button type="button" class="topup-amount-btn" data-amount="60">60</button>
+          <button type="button" class="topup-amount-btn" data-amount="100">100</button>
+          <button type="button" class="topup-amount-btn" data-amount="300">300</button>
+          <button type="button" class="topup-amount-btn" data-amount="500">500</button>
+          <button type="button" class="topup-amount-btn" data-amount="1000">1000</button>
+        </div>
+        <div class="topup-amount-custom-wrap">
+          <label for="topup-amount">หรือกรอกจำนวน (บาท)</label>
+          <input type="number" id="topup-amount" min="20" step="1" value="" placeholder="20" style="width:100%; max-width:120px; padding:10px; background:#1e2128; border:2px solid #444; border-radius:8px; color:#e4e6eb; font-size:16px;">
+        </div>
       </div>
       <div class="row" style="margin-bottom:10px">
         <span>ประเภท</span>
@@ -72,13 +92,13 @@
       <div style="margin-bottom:12px;">
         <span style="font-size:13px; color:#aaa;">วิธีชำระเงิน</span>
         <div class="topup-methods">
-          <label class="topup-method"><input type="radio" name="pm" value="promptpay"> PromptPay</label>
+          <label class="topup-method"><input type="radio" name="pm" value="promptpay" checked> PromptPay</label>
           <label class="topup-method"><input type="radio" name="pm" value="truewallet"> e-Wallet</label>
-          <label class="topup-method"><input type="radio" name="pm" value="card" checked> บัตรเครดิต/เดบิต</label>
+          <label class="topup-method"><input type="radio" name="pm" value="card"> บัตรเครดิต/เดบิต</label>
         </div>
       </div>
       <div id="topup-card-wrap" style="display:none; margin:12px 0; padding:12px; background:#1e2128; border-radius:8px;"></div>
-      <div id="topup-payment-element" style="display:none; margin:12px 0; min-height:80px;"></div>
+      <div id="topup-payment-element" class="topup-payment-element-wrap" style="display:none; margin:12px 0; min-height:340px;"></div>
       <div id="topup-msg" style="font-size:13px; margin:8px 0; min-height:20px;"></div>
       <div class="topup-btns">
         <button type="button" id="topup-btn-start" style="padding:10px 20px; background:linear-gradient(135deg,#28a745,#20c997); color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer;">ดำเนินการเติมเงิน</button>
@@ -246,6 +266,33 @@
       const block = document.getElementById('topup-block');
       const amountInput = document.getElementById('topup-amount');
       const typeSelect = document.getElementById('topup-type');
+      const amountBtns = document.getElementById('topup-amount-btns');
+      const btnCustom = document.getElementById('topup-btn-custom');
+
+      if (amountBtns) {
+        amountBtns.addEventListener('click', function(e) {
+          const btn = e.target.closest('.topup-amount-btn');
+          if (!btn) return;
+          amountBtns.querySelectorAll('.topup-amount-btn').forEach(function(b) { b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          const val = btn.getAttribute('data-amount');
+          if (val === 'custom') {
+            amountInput.value = '';
+            amountInput.focus();
+          } else {
+            amountInput.value = val;
+          }
+        });
+      }
+      if (amountInput && btnCustom) {
+        amountInput.addEventListener('input', function() {
+          var v = this.value;
+          var preset = amountBtns.querySelector('.topup-amount-btn[data-amount="' + v + '"]');
+          amountBtns.querySelectorAll('.topup-amount-btn').forEach(function(b) { b.classList.remove('selected'); });
+          if (preset) preset.classList.add('selected');
+          else btnCustom.classList.add('selected');
+        });
+      }
       const cardWrap = document.getElementById('topup-card-wrap');
       const paymentElementWrap = document.getElementById('topup-payment-element');
       const msgEl = document.getElementById('topup-msg');
@@ -273,7 +320,7 @@
       function showPaymentUI(show, useCard) {
         cardWrap.style.display = (show && useCard) ? 'block' : 'none';
         paymentElementWrap.style.display = (show && !useCard) ? 'block' : 'none';
-        paymentElementWrap.innerHTML = '';
+        if (!show || useCard) paymentElementWrap.innerHTML = '';
         btnPay.style.display = show ? 'inline-block' : 'none';
         btnCancel.style.display = show ? 'inline-block' : 'none';
         btnStart.style.display = show ? 'none' : 'inline-block';
@@ -312,7 +359,7 @@
           } else {
             // PromptPay หรือ TrueWallet: ใช้ Payment Element แสดง QR
             const elements = stripeInstance.elements({ clientSecret: clientSecret });
-            paymentElement = elements.create('payment', { layout: 'tabs' });
+            paymentElement = elements.create('payment', { layout: 'tabs', appearance: { variables: { spacingGridRow: '16px', spacingGridColumn: '16px' } } });
             paymentElement.mount('#topup-payment-element');
             elementsInstance = elements;
             showPaymentUI(true, false);
@@ -340,6 +387,7 @@
             if (error) { setMsg(error.message || 'ชำระไม่สำเร็จ', true); return; }
           } else if (elementsInstance && paymentElement) {
             const returnUrl = window.location.origin + '/member/dashboard';
+            elementsInstance.submit();
             const { error } = await stripeInstance.confirmPayment({ elements: elementsInstance, clientSecret: clientSecret, confirmParams: { return_url: returnUrl } });
             if (error) { setMsg(error.message || 'ชำระไม่สำเร็จ', true); return; }
           }

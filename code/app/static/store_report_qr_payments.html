@@ -23,7 +23,8 @@
     th { background: #1e2128; color: #28a745; }
     .num { text-align: right; }
     .gateway { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: rgba(40,167,69,0.2); color: #28a745; }
-    #loading, #no-data, #need-login { display: none; }
+    .live-card { border-left: 4px solid #28a745; }
+    #loading, #no-data, #need-login, #live-loading, #live-no-data { display: none; }
     .need-login { color: #888; padding: 24px; text-align: center; }
   </style>
 </head>
@@ -36,8 +37,24 @@
   <div id="need-login" class="card">
     <p class="need-login">กรุณาล็อกอิน Store POS ก่อน</p>
   </div>
+  <div class="card live-card" id="card-live">
+    <h2>📡 สถานะการจ่าย Real-time</h2>
+    <p style="font-size:13px; color:#888; margin-bottom:12px;">อัปเดตอัตโนมัติทุก 2 วินาที</p>
+    <div class="filters">
+      <label>ร้าน <select id="live-store-id"><option value="">-- เลือกร้าน --</option></select></label>
+      <span id="live-updated" style="font-size:12px; color:#888;"></span>
+    </div>
+    <div id="live-loading" style="display:none;">กำลังโหลด...</div>
+    <table id="live-tbl" style="display:none;">
+      <thead>
+        <tr><th>เวลาบันทึก</th><th>ref2 (order)</th><th>ช่องทาง</th><th>จำนวน (บาท)</th><th>สถานะ</th></tr>
+      </thead>
+      <tbody id="live-tbody"></tbody>
+    </table>
+    <p id="live-no-data" style="display:none; color:#888;">ยังไม่มีรายการ</p>
+  </div>
   <div class="card" id="card-report">
-    <h2>กรอง</h2>
+    <h2>กรอง (รายงานตามช่วงวันที่)</h2>
     <div class="filters">
       <label>จากวันที่ <input type="date" id="from-date"></label>
       <label>ถึง <input type="date" id="to-date"></label>
@@ -91,17 +108,72 @@
 
     function fillStoreSelect() {
       const sel = document.getElementById('store-id');
+      const liveSel = document.getElementById('live-store-id');
       sel.innerHTML = '<option value="">-- เลือกร้าน --</option>';
+      liveSel.innerHTML = '<option value="">-- เลือกร้าน --</option>';
       myStores.forEach(s => {
         const o = document.createElement('option');
         o.value = s.id;
         o.textContent = s.name || 'ร้าน #' + s.id;
         sel.appendChild(o);
+        const o2 = document.createElement('option');
+        o2.value = s.id;
+        o2.textContent = s.name || 'ร้าน #' + s.id;
+        liveSel.appendChild(o2);
       });
       const params = new URLSearchParams(window.location.search);
       const sid = params.get('store_id');
-      if (sid && myStores.some(s => String(s.id) === sid)) sel.value = sid;
-      else if (myStores.length === 1) sel.value = myStores[0].id;
+      if (sid && myStores.some(s => String(s.id) === sid)) {
+        sel.value = sid;
+        liveSel.value = sid;
+      } else if (myStores.length === 1) {
+        sel.value = myStores[0].id;
+        liveSel.value = myStores[0].id;
+      }
+    }
+
+    const LIVE_POLL_MS = 2000;
+    let livePollTimer = null;
+
+    async function loadLive() {
+      const storeId = document.getElementById('live-store-id').value;
+      if (!storeId) {
+        document.getElementById('live-no-data').textContent = 'กรุณาเลือกร้าน';
+        document.getElementById('live-no-data').style.display = 'block';
+        document.getElementById('live-tbl').style.display = 'none';
+        return;
+      }
+      document.getElementById('live-updated').textContent = 'กำลังโหลด...';
+      const url = paymentCallback + '/back-transactions/live?limit=80&store_id=' + storeId;
+      try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        const items = data.items || [];
+        document.getElementById('live-updated').textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH');
+        if (!items.length) {
+          document.getElementById('live-tbl').style.display = 'none';
+          document.getElementById('live-no-data').textContent = 'ยังไม่มีรายการ';
+          document.getElementById('live-no-data').style.display = 'block';
+          document.getElementById('live-tbody').innerHTML = '';
+        } else {
+          document.getElementById('live-no-data').style.display = 'none';
+          document.getElementById('live-tbl').style.display = 'table';
+          document.getElementById('live-tbody').innerHTML = items.map(i => {
+            const d = (i.created_at || i.paid_at || '').slice(0, 19).replace('T', ' ');
+            const gw = (i.payment_gateway || '-');
+            return '<tr><td>' + d + '</td><td>' + (i.ref2 || '-') + '</td><td><span class="gateway">' + gw + '</span></td><td class="num">' + (i.amount != null ? Number(i.amount).toFixed(2) : '-') + '</td><td>' + (i.status || 'received') + '</td></tr>';
+          }).join('');
+        }
+      } catch (e) {
+        document.getElementById('live-updated').textContent = 'โหลดไม่สำเร็จ';
+      }
+    }
+
+    function startLivePoll() {
+      if (!document.getElementById('live-store-id').value) return;
+      loadLive();
+      if (livePollTimer) clearInterval(livePollTimer);
+      livePollTimer = setInterval(loadLive, LIVE_POLL_MS);
     }
 
     async function loadReport() {
@@ -144,11 +216,19 @@
     }
 
     document.getElementById('btn-load').addEventListener('click', loadReport);
+    document.getElementById('live-store-id').addEventListener('change', function() {
+      if (livePollTimer) clearInterval(livePollTimer);
+      startLivePoll();
+    });
     (async function() {
       const me = await loadMe();
       if (!me) return;
+      document.getElementById('need-login').style.display = 'none';
+      document.getElementById('card-report').style.display = 'block';
+      document.getElementById('card-live').style.display = 'block';
       fillStoreSelect();
       loadReport();
+      startLivePoll();
     })();
   </script>
 </body>

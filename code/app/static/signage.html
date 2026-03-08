@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>จอที่ 2 - QR Payment & Digital Signage</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
-
         html, body { margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'TH Sarabun New', 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #fff;
+            font-family: 'Segoe UI', Tahoma, 'Sarabun', sans-serif;
+            background: #fff;
+            color: #333;
             min-height: 100vh;
             width: 100vw;
             display: flex;
@@ -24,11 +22,12 @@
         .signage-header {
             flex-shrink: 0;
             padding: 12px 24px;
-            background: rgba(0,0,0,0.4);
+            background: #f5f5f5;
             font-size: clamp(1.2rem, 3vw, 1.8rem);
             font-weight: 700;
             text-align: center;
-            border-bottom: 2px solid rgba(255,255,255,0.2);
+            border-bottom: 2px solid #ddd;
+            color: #333;
         }
 
         /* Layout 50/50 */
@@ -40,15 +39,24 @@
             overflow: hidden;
         }
 
-        /* ซ้าย 50%: Video (foreground) */
+        /* ซ้าย 50%: Image signage – ความสูงเต็ม 100%, crop ด้านกว้าง, เปลี่ยนรูปทุก 2 วินาที */
         .signage-video-section {
             flex: 0 0 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #000;
-            padding: 16px;
+            padding: 0;
             min-width: 0;
+            overflow: hidden;
+        }
+        .signage-video-section .signage-media-img {
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
         }
         .signage-video-section video {
             width: 100%;
@@ -56,7 +64,7 @@
             object-fit: contain;
         }
 
-        /* ขวา 50%: ช่องรอชำระ PromptPay (QR ด้านบน + รายการสินค้าด้านล่าง) */
+        /* ขวา 50%: ช่องรอชำระ PromptPay (QR ด้านบน + รายการสินค้าด้านล่าง) – โทนเข้ม */
         .signage-right-section {
             flex: 0 0 50%;
             display: flex;
@@ -64,8 +72,9 @@
             align-items: center;
             justify-content: center;
             padding: 24px;
-            background: rgba(0,0,0,0.25);
+            background: #1a1d24;
             min-width: 0;
+            color: #fff;
         }
 
         /* กล่องเดียว: ด้านบน = QR หรือข้อความรอ, ด้านล่าง = รายการสินค้า */
@@ -102,11 +111,13 @@
         }
         .signage-right-section .qr-wrap img#signage-qr {
             display: block;
-            width: clamp(160px, 22vw, 260px);
+            width: clamp(220px, 28vw, 360px);
             height: auto;
-            min-width: 120px;
-            min-height: 120px;
-            background: #f8f9fa;
+            min-width: 220px;
+            min-height: 220px;
+            max-width: 360px;
+            object-fit: contain;
+            background: #fff;
         }
         .signage-right-section .payment-channel .amount {
             font-size: clamp(1.6rem, 4vw, 2.5rem);
@@ -127,14 +138,15 @@
         #idle-block .amount { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; color: #28a745; }
         .qr-hint { font-size: clamp(0.75rem, 1.5vw, 0.9rem); color: rgba(255,255,255,0.6); margin-top: 8px; text-align: center; }
 
-        /* รายการสินค้า – อยู่ด้านล่าง QR ในช่องเดียวกัน */
+        /* รายการสินค้า – ความสูง 60% ของหน้าจอเสมอ */
         .payment-channel-list {
             width: 100%;
             display: flex;
             flex-direction: column;
             flex: 1;
             min-height: 0;
-            max-height: 35vh;
+            height: 60vh;
+            max-height: 60vh;
         }
         .payment-channel-list .list-title {
             font-size: clamp(1rem, 2.2vw, 1.25rem);
@@ -177,7 +189,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
+            background: #fff;
             z-index: 100;
             flex-direction: column;
             align-items: center;
@@ -193,7 +205,7 @@
         }
         .paid-overlay .amount {
             font-size: clamp(1.8rem, 4vw, 2.5rem);
-            opacity: 0.95;
+            color: #333;
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
@@ -202,9 +214,10 @@
     <div class="signage-header" id="signage-header">สื่อโฆษณาของร้าน</div>
 
     <div class="signage-split">
-        <!-- ซ้าย 50%: Video (foreground) -->
+        <!-- ซ้าย 50%: Image signage (ความสูง 100%, crop ความกว้าง, เปลี่ยนทุก 2 วินาที) -->
         <div class="signage-video-section">
-            <video id="signage-video" muted playsinline loop autoplay></video>
+            <img id="signage-media-img" class="signage-media-img" src="" alt="" style="display:none;">
+            <video id="signage-video" muted playsinline loop autoplay style="display:none;"></video>
         </div>
 
         <!-- ขวา 50%: ช่องรอชำระ PromptPay – QR ด้านบน, รายการสินค้าด้านล่าง (ช่องเดียวกัน) -->
@@ -248,7 +261,10 @@
         let pollInterval = null;
         let paidShownAt = null;
         const PAID_DISPLAY_MS = 5000;
-        let signageVideoUrl = '';
+        const SIGNAGE_IMAGE_INTERVAL_MS = 2000;
+        let signageImageUrls = [];
+        let signageImageIndex = 0;
+        let signageImageTimer = null;
         let storeName = '';
 
         function updateHeader() {
@@ -334,16 +350,55 @@
             window.speechSynthesis.speak(u);
         }
 
+        function resolveMediaUrl(url) {
+            if (!url) return '';
+            return url.startsWith('http') ? url : (window.location.origin + url);
+        }
+
+        function showNextSignageImage() {
+            const imgEl = document.getElementById('signage-media-img');
+            const videoEl = document.getElementById('signage-video');
+            if (signageImageUrls.length > 0) {
+                imgEl.src = signageImageUrls[signageImageIndex];
+                imgEl.style.display = 'block';
+                imgEl.alt = 'สื่อโฆษณา';
+                videoEl.style.display = 'none';
+                videoEl.pause();
+                signageImageIndex = (signageImageIndex + 1) % signageImageUrls.length;
+            } else {
+                imgEl.style.display = 'none';
+                imgEl.src = '';
+            }
+        }
+
+        function startSignageImageRotation() {
+            if (signageImageTimer) clearInterval(signageImageTimer);
+            if (signageImageUrls.length === 0) return;
+            signageImageIndex = 0;
+            showNextSignageImage();
+            signageImageTimer = setInterval(showNextSignageImage, SIGNAGE_IMAGE_INTERVAL_MS);
+        }
+
         async function loadSignageMedia() {
             try {
                 const res = await fetch(API_BASE + '/signage/media');
                 const data = await res.json();
                 const items = data.items || [];
-                const videoItem = items.find(function(it) { return it.type === 'video'; });
-                const videoEl = document.getElementById('signage-video');
-                if (videoItem && videoItem.url) {
-                    signageVideoUrl = videoItem.url.startsWith('http') ? videoItem.url : (window.location.origin + videoItem.url);
-                    videoEl.src = signageVideoUrl;
+                const imageItems = items.filter(function(it) { return it.type === 'image'; });
+                signageImageUrls = imageItems.map(function(it) { return resolveMediaUrl(it.url); }).filter(Boolean);
+                var videoItem = items.find(function(it) { return it.type === 'video'; });
+                var videoEl = document.getElementById('signage-video');
+                var imgEl = document.getElementById('signage-media-img');
+                if (signageImageUrls.length > 0) {
+                    imgEl.style.display = 'block';
+                    videoEl.style.display = 'none';
+                    videoEl.pause();
+                    startSignageImageRotation();
+                } else if (videoItem && videoItem.url) {
+                    imgEl.style.display = 'none';
+                    imgEl.src = '';
+                    videoEl.style.display = 'block';
+                    videoEl.src = resolveMediaUrl(videoItem.url);
                     videoEl.muted = true;
                     videoEl.playsInline = true;
                     videoEl.loop = true;
@@ -406,12 +461,19 @@
             if (new URLSearchParams(window.location.search).get('fullscreen') !== '1') return;
             function goFullscreen() {
                 var el = document.documentElement;
-                if (el.requestFullscreen) el.requestFullscreen().catch(function() {});
-                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                try {
+                    if (el.requestFullscreen) el.requestFullscreen().catch(function() {});
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                } catch (e) {}
             }
-            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() { setTimeout(goFullscreen, 400); });
-            else setTimeout(goFullscreen, 400);
+            function onUserGesture() {
+                document.removeEventListener('click', onUserGesture);
+                document.removeEventListener('touchstart', onUserGesture);
+                goFullscreen();
+            }
+            document.addEventListener('click', onUserGesture, { once: true });
+            document.addEventListener('touchstart', onUserGesture, { once: true });
         })();
 
         document.addEventListener('DOMContentLoaded', startPolling);

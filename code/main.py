@@ -105,6 +105,13 @@ _ad_media_dir = os.path.join(_BASE_DIR, "data", "ad_media")
 os.makedirs(_ad_media_dir, exist_ok=True)
 app.mount("/ad-media", StaticFiles(directory=_ad_media_dir), name="ad_media")
 
+# Favicon - ลด 404 ในคอนโซลเมื่อเบราว์เซอร์ขอ favicon.ico
+@app.get("/favicon.ico")
+async def favicon():
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
+
 # Redirect root to admin dashboard
 @app.get("/admin")
 async def admin_dashboard():
@@ -165,6 +172,16 @@ async def store_pos_settings_page(request: Request):
     file_path = os.path.join(_BASE_DIR, "app", "static", "store_pos_settings.html")
     if not os.path.exists(file_path):
         from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)
+
+
+@app.get("/links-qr")
+async def links_qr_page():
+    """หน้าแสดง QR Code ลิงก์ Store-POS/Member, Signage, Admin"""
+    from fastapi.responses import FileResponse
+    file_path = os.path.join(_BASE_DIR, "app", "static", "links_qr.html")
+    if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
 

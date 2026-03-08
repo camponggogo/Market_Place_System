@@ -323,7 +323,9 @@ def member_stripe_create_payment_intent(
     elif pm == "promptpay":
         payment_method_types = ["promptpay"]
     elif pm == "truewallet":
-        payment_method_types = ["truewallet"]
+        # TrueWallet ต้องเปิดใน Stripe Dashboard (Account > Payments > Settings)
+        # ถ้าไม่ได้เปิด ใช้ promptpay แทน (ลูกค้าสแกน QR ได้)
+        payment_method_types = ["promptpay"]
     else:
         payment_method_types = ["card"]
     return_url = (BACKEND_URL or "").rstrip("/") + "/member/dashboard"

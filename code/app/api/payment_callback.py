@@ -13,11 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import BACKEND_URL, OMISE_PUBLIC_KEY, OMISE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+from app.config import BACKEND_URL, OMISE_PUBLIC_KEY, OMISE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
 from app.database import get_db
 from app.services.settlement_service import (
     receive_back_transaction,
     get_back_transactions_report,
+    get_back_transactions_live,
     create_daily_settlements,
     get_settlement_list,
     mark_settlement_transferred,
@@ -114,6 +115,11 @@ class SettlementNotifyRequest(BaseModel):
     settlement_id: int
 
 
+class UpdateStripeWebhookUrlRequest(BaseModel):
+    """Body สำหรับอัปเดต Stripe webhook URL (ใช้เมื่อ ngrok เปลี่ยน URL)"""
+    url: Optional[str] = None  # base URL ใหม่ เช่น https://abc.ngrok-free.app ถ้าไม่ส่งใช้ BACKEND_URL
+
+
 class CreateGatewayQRRequest(BaseModel):
     amount: float  # บาท
     order_id: Optional[int] = None  # ถ้ามี ส่ง ref2 ใน metadata ให้ webhook อัปเดต Order
@@ -163,8 +169,9 @@ def _resolve_scb_config(db: Session, store: Store) -> tuple:
 @router.get("/stores/{store_id}/gateway-info")
 async def get_gateway_info(store_id: int, db: Session = Depends(get_db)):
     """
-    คืนค่า payment gateway ของร้าน (สำหรับ Store POS เลือกใช้ Omise / SCB / QR ธรรมดา)
-    - omise: ใช้ Omise API (ลำดับแรก)
+    คืนค่า payment gateway ของร้าน (สำหรับ Store POS เลือกใช้ Stripe / Omise / SCB / QR ธรรมดา)
+    - stripe: ใช้ Stripe API (PromptPay QR) — ลำดับแรก
+    - omise: ใช้ Omise API
     - scb_deeplink: ใช้ SCB Partners API (PromptPay ผ่าน SCB Easy)
     """
     store = db.query(Store).filter(Store.id == store_id).first()
@@ -172,7 +179,15 @@ async def get_gateway_info(store_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Store not found")
     profile = resolve_banking_profile_for_store(db, store)
     provider = getattr(profile, "provider_type", None) if profile else None
-    # ชี้ไป Omise ก่อน ถ้ามีการตั้งค่า (config.ini หรือ Banking Profile)
+    # ชี้ไป Stripe ก่อน (จาก Banking Profile หรือจาก config.ini ถ้าไม่มี profile)
+    if profile and provider == "stripe" and getattr(profile, "stripe_secret_key", None):
+        return {
+            "provider": "stripe",
+            "stripe_publishable_key": getattr(profile, "stripe_publishable_key", None) or "",
+        }
+    if not profile and STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY:
+        return {"provider": "stripe", "stripe_publishable_key": STRIPE_PUBLISHABLE_KEY or ""}
+    # Omise (config.ini หรือ Banking Profile)
     pk, _ = _resolve_omise_keys(db, store)
     if pk:
         return {"provider": "omise", "omise_public_key": pk}
@@ -183,6 +198,8 @@ async def get_gateway_info(store_id: int, db: Session = Depends(get_db)):
         out = {"provider": provider}
         if provider == "omise":
             out["omise_public_key"] = getattr(profile, "omise_public_key", None) or ""
+        if provider == "stripe":
+            out["stripe_publishable_key"] = getattr(profile, "stripe_publishable_key", None) or ""
         return out
     return {"provider": None}
 
@@ -203,7 +220,8 @@ async def create_gateway_qr(
         raise HTTPException(status_code=404, detail="Store not found")
     profile = resolve_banking_profile_for_store(db, store)
     has_scb_store = getattr(store, "scb_api_key", None) and getattr(store, "scb_api_secret", None)
-    if not profile and not has_scb_store:
+    use_global_stripe = not profile and STRIPE_SECRET_KEY
+    if not profile and not has_scb_store and not use_global_stripe:
         raise HTTPException(status_code=400, detail="No payment gateway profile for this store")
     ref1 = getattr(store, "token", None) or ""
     if not ref1:
@@ -228,7 +246,7 @@ async def create_gateway_qr(
     if order_id_for_ref2 is not None:
         metadata["ref2"] = str(order_id_for_ref2)
 
-    provider = getattr(profile, "provider_type", None)
+    provider = getattr(profile, "provider_type", None) if profile else None
     if provider == "omise":
         sk = getattr(profile, "omise_secret_key", None)
         if not sk:
@@ -260,8 +278,8 @@ async def create_gateway_qr(
             "qr_image": qr_base64,
             "status": charge.get("status"),
         }
-    if provider == "stripe":
-        sk = getattr(profile, "stripe_secret_key", None)
+    if provider == "stripe" or use_global_stripe:
+        sk = (getattr(profile, "stripe_secret_key", None) if profile else None) or STRIPE_SECRET_KEY
         if not sk:
             raise HTTPException(status_code=400, detail="Stripe secret key not configured")
         try:
@@ -272,10 +290,23 @@ async def create_gateway_qr(
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+        payment_intent_id = pi.get("id")
+        promptpay_qr_data = None
+        try:
+            pi_confirmed = stripe_promptpay.confirm_payment_intent_promptpay(
+                secret_key=sk,
+                payment_intent_id=payment_intent_id,
+                email=getattr(store, "email", None) or "noreply@store.local",
+            )
+            promptpay_qr_data = stripe_promptpay.get_promptpay_qr_data_from_payment_intent(pi_confirmed)
+        except Exception as e:
+            logger.warning("Stripe confirm for QR data failed: %s", e)
         return {
             "provider": "stripe",
-            "payment_intent_id": pi.get("id"),
+            "payment_intent_id": payment_intent_id,
             "client_secret": pi.get("client_secret"),
+            "promptpay_qr_data": promptpay_qr_data,
+            "order_id": order_id_for_ref2,
             "amount": body.amount,
             "status": pi.get("status"),
         }
@@ -581,6 +612,49 @@ async def webhook_stripe_health():
     return {"status": "ok", "message": "Stripe webhook is ready", "provider": "stripe"}
 
 
+WEBHOOK_STRIPE_PATH = "/api/payment-callback/webhook/stripe"
+
+
+@router.post("/webhook/stripe/update-url")
+async def webhook_stripe_update_url(body: Optional[UpdateStripeWebhookUrlRequest] = None):
+    """
+    อัปเดต URL ของ Stripe webhook ให้ตรงกับ backend ปัจจุบัน (เช่น หลัง ngrok run ใหม่).
+    ส่ง body { "url": "https://new-ngrok.ngrok-free.app" } หรือไม่ส่งจะใช้ BACKEND_URL
+    """
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe not configured (STRIPE_SECRET_KEY)")
+    base = (body.url if body and body.url else BACKEND_URL or "").strip().rstrip("/")
+    if not base:
+        raise HTTPException(status_code=400, detail="No base URL (send url in body or set BACKEND_URL)")
+    new_webhook_url = f"{base}{WEBHOOK_STRIPE_PATH}"
+    try:
+        endpoints = stripe_promptpay.list_webhook_endpoints(STRIPE_SECRET_KEY)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    updated = []
+    errors = []
+    for ep in endpoints:
+        old_url = (ep.get("url") or "").strip()
+        if not old_url.endswith(WEBHOOK_STRIPE_PATH):
+            continue
+        if old_url == new_webhook_url:
+            continue
+        eid = ep.get("id")
+        if not eid:
+            continue
+        try:
+            stripe_promptpay.update_webhook_endpoint_url(STRIPE_SECRET_KEY, eid, new_webhook_url)
+            updated.append({"id": eid, "old_url": old_url, "new_url": new_webhook_url})
+        except ValueError as e:
+            errors.append({"id": eid, "error": str(e)})
+    return {
+        "base_url": base,
+        "webhook_url": new_webhook_url,
+        "updated": updated,
+        "errors": errors,
+    }
+
+
 def _verify_stripe_signature(payload_body: bytes, sig_header: str, secret: str) -> bool:
     """Verify Stripe-Signature (v1 = HMAC-SHA256 of timestamp.payload)."""
     if not sig_header or not secret:
@@ -713,6 +787,27 @@ async def report_back_transactions(
     start = datetime.fromisoformat(start_date + "T00:00:00") if start_date else None
     end = datetime.fromisoformat(end_date + "T23:59:59") if end_date else None
     rows = get_back_transactions_report(db, store_id=store_id, start_date=start, end_date=end, limit=limit)
+    return {"items": rows, "count": len(rows)}
+
+
+@router.get("/back-transactions/live")
+async def live_back_transactions(
+    store_id: Optional[int] = Query(None),
+    since_created: Optional[str] = Query(None, description="ISO datetime – ดึงเฉพาะรายการที่ created_at หลังเวลานี้ (สำหรับ poll)"),
+    limit: int = Query(100, le=200),
+    db: Session = Depends(get_db),
+):
+    """
+    รายการสถานะการจ่ายล่าสุด แบบ near-realtime (เรียงตาม created_at desc)
+    ใช้ poll ทุก 2–3 วินาที โดยส่ง since_created=created_at ของรายการล่าสุดที่แสดงแล้ว
+    """
+    since_dt = None
+    if since_created:
+        try:
+            since_dt = datetime.fromisoformat(since_created.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            pass
+    rows = get_back_transactions_live(db, store_id=store_id, since_created=since_dt, limit=limit)
     return {"items": rows, "count": len(rows)}
 
 

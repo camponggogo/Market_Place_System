@@ -21,6 +21,9 @@
     th { background: #f8fafc; color: #1f3a8a; }
     .num { text-align: right; }
     .gateway { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #dbeafe; color: #1e40af; }
+    .live-card { border-left: 4px solid #2563eb; }
+    .live-card .status-received { color: #059669; }
+    #live-updated { margin-left: 12px; }
   </style>
 </head>
 <body>
@@ -29,8 +32,24 @@
     <a href="/store-pos" class="back" style="margin-left:12px">Store POS</a>
     <h1>รายงานการชำระ QR / Stripe (Back Transactions)</h1>
   </div>
+  <div class="card live-card">
+    <h2>📡 รายการสถานะการจ่าย Real-time</h2>
+    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">อัปเดตอัตโนมัติทุก 2 วินาที (จาก Webhook Stripe / Omise / ธนาคาร)</p>
+    <div class="filters">
+      <label>ร้าน <select id="live-store-id"><option value="">ทุกร้าน</option></select></label>
+      <span id="live-updated" style="font-size:12px; color:#64748b;"></span>
+    </div>
+    <div id="live-loading" style="display:none;">กำลังโหลด...</div>
+    <table id="live-tbl" style="display:none;">
+      <thead>
+        <tr><th>เวลาบันทึก</th><th>ร้าน</th><th>ref2 (order)</th><th>ช่องทาง</th><th>จำนวน (บาท)</th><th>สถานะ</th></tr>
+      </thead>
+      <tbody id="live-tbody"></tbody>
+    </table>
+    <p id="live-no-data" style="display:none; color:#64748b;">ยังไม่มีรายการ</p>
+  </div>
   <div class="card">
-    <h2>กรอง</h2>
+    <h2>กรอง (รายงานตามช่วงวันที่)</h2>
     <div class="filters">
       <label>จากวันที่ <input type="date" id="from-date"></label>
       <label>ถึง <input type="date" id="to-date"></label>
@@ -66,13 +85,57 @@
         const r = await fetch(API + '/api/stores/', { credentials: 'include' });
         const list = await r.json();
         const sel = document.getElementById('store-id');
+        const liveSel = document.getElementById('live-store-id');
         (list || []).forEach(s => {
           const o = document.createElement('option');
           o.value = s.id;
           o.textContent = s.name || 'ร้าน ' + s.id;
           sel.appendChild(o);
+          const o2 = document.createElement('option');
+          o2.value = s.id;
+          o2.textContent = s.name || 'ร้าน ' + s.id;
+          liveSel.appendChild(o2);
         });
       } catch (e) {}
+    }
+
+    const LIVE_POLL_MS = 2000;
+    let livePollTimer = null;
+
+    function rowHtml(i) {
+      const d = (i.created_at || i.paid_at || '').slice(0, 19).replace('T', ' ');
+      const gw = (i.payment_gateway || '-');
+      return '<tr><td>' + d + '</td><td>' + (i.store_name || 'ร้าน #' + (i.store_id || '')) + '</td><td>' + (i.ref2 || '-') + '</td><td><span class="gateway">' + gw + '</span></td><td class="num">' + (i.amount != null ? Number(i.amount).toFixed(2) : '-') + '</td><td class="status-received">' + (i.status || 'received') + '</td></tr>';
+    }
+
+    async function loadLive() {
+      const storeId = document.getElementById('live-store-id').value;
+      document.getElementById('live-updated').textContent = 'กำลังโหลด...';
+      let url = paymentCallback + '/back-transactions/live?limit=80';
+      if (storeId) url += '&store_id=' + storeId;
+      try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        const items = data.items || [];
+        document.getElementById('live-updated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH');
+        if (!items.length) {
+          document.getElementById('live-tbl').style.display = 'none';
+          document.getElementById('live-no-data').style.display = 'block';
+          document.getElementById('live-tbody').innerHTML = '';
+        } else {
+          document.getElementById('live-no-data').style.display = 'none';
+          document.getElementById('live-tbl').style.display = 'table';
+          document.getElementById('live-tbody').innerHTML = items.map(rowHtml).join('');
+        }
+      } catch (e) {
+        document.getElementById('live-updated').textContent = 'โหลดไม่สำเร็จ';
+      }
+    }
+
+    function startLivePoll() {
+      loadLive();
+      if (livePollTimer) clearInterval(livePollTimer);
+      livePollTimer = setInterval(loadLive, LIVE_POLL_MS);
     }
 
     async function loadReport() {
@@ -109,12 +172,17 @@
     }
 
     document.getElementById('btn-load').addEventListener('click', loadReport);
+    document.getElementById('live-store-id').addEventListener('change', startLivePoll);
     (async function() {
       await loadStores();
       const params = new URLSearchParams(window.location.search);
       const sid = params.get('store_id');
-      if (sid) document.getElementById('store-id').value = sid;
+      if (sid) {
+        document.getElementById('store-id').value = sid;
+        document.getElementById('live-store-id').value = sid;
+      }
       loadReport();
+      startLivePoll();
     })();
   </script>
 </body>

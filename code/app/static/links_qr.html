@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code - ลิงก์ระบบ Food Court</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+        }
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .qr-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .qr-card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: #7dd3fc;
+        }
+        .qr-card .qr-wrap {
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .qr-card .qr-wrap canvas,
+        .qr-card .qr-wrap img { display: block !important; }
+        .qr-card .url {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h1>QR Code ลิงก์ระบบ</h1>
+    <div class="qr-grid">
+        <div class="qr-card">
+            <h2>Store-POS / Member Login</h2>
+            <div class="qr-wrap" id="qr-store-pos"></div>
+            <p class="url" id="url-store-pos"></p>
+        </div>
+        <div class="qr-card">
+            <h2>Member (Signage จอที่ 2)</h2>
+            <div class="qr-wrap" id="qr-member"></div>
+            <p class="url" id="url-member"></p>
+        </div>
+        <div class="qr-card">
+            <h2>Admin</h2>
+            <div class="qr-wrap" id="qr-admin"></div>
+            <p class="url" id="url-admin"></p>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        var links = {
+            storePos: 'https://f1f1-2405-9800-b651-70a4-70a0-878f-3672-185b.ngrok-free.app/member',
+            member: 'https://f1f1-2405-9800-b651-70a4-70a0-878f-3672-185b.ngrok-free.app/signage?store_id=1&fullscreen=1',
+            admin: 'https://f1f1-2405-9800-b651-70a4-70a0-878f-3672-185b.ngrok-free.app/admin'
+        };
+        function makeQR(id, text, urlId) {
+            var el = document.getElementById(id);
+            var urlEl = document.getElementById(urlId);
+            if (!el || !window.QRCode) return;
+            el.innerHTML = '';
+            if (urlEl) urlEl.textContent = text;
+            new QRCode(el, {
+                text: text,
+                width: 200,
+                height: 200,
+                colorDark: '#000',
+                colorLight: '#fff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+        if (window.QRCode) {
+            makeQR('qr-store-pos', links.storePos, 'url-store-pos');
+            makeQR('qr-member', links.member, 'url-member');
+            makeQR('qr-admin', links.admin, 'url-admin');
+        } else {
+            document.querySelector('.qr-grid').innerHTML = '<p style="text-align:center;">โหลด QR library ไม่สำเร็จ</p>';
+        }
+    </script>
+</body>
+</html>

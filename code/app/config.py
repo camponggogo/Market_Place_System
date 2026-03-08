@@ -1,14 +1,13 @@
 """
 Configuration management for Food Court System
-Supports both config.ini file and environment variables (Docker)
-Environment variables take precedence over config.ini
+ใช้ config.ini ไฟล์เดียว (ค่าใน environment ยัง override ได้ถ้าตั้งไว้ เช่น Docker)
 """
 import configparser
 import os
 from pathlib import Path
 from urllib.parse import quote_plus
 
-# Get the directory where config.ini is located
+# Get the directory where config.ini is located (code/)
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_FILE = BASE_DIR / "config.ini"
 

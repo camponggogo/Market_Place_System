@@ -200,7 +200,7 @@ docker compose -f Deploy/docker-compose.yml up -d
 
 ### ตัวแปรสำคัญใน .env
 
-```env
+```env![1772813041276](image/README/1772813041276.png)
 DB_NAME=maket_place_system
 DB_USER=foodcourt_user
 DB_PASSWORD=foodcourt_pass

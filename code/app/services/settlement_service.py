@@ -187,6 +187,43 @@ def get_back_transactions_report(
     ]
 
 
+def get_back_transactions_live(
+    db: Session,
+    store_id: Optional[int] = None,
+    since_created: Optional[datetime] = None,
+    limit: int = 100,
+) -> List[dict]:
+    """
+    รายการ Back Transactions ล่าสุด (เรียงตาม created_at) สำหรับ realtime
+    ใช้ since_created เพื่อ poll เฉพาะรายการที่เพิ่มหลังเวลานี้
+    """
+    q = db.query(PromptPayBackTransaction).order_by(
+        PromptPayBackTransaction.created_at.desc()
+    )
+    if store_id is not None:
+        q = q.filter(PromptPayBackTransaction.store_id == store_id)
+    if since_created is not None:
+        q = q.filter(PromptPayBackTransaction.created_at > since_created)
+    rows = q.limit(limit).all()
+    return [
+        {
+            "id": r.id,
+            "ref1": r.ref1,
+            "ref2": r.ref2,
+            "ref3": r.ref3,
+            "amount": r.amount,
+            "paid_at": r.paid_at.isoformat() if r.paid_at else None,
+            "slip_reference": r.slip_reference,
+            "store_id": r.store_id,
+            "store_name": r.store.name if r.store else None,
+            "status": r.status,
+            "payment_gateway": getattr(r, "payment_gateway", None),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
 def create_daily_settlements(db: Session, settlement_date: Optional[date] = None) -> List[StoreSettlement]:
     """
     สร้างรายการเตรียมโอนเงินไปยังร้านค้า สิ้นวัน
