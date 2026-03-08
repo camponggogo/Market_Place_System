@@ -66,39 +66,67 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "OK Sample data created" -ForegroundColor Green
 }
 
-# Step 7: Start Server
+# Step 7: Start ngrok (ถ้ามี) แล้ว Start Server ด้วย URL ngrok
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "Setup Complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "To start the server manually (from project root):" -ForegroundColor Yellow
-Write-Host "  `$env:PYTHONPATH='code'; uvicorn main:app --reload --host 0.0.0.0 --port 8000" -ForegroundColor White
-Write-Host ""
-Write-Host "Then open:" -ForegroundColor Yellow
-Write-Host "  http://localhost:8000/docs - API Documentation" -ForegroundColor White
-Write-Host "  http://localhost:8000/launch?store_id=1 - Store POS + Signage" -ForegroundColor White
-Write-Host ""
+
+$ngrokUrl = $null
+if (Get-Command ngrok -ErrorAction SilentlyContinue) {
+    Write-Host "Starting ngrok (port 8000) first..." -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "ngrok http 8000"
+    Write-Host "Waiting for ngrok tunnel..." -ForegroundColor Gray
+    $maxAttempts = 15
+    for ($i = 1; $i -le $maxAttempts; $i++) {
+        Start-Sleep -Seconds 1
+        try {
+            $tunnels = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+            $https = $tunnels.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+            if ($https -and $https.public_url) {
+                $ngrokUrl = $https.public_url.TrimEnd("/")
+                Write-Host "OK ngrok URL: $ngrokUrl" -ForegroundColor Green
+                break
+            }
+        } catch {
+            if ($i -eq $maxAttempts) {
+                Write-Host "ngrok API not ready in time. Server will use config BACKEND_URL." -ForegroundColor Yellow
+            }
+        }
+    }
+} else {
+    Write-Host "ngrok not found. Server will use config BACKEND_URL. (ติดตั้ง: choco install ngrok)" -ForegroundColor Yellow
+}
 
 Write-Host "Starting server in new window..." -ForegroundColor Yellow
 $env:PYTHONPATH = "$root\code"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root'; `$env:PYTHONPATH='$root\code'; uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+if ($ngrokUrl) {
+    $env:BACKEND_URL = $ngrokUrl
+    $serverCmd = "Set-Location '$root'; `$env:PYTHONPATH='$root\code'; `$env:BACKEND_URL='$ngrokUrl'; uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $serverCmd
+} else {
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root'; `$env:PYTHONPATH='$root\code'; uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+}
 Write-Host "Waiting for server to be ready..." -ForegroundColor Gray
 Start-Sleep -Seconds 6
 
-if (Get-Command ngrok -ErrorAction SilentlyContinue) {
-    Write-Host "Starting ngrok (port 8000) in new window..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "ngrok http 8000"
-    Write-Host "ngrok started. Webhook URL: https://[ngrok-url]/api/payment-callback/webhook (ดูที่ ngrok window)" -ForegroundColor Gray
-    Start-Sleep -Seconds 3
-} else {
-    Write-Host "ngrok not found. Skip. (ติดตั้ง: choco install ngrok หรือดาวน์โหลดจาก ngrok.com)" -ForegroundColor Yellow
+if ($ngrokUrl) {
+    Set-Clipboard -Value $ngrokUrl
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "  URL สำหรับแชร์ ( copy ไปวางให้คนอื่นใช้ได้ ): " -ForegroundColor White
+    Write-Host "  $ngrokUrl" -ForegroundColor Cyan
+    Write-Host "  ( copy ไปที่ Clipboard แล้ว - กด Ctrl+V เพื่อวาง )" -ForegroundColor Gray
+    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host ""
 }
 
+$openUrl = if ($ngrokUrl) { "$ngrokUrl/launch?store_id=1" } else { "http://localhost:8000/launch?store_id=1" }
 try {
-    Start-Process "http://localhost:8000/launch?store_id=1"
+    Start-Process $openUrl
     Write-Host "Opened browser: Store POS + Signage" -ForegroundColor Green
 } catch {
-    Write-Host "Open manually: http://localhost:8000/launch?store_id=1" -ForegroundColor Yellow
+    Write-Host "Open manually: $openUrl" -ForegroundColor Yellow
 }
-Write-Host "Server + ngrok running in separate windows. Close those windows to stop." -ForegroundColor Gray
+Write-Host "Server (and ngrok if used) running in separate windows. Close those windows to stop." -ForegroundColor Gray
