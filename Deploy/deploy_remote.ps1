@@ -3,9 +3,8 @@
 
 param(
     [string]$RemoteHost = "150.95.85.185",
-    [string]$RemoteUser = "root",
-    [string]$RemotePass = "P@ssw0rd@dev",
-    [string]$RemoteDir = "/opt/foodcourt",
+    [string]$RemoteUser = "admin",
+    [string]$RemoteDir = "/opt/marketplace",
     [string]$LocalDir = "."
 )
 

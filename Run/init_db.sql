@@ -4,7 +4,7 @@ Navicat MySQL Data Transfer
 Source Server         : localhost
 Source Server Version : 120002
 Source Host           : localhost:3306
-Source Database       : maket_system
+Source Database       : market_system
 
 Target Server Type    : MYSQL
 Target Server Version : 120002
@@ -12,9 +12,9 @@ File Encoding         : 65001
 
 Date: 2026-02-01 14:57:08
 */
-DROP DATABASE IF EXISTS maket_place_system;
-CREATE DATABASE maket_place_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE maket_place_system;
+DROP DATABASE IF EXISTS market_place_system;
+CREATE DATABASE market_place_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE market_place_system;
 
 SET FOREIGN_KEY_CHECKS=0;
 
@@ -104,18 +104,24 @@ CREATE TABLE `customers` (
   `line_user_id` varchar(100) DEFAULT NULL,
   `name` varchar(255) DEFAULT NULL,
   `promptpay_number` varchar(20) DEFAULT NULL,
+  `username` varchar(64) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `total_points` float NOT NULL DEFAULT 0,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `ix_customers_phone` (`phone`),
   UNIQUE KEY `ix_customers_line_user_id` (`line_user_id`),
+  UNIQUE KEY `ix_customers_username` (`username`),
+  UNIQUE KEY `ix_customers_email` (`email`),
   KEY `ix_customers_id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------
 -- Records of customers
 -- ----------------------------
-INSERT INTO `customers` VALUES ('1', '0812345678', null, 'ลูกค้าตัวอย่าง', '0812345678', '2026-02-01 14:48:57', null);
+INSERT INTO `customers` VALUES (1, '0812345678', null, 'ลูกค้าตัวอย่าง', '0812345678', null, null, null, 0, '2026-02-01 14:48:57', null);
 
 -- ----------------------------
 -- Table structure for customer_balances
@@ -201,14 +207,22 @@ CREATE TABLE `menus` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `store_id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
+  `name_i18n` text DEFAULT NULL,
   `description` text DEFAULT NULL,
+  `description_i18n` text DEFAULT NULL,
   `unit_price` float NOT NULL,
+  `image_url` varchar(512) DEFAULT NULL,
+  `image_local` varchar(255) DEFAULT NULL,
+  `image_base64` mediumtext DEFAULT NULL,
+  `barcode` varchar(64) DEFAULT NULL,
+  `addon_options` text DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_menus_store_id` (`store_id`),
   KEY `ix_menus_id` (`id`),
+  KEY `ix_menus_barcode` (`barcode`),
   CONSTRAINT `menus_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -277,6 +291,7 @@ CREATE TABLE `promptpay_back_transactions` (
   `bank_account` varchar(50) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL,
   `status` varchar(20) DEFAULT NULL,
+  `payment_gateway` varchar(30) DEFAULT NULL,
   `raw_payload` text DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
@@ -284,6 +299,7 @@ CREATE TABLE `promptpay_back_transactions` (
   KEY `ix_promptpay_back_transactions_slip_reference` (`slip_reference`),
   KEY `ix_promptpay_back_transactions_id` (`id`),
   KEY `ix_promptpay_back_transactions_ref1` (`ref1`),
+  KEY `ix_promptpay_back_transactions_payment_gateway` (`payment_gateway`),
   CONSTRAINT `promptpay_back_transactions_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -347,6 +363,7 @@ DROP TABLE IF EXISTS `stores`;
 CREATE TABLE `stores` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
+  `name_i18n` text DEFAULT NULL,
   `tax_id` varchar(20) DEFAULT NULL,
   `crypto_enabled` tinyint(1) NOT NULL,
   `contract_accepted` tinyint(1) NOT NULL,
@@ -361,6 +378,13 @@ CREATE TABLE `stores` (
   `location_name` varchar(255) DEFAULT NULL,
   `profile_id` int(11) DEFAULT NULL,
   `event_id` int(11) DEFAULT NULL,
+  `scb_app_name` varchar(64) DEFAULT NULL,
+  `scb_api_key` varchar(128) DEFAULT NULL,
+  `scb_api_secret` varchar(255) DEFAULT NULL,
+  `scb_callback_url` varchar(512) DEFAULT NULL,
+  `kbank_customer_id` varchar(128) DEFAULT NULL,
+  `kbank_consumer_secret` varchar(255) DEFAULT NULL,
+  `bank_account` varchar(50) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -375,7 +399,7 @@ CREATE TABLE `stores` (
 -- ----------------------------
 -- Records of stores
 -- ----------------------------
-INSERT INTO `stores` VALUES ('1', 'ร้านอาหารตัวอย่าง', '1234567890123', '0', '0', null, null, '0', '0', null, null, null, null, null, null, null, '2026-02-01 14:48:57', null);
+INSERT INTO `stores` VALUES ('1', 'ร้านอาหารตัวอย่าง', null, '1234567890123', '0', '0', null, null, '0', '0', null, null, null, null, null, null, null, null, null, null, null, null, null, null, '2026-02-01 14:48:57', null);
 
 -- ----------------------------
 -- Table structure for users
@@ -386,6 +410,7 @@ CREATE TABLE `users` (
   `username` varchar(64) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `name` varchar(255) DEFAULT NULL,
+  `is_admin` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `ix_users_username` (`username`)

@@ -20,13 +20,11 @@ RUN mkdir -p /app/logs /app/data
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=639
 
-EXPOSE 8000
+EXPOSE 639
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:639/health || exit 1
 
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8000", "--workers", "4", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", "--timeout", "120", \
-     "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["sh", "-c", "gunicorn main:app --bind 0.0.0.0:${PORT} --workers 4 --worker-class uvicorn.workers.UvicornWorker --timeout 120 --access-logfile - --error-logfile -"]

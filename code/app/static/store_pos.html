@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Store POS - Food Court Management System</title>
+    <title>Store POS - Marketplace Management System</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
         
@@ -298,7 +298,10 @@
         .qr-modal-content.qr-modal-compare { max-width: 720px; }
         .qr-slot { background: #1e2128; border-radius: 10px; padding: 12px; border: 1px solid #444; }
         .qr-slot-label { font-size: 13px; color: #28a745; margin-bottom: 8px; font-weight: 600; }
-        #qr-modal-stripe-element { min-height: 320px; }
+        #qr-modal-stripe-local { min-height: 260px; min-width: 260px; overflow: visible; }
+        #qr-modal-stripe-local img, #qr-modal-stripe-local canvas { display: block !important; max-width: 100% !important; width: 256px; height: auto !important; margin: 0 auto; }
+        #qr-modal-stripe-local table { margin: 0 auto; flex-shrink: 0; }
+        #qr-modal-stripe-local > div { display: block !important; width: 256px; height: 256px; }
         .qr-modal-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .qr-modal-actions .btn { pointer-events: auto; cursor: pointer; }
         /* Cash modal */
@@ -307,7 +310,7 @@
         /* Credit/Debit waiting modal */
         .card-wait-modal .wait-message { font-size: 20px; margin: 16px 0; }
         
-        /* Food Court ID (สำหรับหักยอด) */
+        /* Marketplace ID (สำหรับหักยอด) */
         .fc-section {
             padding: 12px 16px;
             border-top: 1px solid #333;
@@ -363,7 +366,7 @@
         .alert-info { background: #0c5460; color: #d1ecf1; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="/static/js/qrcode.min.js"></script>
     <script src="https://cdn.omise.co/omise.js"></script>
 </head>
 <body>
@@ -421,7 +424,7 @@
             </div>
             
             <div class="fc-section">
-                <input type="text" id="foodcourt-id-input" placeholder="สแกนหรือกรอก Food Court ID (หักยอด)">
+                <input type="text" id="foodcourt-id-input" placeholder="สแกนหรือกรอก Marketplace ID (หักยอด)">
                 <button class="btn btn-success" style="width:100%;" id="btn-process-payment" onclick="processPayment()" disabled>💳 <span data-i18n="deduct_amount">หักยอดเงิน</span></button>
             </div>
         </div>
@@ -433,18 +436,19 @@
     <div class="qr-modal" id="qr-modal" onclick="if(event.target===this) closeQRModal();">
         <div class="qr-modal-content" id="qr-modal-content" onclick="event.stopPropagation();">
             <p>สแกน QR เพื่อชำระเงิน (PromptPay)</p>
+            <p class="text-muted" style="font-size:13px;margin:-8px 0 8px 0;">ลูกค้าใช้แอปธนาคารสแกน QR ได้ทันที - ชำระเงินได้ทั้งช่องทางออนไลน์และหน้าร้าน</p>
             <div id="qr-modal-details" class="qr-modal-details"></div>
             <!-- โหมดเดี่ยว: QR เดิม (เมื่อไม่ใช้ Stripe) -->
             <img id="qr-modal-image" src="" alt="QR">
             <!-- โหมดเปรียบเทียบ: Stripe + QR เดิม (เมื่อใช้ Stripe) -->
             <div id="qr-modal-comparison" style="display:none; grid-template-columns: 1fr 1fr; gap:16px; margin:12px 0; align-items: start;">
                 <div class="qr-slot qr-slot-stripe">
-                    <div class="qr-slot-label">QR จาก Stripe (สร้างจากข้อมูล Local)</div>
+                    <div class="qr-slot-label">QR PromptPay (Stripe)</div>
                     <div id="qr-modal-stripe-local" style="min-height:260px; display:flex; align-items:center; justify-content:center; background:#fff; border-radius:8px;"></div>
                 </div>
                 <div class="qr-slot qr-slot-legacy">
-                    <div class="qr-slot-label">QR PromptPay เดิม (EMV)</div>
-                    <img id="qr-modal-image-legacy" src="" alt="QR เดิม" style="min-width:260px; min-height:260px; max-width:100%; height:auto; border-radius:8px; background:#fff; display:block;">
+                    <div class="qr-slot-label">QR PromptPay (EMV / สแกนแอปธนาคาร)</div>
+                    <img id="qr-modal-image-legacy" src="" alt="QR EMV" style="min-width:260px; min-height:260px; max-width:100%; height:auto; border-radius:8px; background:#fff; display:block;">
                 </div>
             </div>
             <div class="amount" id="qr-modal-amount">0.00 บาท</div>
@@ -452,7 +456,7 @@
             <div class="wait-timer" id="qr-wait-timer">รอชำระเงิน...</div>
             <div class="qr-modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeQRModal()">ยกเลิก</button>
-                <button type="button" class="btn btn-primary" id="qr-btn-refresh" onclick="refreshPromptPayQR()">เรียกข้อมูล</button>
+                <button type="button" class="btn btn-primary" id="qr-btn-refresh" onclick="refreshPromptPayQR()">เช็คข้อมูล</button>
                 <button type="button" class="btn btn-secondary" onclick="doPrintQRAndClose()">พิมพ์ QR</button>
             </div>
         </div>
@@ -997,7 +1001,8 @@
                 imgSingle.src = '';
                 document.getElementById('qr-modal-image-legacy').src = '';
                 if (stripePOSElement) { try { stripePOSElement.unmount(); } catch (e) {} stripePOSElement = null; }
-                document.getElementById('qr-modal-stripe-element').innerHTML = '';
+                var stripeLocalEl = document.getElementById('qr-modal-stripe-local');
+                if (stripeLocalEl) stripeLocalEl.innerHTML = '';
                 currentQRImage = data.qr_code_tag30 || data.qr_image;
                 currentQRAmount = total;
                 currentOrderId = data.order_id || null;
@@ -1024,7 +1029,14 @@
                     body: JSON.stringify({ amount: total, order_lines: orderLines })
                 })
                 .then(function(res) {
-                    if (!res.ok) throw new Error((res.status === 400 ? 'ไม่มี Gateway หรือตั้งค่าไม่ครบ' : res.status) + '');
+                    if (!res.ok) {
+                        return res.json().catch(function() { return {}; }).then(function(err) {
+                            var d = err.detail;
+                            var msg = (typeof d === 'string' ? d : (Array.isArray(d) && d[0] && d[0].msg) ? d.map(function(x){ return x.msg || x.loc; }).join(', ') : (d && d.message) || err.message || 'สร้าง QR ไม่สำเร็จ');
+                            if (res.status === 400) msg += ' (ตรวจสอบ: Stripe ใน config.ini, ร้านมี token)';
+                            throw new Error(msg);
+                        });
+                    }
                     return res.json();
                 })
                 .then(function(data) {
@@ -1035,33 +1047,80 @@
                         document.getElementById('qr-modal-amount').textContent = formatMoney(total);
                         var orderIdEl = document.getElementById('qr-modal-order-id');
                         if (orderIdEl) orderIdEl.textContent = currentOrderId ? 'Order #' + currentOrderId : '';
+                        var orderItemsForSignage = getOrderLines().map(function(l){ return { name: l.name, qty: l.qty, line_total: l.line_total }; });
                         document.getElementById('qr-modal-image').style.display = 'none';
                         document.getElementById('qr-modal-image').src = '';
                         var comp = document.getElementById('qr-modal-comparison');
                         comp.style.display = 'grid';
+                        comp.style.gridTemplateColumns = '1fr';
                         document.getElementById('qr-modal-content').classList.add('qr-modal-compare');
+                        var legacySlot = document.querySelector('.qr-slot-legacy');
+                        if (legacySlot) legacySlot.style.display = 'none';
                         var stripeLocalEl = document.getElementById('qr-modal-stripe-local');
                         if (stripeLocalEl) stripeLocalEl.innerHTML = '';
-                        document.getElementById('qr-modal-image-legacy').src = '';
-                        fetch(API_BASE_URL + '/stores/' + currentStoreId + '/generate-promptpay-qr', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ amount: total, order_lines: orderLines })
-                        }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }).then(function(legacyData) {
-                            if (legacyData && (legacyData.qr_code_tag30 || legacyData.qr_image)) {
-                                document.getElementById('qr-modal-image-legacy').src = legacyData.qr_code_tag30 || legacyData.qr_image || '';
+                        var stripeQrWrap = null;
+                        if (stripeLocalEl && data.promptpay_qr_data) {
+                            stripeQrWrap = document.createElement('div');
+                            stripeQrWrap.style.cssText = 'width:256px;height:256px;flex-shrink:0;margin:0 auto;';
+                            stripeLocalEl.appendChild(stripeQrWrap);
+                        }
+                        function sendToSignage(payload) {
+                            fetch(API_BASE_URL + '/signage/set-display', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify(Object.assign({ store_id: currentStoreId, amount: total, order_items: orderItemsForSignage }, payload))
+                            }).then(function(r) { if (!r.ok) console.warn('Signage set-display failed', r.status); }).catch(function(e) { console.warn('Signage set-display error', e); });
+                        }
+                        var hasImageUrl = data.promptpay_qr_image_url && typeof data.promptpay_qr_image_url === 'string' && data.promptpay_qr_image_url.trim().length > 0;
+                        var hasValidPlainText = data.promptpay_qr_data && typeof data.promptpay_qr_data === 'string' && data.promptpay_qr_data.trim().length > 0;
+                        if (stripeLocalEl && hasImageUrl) {
+                            var img = document.createElement('img');
+                            img.src = data.promptpay_qr_image_url.trim();
+                            img.alt = 'QR PromptPay (Stripe)';
+                            img.style.maxWidth = '100%'; img.style.height = 'auto'; img.style.display = 'block'; img.style.margin = '0 auto';
+                            img.onerror = function() {
+                                if (stripeLocalEl) stripeLocalEl.innerHTML = '<p style="padding:16px;color:#333;font-size:14px;">โหลดรูป QR ไม่ได้</p>';
+                            };
+                            stripeLocalEl.appendChild(img);
+                            sendToSignage({ qr_image: data.promptpay_qr_image_url });
+                            if (hasValidPlainText) sendToSignage({ qr_plain_text: data.promptpay_qr_data });
+                        } else if (hasValidPlainText && typeof QRCode !== 'undefined' && (stripeQrWrap || stripeLocalEl)) {
+                            try {
+                                var qrTarget = stripeQrWrap || stripeLocalEl;
+                                new QRCode(qrTarget, {
+                                    text: data.promptpay_qr_data.trim(),
+                                    width: 256,
+                                    height: 256,
+                                    colorDark: '#000',
+                                    colorLight: '#fff'
+                                });
+                                sendToSignage({ qr_plain_text: data.promptpay_qr_data });
+                                /* เปิดใช้ <img> ของ QR Stripe: หลังวาด QR แปลงเป็น img เดียวในช่อง Stripe */
+                                setTimeout(function() {
+                                    if (!stripeLocalEl) return;
+                                    var canvas = stripeLocalEl.querySelector('canvas');
+                                    var existingImg = stripeLocalEl.querySelector('img');
+                                    var dataUrl = null;
+                                    if (canvas && typeof canvas.toDataURL === 'function') dataUrl = canvas.toDataURL('image/png');
+                                    else if (existingImg && existingImg.src && existingImg.src.indexOf('data:') === 0) dataUrl = existingImg.src;
+                                    if (dataUrl) {
+                                        stripeLocalEl.innerHTML = '';
+                                        var img = document.createElement('img');
+                                        img.src = dataUrl;
+                                        img.alt = 'QR PromptPay (Stripe)';
+                                        img.style.maxWidth = '100%'; img.style.height = 'auto'; img.style.display = 'block'; img.style.margin = '0 auto'; img.style.width = '256px';
+                                        stripeLocalEl.appendChild(img);
+                                    }
+                                }, 120);
+                            } catch (qrErr) {
+                                console.warn('QRCode draw failed', qrErr);
+                                if (stripeLocalEl) {
+                                    stripeLocalEl.innerHTML = '<p style="padding:16px;color:#333;font-size:14px;">สร้าง QR ไม่ได้</p>';
+                                }
                             }
-                        });
-                        if (data.promptpay_qr_data && typeof QRCode !== 'undefined' && stripeLocalEl) {
-                            new QRCode(stripeLocalEl, {
-                                text: data.promptpay_qr_data,
-                                width: 256,
-                                height: 256,
-                                colorDark: '#000',
-                                colorLight: '#fff'
-                            });
                         } else if (stripeLocalEl) {
-                            stripeLocalEl.innerHTML = '<p style="padding:20px;color:#666;">ใช้ QR PromptPay ด้านขวา (EMV)</p>';
+                            stripeLocalEl.innerHTML = '<p style="padding:16px;color:#333;font-size:14px;">ไม่มีข้อมูล QR จาก Stripe</p>';
                         }
                         return;
                     }
@@ -1073,6 +1132,9 @@
                     throw new Error('ไม่ได้รับ QR');
                 })
                 .catch(function(e) {
+                    var msg = e && e.message ? e.message : 'สร้าง QR ไม่ได้';
+                    document.getElementById('qr-modal-details').innerHTML = '<span class="alert-error" style="display:inline-block;padding:8px 12px;border-radius:6px;margin:4px 0;">' + msg + '</span>';
+                    console.warn('create-gateway-qr failed:', msg);
                     startPromptPayFallback();
                 });
                 return;
@@ -1091,7 +1153,8 @@
                 })
                 .then(showQR)
                 .catch(function(e) {
-                    document.getElementById('qr-modal-details').innerHTML = 'เกิดข้อผิดพลาด: ' + e.message;
+                    var detailsEl = document.getElementById('qr-modal-details');
+                    if (detailsEl) detailsEl.innerHTML = 'เกิดข้อผิดพลาด: ' + e.message;
                     showAlert('❌ ' + e.message, 'error');
                 });
             }
@@ -1395,6 +1458,7 @@
                 lines.map(function(l){ return '<div style="margin:2px 0;font-size:19px;">' + l.name + ' x ' + l.qty + ' = ' + formatMoney(l.line_total) + '</div>'; }).join('') +
                 '<div style="margin-top:4px;font-weight:bold;border-top:1px dashed #000;padding-top:4px;font-size:19px;">' + t('total') + ' ' + formatMoney(total) + '</div>' +
                 '<div style="margin:4px 0;font-size:17px;">สแกน QR เพื่อชำระเงิน</div>' +
+                '<img src="/static/imgs/promptpay-logo.png" alt="PromptPay" style="max-width:50mm;height:auto;display:block;margin:4px auto;">' +
                 (qrImg ? '<img src="' + qrImg + '" style="max-width:74mm;display:block;margin:2px auto;">' : '') +
                 '<div style="margin-top:4px;font-size:16px;">' + new Date().toLocaleString('th-TH') + '</div>' +
                 '<div style="height:2em;"></div><div style="height:2em;"></div>' +
@@ -1440,7 +1504,7 @@
                 const balRes = await fetch(`${API_BASE_URL}/counter/balance/${fcId}`);
                 if (!balRes.ok) {
                     const err = await balRes.json();
-                    throw new Error(err.detail || 'ไม่พบ Food Court ID');
+                    throw new Error(err.detail || 'ไม่พบ Marketplace ID');
                 }
                 const balData = await balRes.json();
                 const curBal = parseFloat(balData.current_balance);

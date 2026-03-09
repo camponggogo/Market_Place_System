@@ -108,17 +108,17 @@ hypercorn main:app --bind 0.0.0.0:8000 --workers 4
 2. สร้าง service:
 
 ```cmd
-nssm install FoodCourtService
+nssm install MarketplaceService
 ```
 
 ตั้งค่า:
 - **Path**: `C:\Python312\Scripts\uvicorn.exe`
 - **Arguments**: `main:app --host 0.0.0.0 --port 8000 --workers 4`
-- **Working Directory**: `D:\Projects\FoodCourt`
+- **Working Directory**: `D:\Projects\Marketplace`
 
 3. Start service:
 ```cmd
-nssm start FoodCourtService
+nssm start MarketplaceService
 ```
 
 ---
@@ -160,7 +160,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 
 ```powershell
 # เปิด port 8000
-New-NetFirewallRule -DisplayName "FoodCourt API" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Marketplace API" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
 ```
 
 ### 2. Reverse Proxy (แนะนำ)

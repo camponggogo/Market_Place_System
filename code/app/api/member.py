@@ -111,31 +111,45 @@ class RegisterResponse(BaseModel):
 
 @router.post("/register", response_model=RegisterResponse)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    if len(data.username.strip()) < 4:
+    username = (data.username or "").strip()
+    phone = (data.phone or "").strip()
+    email_raw = (data.email or "").strip()
+    name_raw = (data.name or "").strip()
+    email = email_raw if email_raw else None
+    name = name_raw if name_raw else None
+
+    if len(username) < 4:
         raise HTTPException(status_code=400, detail="ชื่อผู้ใช้ต้องไม่น้อยกว่า 4 ตัวอักษร")
-    if not re.match(r"^[a-zA-Z0-9_.-]+$", data.username):
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", username):
         raise HTTPException(status_code=400, detail="ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข และ _ . -")
-    if db.query(Customer).filter(Customer.username == data.username).first():
+    if db.query(Customer).filter(Customer.username == username).first():
         raise HTTPException(status_code=400, detail="ชื่อผู้ใช้นี้ถูกใช้แล้ว")
-    if db.query(Customer).filter(Customer.phone == data.phone).first():
+    if not phone:
+        raise HTTPException(status_code=400, detail="กรุณากรอกหมายเลขโทรศัพท์")
+    if db.query(Customer).filter(Customer.phone == phone).first():
         raise HTTPException(status_code=400, detail="หมายเลขโทรศัพท์นี้ถูกใช้แล้ว")
-    if data.email and db.query(Customer).filter(Customer.email == data.email).first():
+    if email and db.query(Customer).filter(Customer.email == email).first():
         raise HTTPException(status_code=400, detail="อีเมลนี้ถูกใช้แล้ว")
 
-    customer = Customer(
-        username=data.username.strip(),
-        phone=data.phone.strip(),
-        email=data.email.strip() if data.email else None,
-        name=data.name.strip() if data.name else None,
-        password_hash=_hash_password(data.password),
-        total_points=0.0,
-    )
-    db.add(customer)
-    db.commit()
-    db.refresh(customer)
-    balance = CustomerBalance(customer_id=customer.id, balance=0.0)
-    db.add(balance)
-    db.commit()
+    try:
+        customer = Customer(
+            username=username,
+            phone=phone,
+            email=email,
+            name=name,
+            password_hash=_hash_password(data.password),
+            total_points=0.0,
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+        balance = CustomerBalance(customer_id=customer.id, balance=0.0)
+        db.add(balance)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="ลงทะเบียนไม่สำเร็จ: " + str(e))
+
     return RegisterResponse(success=True, customer_id=customer.id, message="ลงทะเบียนสำเร็จ")
 
 

@@ -53,29 +53,29 @@ docker compose version
 ```bash
 # บน server
 cd /opt
-git clone <your-repo-url> foodcourt
-cd foodcourt
+git clone <your-repo-url> marketplace
+cd marketplace
 ```
 
 **วิธีที่ 2: ใช้ SCP จากเครื่อง local**
 
 ```bash
 # บนเครื่อง local (Windows PowerShell)
-scp -r D:\Projects\FoodCourt root@150.95.85.185:/opt/foodcourt
+scp -r D:\Projects\FoodCourt root@150.95.85.185:/opt/marketplace
 ```
 
 **วิธีที่ 3: ใช้ rsync**
 
 ```bash
 # บนเครื่อง local
-rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude '.git' D:\Projects\FoodCourt\ root@150.95.85.185:/opt/foodcourt/
+rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude '.git' D:\Projects\FoodCourt\ root@150.95.85.185:/opt/marketplace/
 ```
 
 ### 4. ตั้งค่า Environment Variables
 
 ```bash
 # บน server
-cd /opt/foodcourt
+cd /opt/marketplace
 
 # สร้างไฟล์ .env จาก .env.example
 cp .env.example .env
@@ -89,13 +89,13 @@ nano .env
 ```env
 # Database
 DB_ROOT_PASSWORD=P@ssw0rd@dev
-DB_NAME=foodcourt
-DB_USER=foodcourt_user
-DB_PASSWORD=foodcourt_pass
+DB_NAME=market_place_system
+DB_USER=marketplace_user
+DB_PASSWORD=marketplace_pass
 DB_PORT=3306
 
 # Application
-APP_PORT=8000
+APP_PORT=639
 BACKEND_URL=http://150.95.85.185
 SECRET_KEY=your-very-strong-secret-key-here-change-this
 DEBUG=false
@@ -107,6 +107,10 @@ ALLOWED_ORIGINS=*
 # Nginx
 NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
+
+# Certbot (Let's Encrypt) – ตั้งเมื่อต้องการ HTTPS; ดู Deploy/CERTBOT.md
+# DOMAIN=your-domain.com
+# CERTBOT_EMAIL=admin@your-domain.com
 ```
 
 ### 5. Deploy ด้วย Docker Compose
@@ -145,7 +149,7 @@ docker compose logs db
 docker compose logs nginx
 
 # ทดสอบ health check
-curl http://localhost:8000/health
+curl http://localhost:639/health
 curl http://localhost/health
 ```
 
@@ -155,13 +159,13 @@ curl http://localhost/health
 # Ubuntu/Debian
 ufw allow 80/tcp
 ufw allow 443/tcp
-ufw allow 8000/tcp
+ufw allow 639/tcp
 ufw reload
 
 # CentOS/RHEL
 firewall-cmd --permanent --add-port=80/tcp
 firewall-cmd --permanent --add-port=443/tcp
-firewall-cmd --permanent --add-port=8000/tcp
+firewall-cmd --permanent --add-port=639/tcp
 firewall-cmd --reload
 ```
 
@@ -213,13 +217,13 @@ docker compose down -v
 
 ```bash
 # เข้าไปใน app container
-docker exec -it foodcourt_app bash
+docker exec -it marketplace_app bash
 
 # เข้าไปใน database container
-docker exec -it foodcourt_db bash
+docker exec -it marketplace_db bash
 
 # เข้า MySQL
-docker exec -it foodcourt_db mysql -u root -p
+docker exec -it marketplace_db mysql -u root -p
 ```
 
 ### Update Application
@@ -239,17 +243,17 @@ docker compose up -d app
 
 ```bash
 # Backup
-docker exec foodcourt_db mysqldump -u root -p${DB_ROOT_PASSWORD} foodcourt > backup_$(date +%Y%m%d_%H%M%S).sql
+docker exec marketplace_db mysqldump -u root -p${DB_ROOT_PASSWORD} market_place_system > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # หรือใช้ docker compose
-docker compose exec db mysqldump -u root -p${DB_ROOT_PASSWORD} foodcourt > backup.sql
+docker compose exec db mysqldump -u root -p${DB_ROOT_PASSWORD} market_place_system > backup.sql
 ```
 
 ### Restore Database
 
 ```bash
 # Restore
-docker exec -i foodcourt_db mysql -u root -p${DB_ROOT_PASSWORD} foodcourt < backup.sql
+docker exec -i marketplace_db mysql -u root -p${DB_ROOT_PASSWORD} market_place_system < backup.sql
 ```
 
 ## 🔒 Security
@@ -258,7 +262,7 @@ docker exec -i foodcourt_db mysql -u root -p${DB_ROOT_PASSWORD} foodcourt < back
 
 ```bash
 # เปลี่ยน root password ใน database
-docker exec -it foodcourt_db mysql -u root -p
+docker exec -it marketplace_db mysql -u root -p
 # แล้วรัน: ALTER USER 'root'@'localhost' IDENTIFIED BY 'new_password';
 
 # อัปเดต .env และ restart
@@ -287,7 +291,7 @@ docker system df
 
 ```bash
 # Application health
-curl http://localhost:8000/health
+curl http://localhost:639/health
 
 # Database health
 docker compose exec db mysqladmin ping -h localhost -u root -p
@@ -323,7 +327,7 @@ docker compose exec app python -c "from app.database import engine; engine.conne
 ```bash
 # ตรวจสอบ port ที่ใช้
 netstat -tulpn | grep :80
-netstat -tulpn | grep :8000
+netstat -tulpn | grep :639
 
 # เปลี่ยน port ใน docker-compose.yml หรือ .env
 ```

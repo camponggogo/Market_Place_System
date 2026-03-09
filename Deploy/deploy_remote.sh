@@ -9,7 +9,7 @@ set -e
 REMOTE_HOST="150.95.85.185"
 REMOTE_USER="root"
 REMOTE_PASS="P@ssw0rd@dev"
-REMOTE_DIR="/opt/foodcourt"
+REMOTE_DIR="/opt/marketplace"
 LOCAL_DIR="."
 
 # Colors

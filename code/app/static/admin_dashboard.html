@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food Court Management System - Admin Dashboard</title>
+    <title>Marketplace Management System - Admin Dashboard</title>
     <!-- Libraries for Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -481,7 +481,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>🍽️ <span data-i18n="admin_title">Food Court Management System</span></h1>
+        <h1>🍽️ <span data-i18n="admin_title">Marketplace Management System</span></h1>
         <p data-i18n="admin_subtitle">Admin Dashboard - จัดการระบบทั้งหมดในหน้าเดียว</p>
         <div style="margin-top:8px;font-size:14px;">
             <span data-i18n="language">ภาษา</span>:
@@ -516,7 +516,7 @@
         <div id="dashboard" class="tab-content active">
             <div class="summary">
                 <div>ยอดขายรวมวันนี้ <strong id="dashboard-summary-sales">0</strong> บาท</div>
-                <div>ยอดเงินรวม (Food Court IDs) <strong id="dashboard-summary-amount">0</strong> บาท</div>
+                <div>ยอดเงินรวม (Marketplace IDs) <strong id="dashboard-summary-amount">0</strong> บาท</div>
                 <div>Transactions วันนี้ <strong id="dashboard-summary-trans">0</strong> รายการ</div>
             </div>
             
@@ -537,7 +537,7 @@
             
             <div class="stats-grid" style="margin-bottom: 20px;">
                 <div class="stat-card">
-                    <h3>Food Court IDs ทั้งหมด</h3>
+                    <h3>Marketplace IDs ทั้งหมด</h3>
                     <div class="value" id="dashboard-total-fc-ids">0</div>
                 </div>
                 <div class="stat-card">
@@ -568,7 +568,7 @@
                     <div id="dashboard-recent-transactions"></div>
                 </div>
                 <div class="card">
-                    <h2>Food Court IDs ล่าสุด</h2>
+                    <h2>Marketplace IDs ล่าสุด</h2>
                     <div id="dashboard-recent-fc-ids"></div>
                 </div>
             </div>
@@ -578,7 +578,7 @@
         <div id="counter" class="tab-content">
             <div class="grid">
                 <div class="card">
-                    <h2>แลก Food Court ID</h2>
+                    <h2>แลก Marketplace ID</h2>
                     <div class="form-group">
                         <label>จำนวนเงิน (บาท)</label>
                         <input type="number" id="exchange-amount" min="0" step="0.01" placeholder="0.00">
@@ -611,13 +611,13 @@
                         <label>Counter User ID</label>
                         <input type="number" id="exchange-counter-user-id" value="1">
                     </div>
-                    <button class="btn btn-primary btn-block" onclick="exchangeFoodCourtID()">แลก Food Court ID</button>
+                    <button class="btn btn-primary btn-block" onclick="exchangeFoodCourtID()">แลก Marketplace ID</button>
                 </div>
                 
                 <div class="card">
                     <h2>ตรวจสอบยอดเงิน</h2>
                     <div class="form-group">
-                        <label>Food Court ID</label>
+                        <label>Marketplace ID</label>
                         <input type="text" id="check-balance-id" placeholder="FC-20241201-12345">
                     </div>
                     <button class="btn btn-primary btn-block" onclick="checkBalance()">ตรวจสอบยอดเงิน</button>
@@ -627,7 +627,7 @@
                 <div class="card">
                     <h2>คืนเงินที่เหลือ</h2>
                     <div class="form-group">
-                        <label>Food Court ID</label>
+                        <label>Marketplace ID</label>
                         <input type="text" id="refund-id" placeholder="FC-20241201-12345">
                     </div>
                     <div class="form-group">
@@ -639,9 +639,9 @@
             </div>
             
             <div class="card">
-                <h2>รายการ Food Court IDs ล่าสุด</h2>
+                <h2>รายการ Marketplace IDs ล่าสุด</h2>
                 <div class="search-box">
-                    <input type="text" id="search-fc-ids" placeholder="ค้นหา Food Court ID..." onkeyup="searchFCIDs()">
+                    <input type="text" id="search-fc-ids" placeholder="ค้นหา Marketplace ID..." onkeyup="searchFCIDs()">
                 </div>
                 <div id="fc-ids-list"></div>
             </div>
@@ -651,9 +651,9 @@
         <div id="payment" class="tab-content">
             <div class="grid">
                 <div class="card">
-                    <h2>ใช้ Food Court ID ที่ร้านค้า</h2>
+                    <h2>ใช้ Marketplace ID ที่ร้านค้า</h2>
                     <div class="form-group">
-                        <label>Food Court ID</label>
+                        <label>Marketplace ID</label>
                         <input type="text" id="use-fc-id" placeholder="FC-20241201-12345">
                     </div>
                     <div class="form-group">
@@ -664,14 +664,14 @@
                         <label>จำนวนเงิน (บาท)</label>
                         <input type="number" id="use-amount" min="0" step="0.01" placeholder="0.00">
                     </div>
-                    <button class="btn btn-primary btn-block" onclick="useFoodCourtID()">ใช้ Food Court ID</button>
+                    <button class="btn btn-primary btn-block" onclick="useFoodCourtID()">ใช้ Marketplace ID</button>
                 </div>
                 
                 <div class="card">
                     <h2>สถิติการใช้งาน</h2>
                     <div class="stats-grid" id="payment-stats">
                         <div class="stat-card">
-                            <h3>Food Court IDs ทั้งหมด</h3>
+                            <h3>Marketplace IDs ทั้งหมด</h3>
                             <div class="value" id="total-fc-ids">0</div>
                         </div>
                         <div class="stat-card">
@@ -764,6 +764,49 @@
                     <button class="btn btn-primary btn-block" onclick="getMonthlyReport()">ดูรายงาน</button>
                 </div>
             </div>
+
+            <div class="card">
+                <h2>สรุปยอดแยกร้าน & สรุปรายได้/GP (QR・Stripe)</h2>
+                <p style="margin-bottom:12px;color:#666;font-size:14px;">เลือกช่วงเวลา แล้วดูสรุปแยกร้าน (ลำดับ, ชื่อร้าน, เลขที่บัญชีร้าน, ยอดโอนให้ร้าน, ยอดหัก GP) และสรุปรายได้/ยอดขาย/GP รวมในครั้งเดียว</p>
+                <div class="form-group">
+                    <label>ช่วงเวลา</label>
+                    <select id="settlement-period-type">
+                        <option value="day">รายวัน</option>
+                        <option value="week">รายสัปดาห์</option>
+                        <option value="month">รายเดือน</option>
+                        <option value="year">รายปี</option>
+                        <option value="custom">กำหนดช่วงเอง</option>
+                    </select>
+                </div>
+                <div id="settlement-date-day" class="form-group">
+                    <label>วันที่</label>
+                    <input type="date" id="settlement-date">
+                </div>
+                <div id="settlement-date-range" class="form-group" style="display:none;">
+                    <label>ตั้งแต่</label>
+                    <input type="date" id="settlement-start-date">
+                    <label style="margin-top:8px;">ถึง</label>
+                    <input type="date" id="settlement-end-date">
+                </div>
+                <div id="settlement-month-year" class="form-group" style="display:none;">
+                    <label>ปี</label>
+                    <input type="number" id="settlement-year" min="2020" max="2099" style="width:100px;">
+                    <label style="margin-top:8px;">เดือน</label>
+                    <select id="settlement-month" style="width:140px;">
+                        <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option><option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option><option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option><option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+                    </select>
+                </div>
+                <div id="settlement-year-only-wrap" class="form-group" style="display:none;">
+                    <label>ปี</label>
+                    <input type="number" id="settlement-year-only" min="2020" max="2099" style="width:100px;">
+                </div>
+                <div class="form-group">
+                    <label>อัตราหัก GP % (ว่าง = ใช้จากระบบ)</label>
+                    <input type="number" id="settlement-gp-percent" placeholder="0" min="0" max="100" step="0.01" style="width:100px;">
+                </div>
+                <button class="btn btn-primary btn-block" onclick="getSettlementSummaryReport()">ดูสรุปยอดแยกร้าน & สรุปรายได้/GP</button>
+                <div id="settlement-summary-result" style="margin-top:16px;display:none;"></div>
+            </div>
             
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -789,16 +832,16 @@
             </div>
             
             <div class="card" id="customer-detail-card" style="display: none;">
-                <h2>จัดการ Food Court ID</h2>
+                <h2>จัดการ Marketplace ID</h2>
                 <div id="customer-detail-info"></div>
                 <div class="form-group" style="margin-top: 20px;">
-                    <label>Food Court ID ที่ผูกไว้:</label>
+                    <label>Marketplace ID ที่ผูกไว้:</label>
                     <div id="customer-fc-ids-list"></div>
                 </div>
                 <div class="form-group">
-                    <label>ผูก Food Court ID ใหม่:</label>
-                    <input type="text" id="link-fc-id-input" placeholder="กรอก Food Court ID (หรือปล่อยว่างเพื่อสร้างใหม่)">
-                    <button class="btn btn-primary" onclick="linkFoodCourtID()" style="margin-top: 10px;">ผูก Food Court ID</button>
+                    <label>ผูก Marketplace ID ใหม่:</label>
+                    <input type="text" id="link-fc-id-input" placeholder="กรอก Marketplace ID (หรือปล่อยว่างเพื่อสร้างใหม่)">
+                    <button class="btn btn-primary" onclick="linkFoodCourtID()" style="margin-top: 10px;">ผูก Marketplace ID</button>
                 </div>
             </div>
         </div>
@@ -1013,10 +1056,25 @@
         // Set default dates
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date().toISOString().split('T')[0];
+            const y = new Date().getFullYear();
             document.getElementById('report-daily-date').value = today;
             document.getElementById('report-start-date').value = today;
             document.getElementById('report-end-date').value = today;
-            
+            var setEl = function(id, v) { var e = document.getElementById(id); if (e) e.value = v; };
+            setEl('settlement-date', today);
+            setEl('settlement-start-date', today);
+            setEl('settlement-end-date', today);
+            setEl('settlement-year', y);
+            setEl('settlement-year-only', y);
+            document.getElementById('report-year').value = y;
+            document.getElementById('settlement-period-type').addEventListener('change', function() {
+                var v = this.value;
+                document.getElementById('settlement-date-day').style.display = (v === 'day' || v === 'week') ? 'block' : 'none';
+                document.getElementById('settlement-date-range').style.display = v === 'custom' ? 'block' : 'none';
+                document.getElementById('settlement-month-year').style.display = v === 'month' ? 'block' : 'none';
+                document.getElementById('settlement-year-only-wrap').style.display = v === 'year' ? 'block' : 'none';
+            });
+            document.getElementById('settlement-period-type').dispatchEvent(new Event('change'));
             loadLocaleSettings().then(function() {
             loadStores();
             loadCustomers();
@@ -1329,7 +1387,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showAlert(`✅ สร้าง Food Court ID สำเร็จ: ${data.foodcourt_id}`, 'success');
+                    showAlert(`✅ สร้าง Marketplace ID สำเร็จ: ${data.foodcourt_id}`, 'success');
                     document.getElementById('exchange-amount').value = '';
                     loadFCIDs();
                 } else {
@@ -1343,7 +1401,7 @@
         async function checkBalance() {
             const fcId = document.getElementById('check-balance-id').value.trim();
             if (!fcId) {
-                showAlert('กรุณากรอก Food Court ID', 'error');
+                showAlert('กรุณากรอก Marketplace ID', 'error');
                 return;
             }
             
@@ -1359,7 +1417,7 @@
                             <p style="font-size: 24px; font-weight: bold; color: #667eea;">
                                 ${parseFloat(data.current_balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท
                             </p>
-                            <p><strong>Food Court ID:</strong> ${data.foodcourt_id}</p>
+                            <p><strong>Marketplace ID:</strong> ${data.foodcourt_id}</p>
                             <p><strong>จำนวนเงินเริ่มต้น:</strong> ${parseFloat(data.initial_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</p>
                             <p><strong>วิธีชำระเงิน:</strong> ${data.payment_method}</p>
                             <p><strong>สถานะ:</strong> <span class="status-badge status-${data.status}">${data.status}</span></p>
@@ -1378,7 +1436,7 @@
             const counterId = parseInt(document.getElementById('refund-counter-id').value);
             
             if (!fcId) {
-                showAlert('กรุณากรอก Food Court ID', 'error');
+                showAlert('กรุณากรอก Marketplace ID', 'error');
                 return;
             }
             
@@ -1431,7 +1489,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showAlert(`✅ ใช้ Food Court ID สำเร็จ! ยอดเงินคงเหลือ: ${parseFloat(data.remaining_balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท`, 'success');
+                    showAlert(`✅ ใช้ Marketplace ID สำเร็จ! ยอดเงินคงเหลือ: ${parseFloat(data.remaining_balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท`, 'success');
                     document.getElementById('use-fc-id').value = '';
                     document.getElementById('use-amount').value = '';
                     loadTransactions();
@@ -1622,11 +1680,11 @@
                 const fcIdsList = document.getElementById('fc-ids-list');
                 if (fcIdsList) {
                     if (fcIds.length === 0) {
-                        fcIdsList.innerHTML = '<p>ยังไม่มี Food Court IDs</p>';
+                        fcIdsList.innerHTML = '<p>ยังไม่มี Marketplace IDs</p>';
                         return;
                     }
                     
-                    let html = '<table><thead><tr><th>Food Court ID</th><th>จำนวนเงินเริ่มต้น</th><th>ยอดเงินคงเหลือ</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่สร้าง</th></tr></thead><tbody>';
+                    let html = '<table><thead><tr><th>Marketplace ID</th><th>จำนวนเงินเริ่มต้น</th><th>ยอดเงินคงเหลือ</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่สร้าง</th></tr></thead><tbody>';
                     fcIds.forEach(fc => {
                         const statusClass = fc.status === 'active' ? 'status-active' : 
                                           fc.status === 'used' ? 'status-used' : 
@@ -1666,7 +1724,7 @@
                         return;
                     }
                     
-                    let html = '<table><thead><tr><th>ID</th><th>Food Court ID</th><th>ร้านค้า</th><th>จำนวนเงิน</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่</th></tr></thead><tbody>';
+                    let html = '<table><thead><tr><th>ID</th><th>Marketplace ID</th><th>ร้านค้า</th><th>จำนวนเงิน</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่</th></tr></thead><tbody>';
                     transactions.forEach(t => {
                         html += `
                             <tr>
@@ -1768,7 +1826,7 @@
                         return;
                     }
                     
-                    let html = '<table><thead><tr><th>ID</th><th>ชื่อ</th><th>เบอร์โทร</th><th>PromptPay</th><th>ยอดเงินคงเหลือ</th><th>Food Court IDs</th><th>วันที่สมัคร</th><th>จัดการ</th></tr></thead><tbody>';
+                    let html = '<table><thead><tr><th>ID</th><th>ชื่อ</th><th>เบอร์โทร</th><th>PromptPay</th><th>ยอดเงินคงเหลือ</th><th>Marketplace IDs</th><th>วันที่สมัคร</th><th>จัดการ</th></tr></thead><tbody>';
                     customers.forEach(c => {
                         html += `
                             <tr>
@@ -1821,7 +1879,7 @@
                     </div>
                 `;
                 
-                // แสดง Food Court IDs ที่ผูกไว้
+                // แสดง Marketplace IDs ที่ผูกไว้
                 const fcIdsList = document.getElementById('customer-fc-ids-list');
                 if (customer.foodcourt_ids && customer.foodcourt_ids.length > 0) {
                     let html = '<div style="display: grid; gap: 10px;">';
@@ -1836,7 +1894,7 @@
                     html += '</div>';
                     fcIdsList.innerHTML = html;
                 } else {
-                    fcIdsList.innerHTML = '<p style="color: #666;">ยังไม่มี Food Court ID ที่ผูกไว้</p>';
+                    fcIdsList.innerHTML = '<p style="color: #666;">ยังไม่มี Marketplace ID ที่ผูกไว้</p>';
                 }
                 
                 // แสดง card
@@ -1878,7 +1936,7 @@
                     showAlert('❌ ' + (data.detail || 'เกิดข้อผิดพลาด'), 'error');
                 }
             } catch (error) {
-                console.error('Error linking Food Court ID:', error);
+                console.error('Error linking Marketplace ID:', error);
                 showAlert('❌ เกิดข้อผิดพลาด', 'error');
             }
         }
@@ -1889,7 +1947,7 @@
                 return;
             }
             
-            if (!confirm(`ต้องการยกเลิกการผูก Food Court ID ${foodcourtId} หรือไม่?`)) {
+            if (!confirm(`ต้องการยกเลิกการผูก Marketplace ID ${foodcourtId} หรือไม่?`)) {
                 return;
             }
             
@@ -1908,7 +1966,7 @@
                     showAlert('❌ ' + (data.detail || 'เกิดข้อผิดพลาด'), 'error');
                 }
             } catch (error) {
-                console.error('Error unlinking Food Court ID:', error);
+                console.error('Error unlinking Marketplace ID:', error);
                 showAlert('❌ เกิดข้อผิดพลาด', 'error');
             }
         }
@@ -2026,6 +2084,51 @@
                 showAlert('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
             }
         }
+
+        async function getSettlementSummaryReport() {
+            const periodType = document.getElementById('settlement-period-type').value;
+            const date = document.getElementById('settlement-date').value;
+            const startDate = document.getElementById('settlement-start-date').value;
+            const endDate = document.getElementById('settlement-end-date').value;
+            const year = document.getElementById('settlement-year').value ? parseInt(document.getElementById('settlement-year').value) : null;
+            const yearOnly = document.getElementById('settlement-year-only').value ? parseInt(document.getElementById('settlement-year-only').value) : null;
+            const month = document.getElementById('settlement-month').value ? parseInt(document.getElementById('settlement-month').value) : null;
+            const gpPercent = document.getElementById('settlement-gp-percent').value.trim();
+            var params = new URLSearchParams();
+            params.set('period_type', periodType);
+            if (periodType === 'day' || periodType === 'week') params.set('date', date);
+            if (periodType === 'custom') { params.set('start_date', startDate); params.set('end_date', endDate); }
+            if (periodType === 'month' && year != null && month != null) { params.set('year', year); params.set('month', month); }
+            if (periodType === 'year' && yearOnly != null) params.set('year', yearOnly);
+            if (gpPercent !== '') params.set('gp_percent', gpPercent);
+            const resultEl = document.getElementById('settlement-summary-result');
+            resultEl.style.display = 'block';
+            resultEl.innerHTML = '<p>กำลังโหลด...</p>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/reports/payment/settlement-summary?${params.toString()}`);
+                if (!response.ok) throw new Error(await response.text());
+                const data = await response.json();
+                var html = '<div class="report-summary" style="margin-bottom:16px;">';
+                html += '<h3>สรุปรายได้ / ยอดขาย / GP รวม</h3>';
+                html += '<div class="report-summary-grid"><div class="report-summary-item"><label>ยอดขายรวม (บาท)</label><div class="value">' + (data.overall?.total_sales ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</div></div>';
+                html += '<div class="report-summary-item"><label>ยอดหัก GP (บาท)</label><div class="value">' + (data.overall?.total_gp ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</div></div>';
+                html += '<div class="report-summary-item"><label>ยอดเงินที่จะโอนรวม (บาท)</label><div class="value">' + (data.overall?.total_transfer ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</div></div>';
+                html += '<div class="report-summary-item"><label>อัตราหัก GP</label><div class="value">' + (data.overall?.gp_percent ?? 0) + '%</div></div></div>';
+                html += '<p style="font-size:12px;color:#666;">ช่วง ' + (data.period?.start_date || '') + ' ถึง ' + (data.period?.end_date || '') + '</p></div>';
+                html += '<div class="table-responsive"><table><thead><tr><th>ลำดับ</th><th>store_id</th><th>ชื่อร้าน</th><th>เลขที่บัญชีร้าน</th><th>ยอดเงินที่จะโอนให้ร้าน (บาท)</th><th>ยอดหัก GP (บาท)</th></tr></thead><tbody>';
+                if (data.by_store && data.by_store.length > 0) {
+                    data.by_store.forEach(function(r) {
+                        html += '<tr><td>' + r.no + '</td><td>' + r.store_id + '</td><td>' + (r.store_name || '') + '</td><td>' + (r.store_bank_account || '-') + '</td><td>' + (r.amount_to_transfer ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td>' + (r.gp_deducted ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td></tr>';
+                    });
+                } else {
+                    html += '<tr><td colspan="6">ไม่มีข้อมูลในช่วงเวลานี้</td></tr>';
+                }
+                html += '</tbody></table></div>';
+                resultEl.innerHTML = html;
+            } catch (err) {
+                resultEl.innerHTML = '<p style="color:#c00;">เกิดข้อผิดพลาด: ' + (err.message || err) + '</p>';
+            }
+        }
         
         let currentReportData = null;
         let currentReportType = null;
@@ -2066,7 +2169,7 @@
             let html = '<div class="card" style="margin-bottom:32px;">';
             html += '<h3 style="text-align:center;">รายงานสรุปยอดรายร้านค้า</h3>';
             html += `<p style="text-align:right;">วันที่ : ${periodStr}</p>`;
-            html += '<div class="table-responsive"><table><thead><tr><th>ลำดับ</th><th>Food Court ID</th><th>จำนวนเงิน (บาท)</th><th>วันที่</th></tr></thead><tbody>';
+            html += '<div class="table-responsive"><table><thead><tr><th>ลำดับ</th><th>Marketplace ID</th><th>จำนวนเงิน (บาท)</th><th>วันที่</th></tr></thead><tbody>';
             let idx = 1;
             if (data.transactions && data.transactions.length > 0) {
                 data.transactions.forEach(t => {
@@ -2095,7 +2198,7 @@
             html += '<h3 style="text-align:center;">รายงานสรุปยอดรายวัน</h3>';
             html += `<p style="text-align:right;">วันที่ : ${dateStr}</p>`;
             html += '<div class="table-responsive"><table><thead><tr><th>ลำดับ</th><th>รายการ</th><th>จำนวน</th><th>ยอดรวม (บาท)</th></tr></thead><tbody>';
-            html += `<tr><td>1</td><td>การแลก Food Court ID</td><td>${data.exchange.transaction_count}</td><td>${parseFloat(data.exchange.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
+            html += `<tr><td>1</td><td>การแลก Marketplace ID</td><td>${data.exchange.transaction_count}</td><td>${parseFloat(data.exchange.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
             html += `<tr><td>2</td><td>การใช้งานที่ร้าน</td><td>${data.usage.transaction_count}</td><td>${parseFloat(data.usage.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
             html += '</tbody><tfoot><tr><td colspan="2">รวม</td><td>' + (data.exchange.transaction_count + data.usage.transaction_count) + '</td><td>' + parseFloat(parseFloat(data.exchange.total_amount) + parseFloat(data.usage.total_amount)).toLocaleString('th-TH', {minimumFractionDigits: 2}) + '</td></tr></tfoot></table></div></div>';
             
@@ -2127,7 +2230,7 @@
             html += '<h3 style="text-align:center;">รายงานสรุปยอดรายเดือน</h3>';
             html += `<p style="text-align:right;">เดือน/ปี : ${periodStr}</p>`;
             html += '<div class="table-responsive"><table><thead><tr><th>ลำดับ</th><th>รายการ</th><th>จำนวน</th><th>ยอดรวม (บาท)</th></tr></thead><tbody>';
-            html += `<tr><td>1</td><td>การแลก Food Court ID</td><td>${data.exchange.transaction_count}</td><td>${parseFloat(data.exchange.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
+            html += `<tr><td>1</td><td>การแลก Marketplace ID</td><td>${data.exchange.transaction_count}</td><td>${parseFloat(data.exchange.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
             html += `<tr><td>2</td><td>การใช้งานที่ร้าน</td><td>${data.usage.transaction_count}</td><td>${parseFloat(data.usage.total_amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}</td></tr>`;
             html += '</tbody><tfoot><tr><td colspan="2">รวม</td><td>' + (data.exchange.transaction_count + data.usage.transaction_count) + '</td><td>' + parseFloat(parseFloat(data.exchange.total_amount) + parseFloat(data.usage.total_amount)).toLocaleString('th-TH', {minimumFractionDigits: 2}) + '</td></tr></tfoot></table></div></div>';
             
@@ -2311,7 +2414,7 @@
             
             // Transactions sheet
             if (currentReportData.transactions && currentReportData.transactions.length > 0) {
-                const transData = [['ID', 'Food Court ID', 'จำนวนเงิน (บาท)', 'วันที่']];
+                const transData = [['ID', 'Marketplace ID', 'จำนวนเงิน (บาท)', 'วันที่']];
                 currentReportData.transactions.forEach(t => {
                     transData.push([
                         t.id,
@@ -2383,11 +2486,11 @@
                 const fcIdsList = document.getElementById('fc-ids-list');
                 if (fcIdsList) {
                     if (filtered.length === 0) {
-                        fcIdsList.innerHTML = '<p>ไม่พบ Food Court ID ที่ค้นหา</p>';
+                        fcIdsList.innerHTML = '<p>ไม่พบ Marketplace ID ที่ค้นหา</p>';
                         return;
                     }
                     
-                    let html = '<table><thead><tr><th>Food Court ID</th><th>จำนวนเงินเริ่มต้น</th><th>ยอดเงินคงเหลือ</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่สร้าง</th></tr></thead><tbody>';
+                    let html = '<table><thead><tr><th>Marketplace ID</th><th>จำนวนเงินเริ่มต้น</th><th>ยอดเงินคงเหลือ</th><th>วิธีชำระเงิน</th><th>สถานะ</th><th>วันที่สร้าง</th></tr></thead><tbody>';
                     filtered.forEach(fc => {
                         const statusClass = fc.status === 'active' ? 'status-active' : 
                                           fc.status === 'used' ? 'status-used' : 
@@ -2516,7 +2619,12 @@
                 const response = await fetch(`${API_BASE_URL}/admin/statistics`);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    let errMsg = 'HTTP ' + response.status;
+                    try {
+                        const errBody = await response.json();
+                        if (errBody.detail) errMsg = typeof errBody.detail === 'string' ? errBody.detail : JSON.stringify(errBody.detail);
+                    } catch (_) {}
+                    throw new Error(errMsg);
                 }
                 
                 const stats = await response.json();
@@ -2585,7 +2693,7 @@
                             if (transactions.length === 0) {
                                 recentTransDiv.innerHTML = '<p>ยังไม่มี Transactions</p>';
                             } else {
-                                let html = '<table><thead><tr><th>ID</th><th>Food Court ID</th><th>จำนวนเงิน</th><th>วันที่</th></tr></thead><tbody>';
+                                let html = '<table><thead><tr><th>ID</th><th>Marketplace ID</th><th>จำนวนเงิน</th><th>วันที่</th></tr></thead><tbody>';
                                 transactions.forEach(t => {
                                     html += `<tr>
                                         <td>${t.id}</td>
@@ -2603,7 +2711,8 @@
                     console.error('Error loading recent transactions:', error);
                     const recentTransDiv = document.getElementById('dashboard-recent-transactions');
                     if (recentTransDiv) {
-                        recentTransDiv.innerHTML = '<p style="color: red;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+                        const msg = (error && error.message) ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+                        recentTransDiv.innerHTML = '<p style="color: red;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p><p style="font-size:12px;color:#888;">' + msg + '</p>';
                     }
                 }
                 
@@ -2615,9 +2724,9 @@
                         const recentFcDiv = document.getElementById('dashboard-recent-fc-ids');
                         if (recentFcDiv) {
                             if (fcIds.length === 0) {
-                                recentFcDiv.innerHTML = '<p>ยังไม่มี Food Court IDs</p>';
+                                recentFcDiv.innerHTML = '<p>ยังไม่มี Marketplace IDs</p>';
                             } else {
-                                let html = '<table><thead><tr><th>Food Court ID</th><th>จำนวนเงิน</th><th>สถานะ</th><th>วันที่</th></tr></thead><tbody>';
+                                let html = '<table><thead><tr><th>Marketplace ID</th><th>จำนวนเงิน</th><th>สถานะ</th><th>วันที่</th></tr></thead><tbody>';
                                 fcIds.forEach(fc => {
                                     html += `<tr>
                                         <td><strong>${fc.foodcourt_id}</strong></td>
@@ -2635,7 +2744,8 @@
                     console.error('Error loading recent FC IDs:', error);
                     const recentFcDiv = document.getElementById('dashboard-recent-fc-ids');
                     if (recentFcDiv) {
-                        recentFcDiv.innerHTML = '<p style="color: red;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+                        const msg = (error && error.message) ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+                        recentFcDiv.innerHTML = '<p style="color: red;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p><p style="font-size:12px;color:#888;">' + msg + '</p>';
                     }
                 }
             } catch (error) {

@@ -78,7 +78,12 @@
           body: JSON.stringify({ username, phone, password, email, name })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) { showAlert(data.detail || 'ลงทะเบียนไม่สำเร็จ'); return; }
+        if (!r.ok) {
+          var msg = data.detail;
+          if (Array.isArray(msg)) msg = msg.map(function(x) { return x.msg || x.loc; }).filter(Boolean).join(' ');
+          showAlert(msg || 'ลงทะเบียนไม่สำเร็จ');
+          return;
+        }
         showAlert('ลงทะเบียนสำเร็จ กำลังไปหน้าเข้าสู่ระบบ...', 'success');
         setTimeout(function() { window.location.href = '/member'; }, 1500);
       } catch (err) { showAlert('เกิดข้อผิดพลาด: ' + (err.message || 'เครือข่าย')); }

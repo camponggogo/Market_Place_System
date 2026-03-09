@@ -60,7 +60,7 @@ class RefundResponse(BaseModel):
 @router.post("/register", response_model=RegisterResponse)
 async def register_customer(request: RegisterRequest, db: Session = Depends(get_db)):
     """
-    ลงทะเบียนลูกค้าใหม่ และผูก Food Court ID ที่ว่าง หรือสร้างใหม่
+    ลงทะเบียนลูกค้าใหม่ และผูก Marketplace ID ที่ว่าง หรือสร้างใหม่
     """
     try:
         # ตรวจสอบว่ามีลูกค้าอยู่แล้วหรือไม่
@@ -83,7 +83,7 @@ async def register_customer(request: RegisterRequest, db: Session = Depends(get_
         db.add(balance)
         db.commit()
         
-        # หา Food Court ID ที่ว่าง (ไม่มี customer_id และ status = active)
+        # หา Marketplace ID ที่ว่าง (ไม่มี customer_id และ status = active)
         from app.models import FoodCourtID
         from app.models import PaymentMethod
         
@@ -93,16 +93,16 @@ async def register_customer(request: RegisterRequest, db: Session = Depends(get_
         ).first()
         
         if empty_fc_id:
-            # ผูก Food Court ID ที่ว่างกับลูกค้า
+            # ผูก Marketplace ID ที่ว่างกับลูกค้า
             empty_fc_id.customer_id = new_customer.id
             db.commit()
         else:
-            # สร้าง Food Court ID ใหม่ (ยอดเงิน 0)
+            # สร้าง Marketplace ID ใหม่ (ยอดเงิน 0)
             from app.services.payment_hub import PaymentHub
             from app.models import PaymentMethod
             payment_hub = PaymentHub(db)
             
-            # สร้าง Food Court ID ใหม่ด้วยยอดเงิน 0
+            # สร้าง Marketplace ID ใหม่ด้วยยอดเงิน 0
             new_fc_id = payment_hub.exchange_to_foodcourt_id(
                 amount=0.0,
                 payment_method=PaymentMethod.CASH,

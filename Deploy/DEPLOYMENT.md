@@ -78,7 +78,7 @@ pip install -r requirements.txt
 
 ### 2. ตั้งค่า Database
 - สร้าง MariaDB Database
-- สร้าง database ชื่อ `foodcourt` (หรือชื่ออื่นตามที่ต้องการ)
+- สร้าง database ชื่อ `market_place_system` (หรือชื่ออื่นตามที่ต้องการ)
 - แก้ไข `config.ini` ตามข้อมูล Database ของคุณ
 - Default settings: user=root, password=123456, port=3306
 

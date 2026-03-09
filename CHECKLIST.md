@@ -9,8 +9,8 @@
 ## 🗄️ การตั้งค่า Database
 
 - [ ] MariaDB service ทำงานอยู่
-- [ ] สร้าง database `foodcourt` แล้ว
-- [ ] ตรวจสอบ connection: `mysql -u root -p123456 -e "USE foodcourt;"`
+- [ ] สร้าง database `market_place_system` แล้ว
+- [ ] ตรวจสอบ connection: `mysql -u root -p123456 -e "USE market_place_system;"`
 - [ ] ตรวจสอบไฟล์ `config.ini` ตั้งค่าถูกต้อง
 
 ## 🏗️ การสร้าง Database Schema

@@ -1,5 +1,5 @@
 """
-Counter API - ระบบแลก Food Court ID ที่ Counter
+Counter API - ระบบแลก Marketplace ID ที่ Counter
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -43,7 +43,7 @@ async def exchange_to_foodcourt_id(
     db: Session = Depends(get_db)
 ):
     """
-    แลก Food Court ID ที่ Counter
+    แลก Marketplace ID ที่ Counter
     รองรับทั้งรูปแบบที่ 1 (เงินสดเท่านั้น) และรูปแบบที่ 2 (หลายรูปแบบ)
     """
     try:
@@ -85,14 +85,14 @@ async def get_balance(
     db: Session = Depends(get_db)
 ):
     """
-    ตรวจสอบยอดเงินคงเหลือของ Food Court ID
+    ตรวจสอบยอดเงินคงเหลือของ Marketplace ID
     """
     try:
         payment_hub = PaymentHub(db)
         balance_info = payment_hub.get_foodcourt_id_balance(foodcourt_id)
 
         if not balance_info:
-            raise HTTPException(status_code=404, detail=f"Food Court ID not found: {foodcourt_id}")
+            raise HTTPException(status_code=404, detail=f"Marketplace ID not found: {foodcourt_id}")
 
         return balance_info
     except HTTPException:
@@ -156,7 +156,7 @@ async def topup_foodcourt_id(
     db: Session = Depends(get_db)
 ):
     """
-    เติมเงินให้ Food Court ID ที่มีอยู่แล้ว
+    เติมเงินให้ Marketplace ID ที่มีอยู่แล้ว
     """
     try:
         from app.models import FoodCourtID, CounterTransaction
@@ -175,16 +175,16 @@ async def topup_foodcourt_id(
         if request.amount <= 0:
             raise HTTPException(status_code=400, detail="Amount must be greater than 0")
         
-        # Find Food Court ID
+        # Find Marketplace ID
         foodcourt_id = db.query(FoodCourtID).filter(
             FoodCourtID.foodcourt_id == request.foodcourt_id
         ).first()
         
         if not foodcourt_id:
-            raise HTTPException(status_code=404, detail=f"Food Court ID not found: {request.foodcourt_id}")
+            raise HTTPException(status_code=404, detail=f"Marketplace ID not found: {request.foodcourt_id}")
         
         if foodcourt_id.status != "active":
-            raise HTTPException(status_code=400, detail=f"Food Court ID is not active (status: {foodcourt_id.status})")
+            raise HTTPException(status_code=400, detail=f"Marketplace ID is not active (status: {foodcourt_id.status})")
         
         # Add balance
         old_balance = foodcourt_id.current_balance
@@ -234,7 +234,7 @@ async def list_foodcourt_ids(
     db: Session = Depends(get_db)
 ):
     """
-    ดึงรายการ Food Court IDs ทั้งหมด
+    ดึงรายการ Marketplace IDs ทั้งหมด
     """
     from app.models import FoodCourtID
     

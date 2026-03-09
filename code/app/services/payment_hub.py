@@ -86,7 +86,7 @@ class PaymentHub:
         self.db.add(counter_transaction)
         self.db.commit()
 
-        logger.info(f"Food Court ID created: {foodcourt_id_str}, Amount: {amount}, Method: {payment_method.value}")
+        logger.info(f"Marketplace ID created: {foodcourt_id_str}, Amount: {amount}, Method: {payment_method.value}")
 
         return foodcourt_id
 
@@ -147,7 +147,7 @@ class PaymentHub:
             self.db.commit()
             self.db.refresh(transaction)
 
-        logger.info(f"Food Court ID used: {foodcourt_id_str}, Store: {store_id}, Amount: {amount}")
+        logger.info(f"Marketplace ID used: {foodcourt_id_str}, Store: {store_id}, Amount: {amount}")
 
         return {
             "foodcourt_id": foodcourt_id_str,
@@ -186,7 +186,7 @@ class PaymentHub:
 
         self.db.commit()
 
-        logger.info(f"Refunded Food Court ID: {foodcourt_id_str}, Amount: {refund_amount}")
+        logger.info(f"Refunded Marketplace ID: {foodcourt_id_str}, Amount: {refund_amount}")
 
         return {
             "foodcourt_id": foodcourt_id_str,
@@ -205,7 +205,7 @@ class PaymentHub:
             ).first()
 
             if not foodcourt_id:
-                logger.warning(f"Food Court ID not found: {foodcourt_id_str}")
+                logger.warning(f"Marketplace ID not found: {foodcourt_id_str}")
                 return None
 
             result = {

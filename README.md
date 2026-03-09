@@ -2,7 +2,7 @@
 
 **ระบบจัดการตลาดนัด Onlinehelp**
 
-ระบบบริหารจัดการ Food Court / ตลาดนัด ที่รองรับการชำระเงินหลากหลายรูปแบบ พร้อม PromptPay QR Code, จอ Signage แยกสำหรับลูกค้า และการโอนเงินสิ้นวัน (Settlement)
+ระบบบริหารจัดการ Marketplace / ตลาดนัด ที่รองรับการชำระเงินหลากหลายรูปแบบ พร้อม PromptPay QR Code, จอ Signage แยกสำหรับลูกค้า และการโอนเงินสิ้นวัน (Settlement)
 
 ---
 
@@ -24,7 +24,7 @@
 ## คุณสมบัติหลัก
 
 ### 1. ระบบ Customer & Balance
-- แลกเงินเป็น Food Court ID ที่ Counter (เงินสด / PromptPay / ฯลฯ)
+- แลกเงินเป็น Marketplace ID ที่ Counter (เงินสด / PromptPay / ฯลฯ)
 - ตรวจสอบยอดเงินคงเหลือผ่าน QR Code หรือ Web
 - ขอคืนเงินที่เหลือ (Refund) ที่ Counter
 - Top-up ยอดเพิ่ม
@@ -33,7 +33,7 @@
 - สร้าง PromptPay QR Code แบบ Tag30 (Bill Payment) และ Tag29 (Credit Transfer)
 - Store Token 20 หลัก และ Biller ID สำหรับ QR
 - ปุ่มราคาด่วน (Quick Amount) ปรับแก้ได้
-- สแกนหรือกรอก Food Court ID เพื่อหักยอด
+- สแกนหรือกรอก Marketplace ID เพื่อหักยอด
 - จอ Signage แยก (จอที่ 2) แสดง QR และข้อความ "ได้รับเงินเรียบร้อยแล้ว" พร้อม TTS
 
 ### 3. Payment Callback & Settlement
@@ -92,7 +92,7 @@ pip install -r code/requirements.txt
 
 ### 4. ตั้งค่า Database
 
-- สร้าง Database ชื่อ `maket_place_system` (หรือตามที่กำหนดใน config)
+- สร้าง Database ชื่อ `market_place_system` (หรือตามที่กำหนดใน config)
 - รันสคริปต์สร้างตารางและข้อมูลเริ่มต้น (จาก root โปรเจกต์):
 
 ```bash
@@ -117,7 +117,7 @@ python Run/create_sample_data.py
 [DATABASE]
 DB_HOST = localhost
 DB_PORT = 3306
-DB_NAME = maket_place_system
+DB_NAME = market_place_system
 DB_USER = root
 DB_PASSWORD = your_password
 
@@ -194,18 +194,19 @@ gunicorn main:app --bind 0.0.0.0:8000 --workers 4 --worker-class uvicorn.workers
 docker compose -f Deploy/docker-compose.yml up -d
 ```
 
-- **App:** http://localhost:8000  
+- **App:** http://localhost:639 (แอปใน Docker ใช้พอร์ต 639 เสมอ)  
 - **DB:** port 3306 (ตาม `DB_PORT` ใน .env)  
-- **Nginx:** port 80/443 (ถ้าเปิดใช้)
+- **Nginx:** port 80/443 (ถ้าเปิดใช้; proxy ไปที่ app:639)
 
 ### ตัวแปรสำคัญใน .env
 
-```env![1772813041276](image/README/1772813041276.png)
-DB_NAME=maket_place_system
+```env
+DB_NAME=market_place_system
 DB_USER=foodcourt_user
 DB_PASSWORD=foodcourt_pass
 DB_ROOT_PASSWORD=P@ssw0rd@dev
-APP_PORT=8000
+APP_PORT=639
+BACKEND_URL=https://your-domain.com   # ใช้ HTTPS จริงเมื่อ deploy บน cloud
 ```
 
 รายละเอียดเพิ่มเติม: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)

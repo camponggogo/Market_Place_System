@@ -13,15 +13,15 @@ ssh root@150.95.85.185
 
 # วิธี A: ใช้ Git
 cd /opt
-git clone <your-repo> foodcourt
-cd foodcourt
+git clone <your-repo> marketplace
+cd marketplace
 
 # วิธี B: ใช้ SCP จากเครื่อง local
 # บนเครื่อง local (PowerShell):
-scp -r D:\Projects\FoodCourt root@150.95.85.185:/opt/foodcourt
+scp -r D:\Projects\FoodCourt root@150.95.85.185:/opt/marketplace
 
 # 3. ตั้งค่า
-cd /opt/foodcourt
+cd /opt/marketplace
 cp .env.example .env
 nano .env  # แก้ไขตามต้องการ
 
@@ -75,5 +75,5 @@ curl http://150.95.85.185/health
 
 - Database password: ตั้งค่าใน `.env` (DB_ROOT_PASSWORD)
 - SECRET_KEY: เปลี่ยนเป็นค่าใหม่ที่แข็งแรง
-- Ports: 80 (HTTP), 443 (HTTPS), 8000 (App direct)
+- Ports: 80 (HTTP), 443 (HTTPS), 639 (App direct)
 

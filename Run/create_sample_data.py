@@ -162,7 +162,7 @@ def create_sample_customers(db):
     return customers
 
 def create_sample_foodcourt_ids(db, customers, stores):
-    """สร้าง Food Court ID ตัวอย่าง 30 ชุด"""
+    """สร้าง Marketplace ID ตัวอย่าง 30 ชุด"""
     payment_hub = PaymentHub(db)
     payment_methods = [
         PaymentMethod.CASH,
@@ -211,14 +211,14 @@ def create_sample_foodcourt_ids(db, customers, stores):
         foodcourt_ids.append(foodcourt_id)
     
     db.commit()
-    print(f"✅ Created {len(foodcourt_ids)} Food Court IDs")
+    print(f"✅ Created {len(foodcourt_ids)} Marketplace IDs")
     return foodcourt_ids
 
 def create_sample_transactions(db, foodcourt_ids, stores):
     """สร้าง Transaction ตัวอย่าง"""
     transactions = []
     
-    # ใช้ Food Court ID บางส่วน (ประมาณ 60-70% ของทั้งหมด)
+    # ใช้ Marketplace ID บางส่วน (ประมาณ 60-70% ของทั้งหมด)
     num_to_use = min(int(len(foodcourt_ids) * 0.65), len(foodcourt_ids))
     used_ids = random.sample(foodcourt_ids, num_to_use)
     
@@ -294,7 +294,7 @@ def main():
     print("=" * 60)
     print("Creating Sample Data")
     print("  - Customers: 40")
-    print("  - Food Court IDs: 30")
+    print("  - Marketplace IDs: 30")
     print("  - Stores: 10")
     print("=" * 60 + "\n")
     
@@ -313,8 +313,8 @@ def main():
         print("\n3. Creating customer balances...")
         balances = create_sample_balances(db, customers)
         
-        # 4. สร้าง Food Court IDs
-        print("\n4. Creating Food Court IDs...")
+        # 4. สร้าง Marketplace IDs
+        print("\n4. Creating Marketplace IDs...")
         foodcourt_ids = create_sample_foodcourt_ids(db, customers, stores)
         
         # 5. สร้าง Transactions
@@ -327,12 +327,12 @@ def main():
         print(f"✅ Stores: {len(stores)}")
         print(f"✅ Customers: {len(customers)}")
         print(f"✅ Customer Balances: {len(balances)}")
-        print(f"✅ Food Court IDs: {len(foodcourt_ids)}")
+        print(f"✅ Marketplace IDs: {len(foodcourt_ids)}")
         print(f"✅ Transactions: {len(transactions)}")
         print("=" * 60)
         
         print("\n📋 Sample Data Created Successfully!")
-        print("\nExample Food Court IDs (showing 10 of 30):")
+        print("\nExample Marketplace IDs (showing 10 of 30):")
         for i, fc_id in enumerate(foodcourt_ids[:10], 1):
             print(f"  {i}. {fc_id.foodcourt_id} - {fc_id.initial_amount:,.2f} บาท ({fc_id.payment_method.value})")
         
@@ -345,7 +345,7 @@ def main():
             print(f"  {i}. {store.name}")
         
         print(f"\n📊 Statistics:")
-        print(f"  - Total Food Court IDs: {len(foodcourt_ids)}")
+        print(f"  - Total Marketplace IDs: {len(foodcourt_ids)}")
         print(f"  - Total Customers: {len(customers)}")
         print(f"  - Total Stores: {len(stores)}")
         print(f"  - Total Transactions: {len(transactions)}")

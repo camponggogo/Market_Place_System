@@ -167,6 +167,6 @@ A: ได้ ใช้ได้ทุกร้านใน Food Court
 
 หากมีปัญหาหรือคำถาม กรุณาติดต่อ:
 - Counter: 02-XXX-XXXX
-- Email: support@foodcourt.com
-- LINE OA: @foodcourt
+- Email: support@marketplace.com
+- LINE OA: @marketplace
 

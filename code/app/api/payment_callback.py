@@ -13,7 +13,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import BACKEND_URL, OMISE_PUBLIC_KEY, OMISE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+from app.config import (
+    BACKEND_URL,
+    OMISE_PUBLIC_KEY,
+    OMISE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET,
+    STRIPE_SECRET_KEY,
+    STRIPE_PUBLISHABLE_KEY,
+    STRIPE_WEBHOOK_CHANNEL,
+    STRIPE_WEBHOOK_URL,
+)
 from app.database import get_db
 from app.services.settlement_service import (
     receive_back_transaction,
@@ -292,6 +301,7 @@ async def create_gateway_qr(
             raise HTTPException(status_code=400, detail=str(e))
         payment_intent_id = pi.get("id")
         promptpay_qr_data = None
+        promptpay_qr_image_url = None
         try:
             pi_confirmed = stripe_promptpay.confirm_payment_intent_promptpay(
                 secret_key=sk,
@@ -299,6 +309,7 @@ async def create_gateway_qr(
                 email=getattr(store, "email", None) or "noreply@store.local",
             )
             promptpay_qr_data = stripe_promptpay.get_promptpay_qr_data_from_payment_intent(pi_confirmed)
+            promptpay_qr_image_url = stripe_promptpay.get_promptpay_qr_image_url_from_payment_intent(pi_confirmed)
         except Exception as e:
             logger.warning("Stripe confirm for QR data failed: %s", e)
         return {
@@ -306,6 +317,7 @@ async def create_gateway_qr(
             "payment_intent_id": payment_intent_id,
             "client_secret": pi.get("client_secret"),
             "promptpay_qr_data": promptpay_qr_data,
+            "promptpay_qr_image_url": promptpay_qr_image_url,
             "order_id": order_id_for_ref2,
             "amount": body.amount,
             "status": pi.get("status"),
@@ -448,14 +460,24 @@ async def get_charge_status(
 async def webhook_links():
     """
     คืนค่า URL สำหรับลงทะเบียน Webhook แยกตามผู้ให้บริการ
+    และช่องทาง Stripe (จาก config STRIPE_WEBHOOK_CHANNEL)
     """
     base = (BACKEND_URL or "").rstrip("/")
-    stripe_url = f"{base}/api/payment-callback/webhook/stripe"
+    stripe_path = "/api/payment-callback/webhook/stripe"
+    if STRIPE_WEBHOOK_CHANNEL == "custom" and STRIPE_WEBHOOK_URL:
+        stripe_url = STRIPE_WEBHOOK_URL.rstrip("/")
+    else:
+        stripe_url = f"{base}{stripe_path}"
+    stripe_cli_command = None
+    if STRIPE_WEBHOOK_CHANNEL == "stripe_cli":
+        stripe_cli_command = f"stripe listen --forward-to http://localhost:8000{stripe_path}"
     return {
         "scb": f"{base}/api/payment-callback/webhook",
         "kbank": f"{base}/api/payment-callback/webhook/kbank",
         "omise": f"{base}/api/payment-callback/webhook/omise",
         "stripe": stripe_url,
+        "stripe_webhook_channel": STRIPE_WEBHOOK_CHANNEL,
+        "stripe_cli_command": stripe_cli_command,
         "apple_pay": stripe_url,
     }
 
@@ -614,6 +636,48 @@ async def webhook_stripe_health():
 
 WEBHOOK_STRIPE_PATH = "/api/payment-callback/webhook/stripe"
 
+# รายการ Stripe webhook events ล่าสุด (สำหรับแสดง realtime ว่าได้รับ webhook หรือไม่)
+_STRIPE_WEBHOOK_EVENTS: list = []
+_STRIPE_WEBHOOK_EVENTS_MAX = 100
+
+
+def _append_stripe_webhook_event(body: dict, received_at: datetime) -> None:
+    """บันทึก event ที่ได้รับจาก Stripe ไว้แสดงใน realtime report"""
+    ev_id = body.get("id") or ""
+    ev_type = body.get("type") or "unknown"
+    data_obj = (body.get("data") or {}).get("object") or {}
+    amount_satang = data_obj.get("amount")
+    amount_baht = (amount_satang / 100.0) if amount_satang is not None else None
+    status = data_obj.get("status")
+    pi_id = data_obj.get("id")
+    meta = data_obj.get("metadata") or {}
+    ref1 = (meta.get("ref1") or "")[:20]
+    ref2 = meta.get("ref2")
+    err = data_obj.get("last_payment_error") or {}
+    error_message = err.get("message") or err.get("code") or ""
+    entry = {
+        "id": ev_id,
+        "type": ev_type,
+        "created": body.get("created"),
+        "received_at": received_at.isoformat(),
+        "payment_intent_id": pi_id,
+        "amount_satang": amount_satang,
+        "amount_baht": amount_baht,
+        "status": status,
+        "ref1": ref1,
+        "ref2": ref2,
+        "error_message": error_message,
+    }
+    _STRIPE_WEBHOOK_EVENTS.insert(0, entry)
+    while len(_STRIPE_WEBHOOK_EVENTS) > _STRIPE_WEBHOOK_EVENTS_MAX:
+        _STRIPE_WEBHOOK_EVENTS.pop()
+
+
+@router.get("/webhook/stripe/events")
+async def get_stripe_webhook_events(limit: int = Query(50, le=100)):
+    """รายการ Stripe webhook events ที่ได้รับล่าสุด (realtime report)"""
+    return {"events": _STRIPE_WEBHOOK_EVENTS[:limit]}
+
 
 @router.post("/webhook/stripe/update-url")
 async def webhook_stripe_update_url(body: Optional[UpdateStripeWebhookUrlRequest] = None):
@@ -693,6 +757,10 @@ async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be a JSON object")
     ev_type = body.get("type")
+    received_at = datetime.utcnow()
+    _append_stripe_webhook_event(body, received_at)
+    logger.info("Stripe webhook received: type=%s id=%s", ev_type, body.get("id"))
+
     if ev_type != "payment_intent.succeeded":
         return {"received": True}
     data = body.get("data", {}).get("object") or {}

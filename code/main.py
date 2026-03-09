@@ -1,6 +1,6 @@
 
 """
-Food Court Management System - Main Application
+Marketplace Management System - Main Application
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,8 +20,8 @@ _CONTRACTS_DIR = os.path.join(_BASE_DIR, "app", "contracts")
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Food Court Management System",
-    description="ระบบบริหารจัดการ Food Court ที่รองรับการชำระเงินหลากหลายรูปแบบ",
+    title="Marketplace Management System",
+    description="ระบบบริหารจัดการ Marketplace ที่รองรับการชำระเงินหลากหลายรูปแบบ",
     version="1.0.0",
     docs_url="/docs" if os.getenv("ENABLE_DOCS", "false").lower() == "true" else None,  # ซ่อน docs ใน production
     redoc_url="/redoc" if os.getenv("ENABLE_DOCS", "false").lower() == "true" else None
@@ -130,13 +130,17 @@ async def store_pos_login_page():
     return FileResponse(file_path)
 
 
+def _get_session(request: Request):
+    """อ่าน session แบบเดียวกับ auth (รองรับทั้ง request.session และ request.state)"""
+    return getattr(request.state, "session", None) or getattr(request, "session", None)
+
+
 @app.get("/store-pos")
 async def store_pos(request: Request):
     """Store POS - ต้องล็อกอินก่อน (ตรวจสอบจาก user_store)"""
     from fastapi.responses import FileResponse, RedirectResponse
 
-    # ตรวจสอบ session
-    session = getattr(request, "session", None)
+    session = _get_session(request)
     if not session or not session.get("user_id"):
         next_url = "/store-pos"
         return RedirectResponse(url=f"/store-pos-login?next={next_url}", status_code=302)
@@ -152,7 +156,7 @@ async def store_pos(request: Request):
 async def store_menus_page(request: Request):
     """หน้าจัดการเมนู - ต้องล็อกอินก่อน"""
     from fastapi.responses import FileResponse, RedirectResponse
-    session = getattr(request, "session", None)
+    session = _get_session(request)
     if not session or not session.get("user_id"):
         return RedirectResponse(url="/store-pos-login?next=/store-menus", status_code=302)
     file_path = os.path.join(_BASE_DIR, "app", "static", "store_menus.html")
@@ -166,7 +170,7 @@ async def store_menus_page(request: Request):
 async def store_pos_settings_page(request: Request):
     """หน้า Web Setting สำหรับตั้งค่า Store POS - ต้องล็อกอินก่อน"""
     from fastapi.responses import FileResponse, RedirectResponse
-    session = getattr(request, "session", None)
+    session = _get_session(request)
     if not session or not session.get("user_id"):
         return RedirectResponse(url="/store-pos-login?next=/store-pos-settings", status_code=302)
     file_path = os.path.join(_BASE_DIR, "app", "static", "store_pos_settings.html")
@@ -269,7 +273,7 @@ async def member_scan_page():
 async def emergency_backup_page(request: Request):
     """หน้ากรอกข้อมูลรายการสำรอง (กรณีไฟดับ/ระบบล่ม) - ต้องล็อกอิน; ดูย้อนหลังได้เฉพาะ admin"""
     from fastapi.responses import FileResponse, RedirectResponse
-    session = getattr(request, "session", None)
+    session = _get_session(request)
     if not session or not session.get("user_id"):
         return RedirectResponse(url="/store-pos-login?next=/emergency-backup", status_code=302)
     path = os.path.join(_BASE_DIR, "app", "static", "emergency_backup.html")
@@ -352,7 +356,7 @@ async def report_qr_payments_page():
 async def store_report_qr_payments_page(request: Request):
     """รายงาน QR/Stripe เฉพาะร้าน – ต้องล็อกอิน Store POS; แสดงเฉพาะร้านที่ user มีสิทธิ์"""
     from fastapi.responses import FileResponse, RedirectResponse
-    session = getattr(request, "session", None)
+    session = _get_session(request)
     if not session or not session.get("user_id"):
         return RedirectResponse(url="/store-pos-login?next=/store-report-qr-payments", status_code=302)
     path = os.path.join(_BASE_DIR, "app", "static", "store_report_qr_payments.html")

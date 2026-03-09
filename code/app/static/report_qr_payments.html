@@ -24,6 +24,10 @@
     .live-card { border-left: 4px solid #2563eb; }
     .live-card .status-received { color: #059669; }
     #live-updated { margin-left: 12px; }
+    .webhook-events-card { border-left: 4px solid #7c3aed; }
+    .webhook-events-card .evt-type { font-weight: 600; }
+    .webhook-events-card .evt-failed { color: #dc2626; }
+    .webhook-events-card .evt-succeeded { color: #059669; }
   </style>
 </head>
 <body>
@@ -47,6 +51,18 @@
       <tbody id="live-tbody"></tbody>
     </table>
     <p id="live-no-data" style="display:none; color:#64748b;">ยังไม่มีรายการ</p>
+  </div>
+  <div class="card webhook-events-card">
+    <h2>📥 Stripe Webhook Events (รับจาก Stripe แบบ realtime)</h2>
+    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">แสดงทุก event ที่ Stripe ส่งมา (payment_intent.succeeded, payment_intent.payment_failed ฯลฯ) อัปเดตทุก 2 วินาที</p>
+    <span id="webhook-events-updated" style="font-size:12px; color:#64748b;"></span>
+    <table id="webhook-events-tbl" style="margin-top:12px; display:none;">
+      <thead>
+        <tr><th>เวลารับ</th><th>Event type</th><th>Event id</th><th>PaymentIntent</th><th>จำนวน (บาท)</th><th>status</th><th>ref1/ref2</th><th>ข้อความ error</th></tr>
+      </thead>
+      <tbody id="webhook-events-tbody"></tbody>
+    </table>
+    <p id="webhook-events-no-data" style="display:none; color:#64748b;">ยังไม่ได้รับ webhook จาก Stripe</p>
   </div>
   <div class="card">
     <h2>กรอง (รายงานตามช่วงวันที่)</h2>
@@ -138,6 +154,39 @@
       livePollTimer = setInterval(loadLive, LIVE_POLL_MS);
     }
 
+    async function loadStripeWebhookEvents() {
+      try {
+        const r = await fetch(paymentCallback + '/webhook/stripe/events?limit=50', { credentials: 'include' });
+        const data = await r.json();
+        const events = data.events || [];
+        document.getElementById('webhook-events-updated').textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH');
+        if (!events.length) {
+          document.getElementById('webhook-events-tbl').style.display = 'none';
+          document.getElementById('webhook-events-no-data').style.display = 'block';
+          document.getElementById('webhook-events-tbody').innerHTML = '';
+        } else {
+          document.getElementById('webhook-events-no-data').style.display = 'none';
+          document.getElementById('webhook-events-tbl').style.display = 'table';
+          document.getElementById('webhook-events-tbody').innerHTML = events.map(function(ev) {
+            const recv = (ev.received_at || '').slice(0, 19).replace('T', ' ');
+            const typeClass = (ev.type || '').indexOf('failed') !== -1 ? 'evt-failed' : ((ev.type || '').indexOf('succeeded') !== -1 ? 'evt-succeeded' : '');
+            const amt = ev.amount_baht != null ? Number(ev.amount_baht).toFixed(2) : '-';
+            const err = (ev.error_message || '').slice(0, 80);
+            return '<tr><td>' + recv + '</td><td class="evt-type ' + typeClass + '">' + (ev.type || '-') + '</td><td style="font-size:11px;">' + (ev.id || '-') + '</td><td style="font-size:11px;">' + (ev.payment_intent_id || '-') + '</td><td class="num">' + amt + '</td><td>' + (ev.status || '-') + '</td><td>' + (ev.ref1 || '-') + ' / ' + (ev.ref2 || '-') + '</td><td style="font-size:11px;color:#dc2626;">' + (err ? err : '-') + '</td></tr>';
+          }).join('');
+        }
+      } catch (e) {
+        document.getElementById('webhook-events-updated').textContent = 'โหลดไม่สำเร็จ';
+      }
+    }
+
+    let webhookEventsTimer = null;
+    function startWebhookEventsPoll() {
+      loadStripeWebhookEvents();
+      if (webhookEventsTimer) clearInterval(webhookEventsTimer);
+      webhookEventsTimer = setInterval(loadStripeWebhookEvents, LIVE_POLL_MS);
+    }
+
     async function loadReport() {
       const from = document.getElementById('from-date').value;
       const to = document.getElementById('to-date').value;
@@ -183,6 +232,7 @@
       }
       loadReport();
       startLivePoll();
+      startWebhookEventsPoll();
     })();
   </script>
 </body>

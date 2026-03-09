@@ -1,5 +1,5 @@
 """
-Database models for Food Court System
+Database models for Marketplace System
 """
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
@@ -182,7 +182,7 @@ class Transaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    foodcourt_id = Column(String(50), ForeignKey("foodcourt_ids.foodcourt_id"), nullable=True)  # Food Court ID ที่ใช้
+    foodcourt_id = Column(String(50), ForeignKey("foodcourt_ids.foodcourt_id"), nullable=True)  # Marketplace ID ที่ใช้
 
     # PromptPay / Webhook (ref1=store token, ref2, ref3, เลขที่บัญชี)
     ref1 = Column(String(20), nullable=True, index=True)
@@ -298,7 +298,10 @@ class Store(Base):
     # K Bank (K API) QR Payment – ต่อร้าน (apiportal.kasikornbank.com)
     kbank_customer_id = Column(String(128), nullable=True)      # Customer ID จาก K API
     kbank_consumer_secret = Column(String(255), nullable=True)   # Consumer Secret
-    
+
+    # เลขที่บัญชีร้าน (สำหรับโอนเงินให้ร้าน – ใช้ในรายงานสรุปยอด)
+    bank_account = Column(String(50), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -557,12 +560,12 @@ class EmergencyBackupEntry(Base):
 
 class FoodCourtID(Base):
     """
-    Food Court ID - ระบบแลก Food Court ID ที่ Counter
+    Marketplace ID - ระบบแลก Marketplace ID ที่ Counter
     """
     __tablename__ = "foodcourt_ids"
 
     id = Column(Integer, primary_key=True, index=True)
-    foodcourt_id = Column(String(50), unique=True, index=True, nullable=False)  # Food Court ID ที่ให้ลูกค้า
+    foodcourt_id = Column(String(50), unique=True, index=True, nullable=False)  # Marketplace ID ที่ให้ลูกค้า
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)  # อาจจะยังไม่มี customer
     initial_amount = Column(Float, nullable=False)  # จำนวนเงินที่แลกมา
     current_balance = Column(Float, nullable=False)  # ยอดเงินคงเหลือ
@@ -601,7 +604,7 @@ class PaymentGateway(Base):
 
 class CounterTransaction(Base):
     """
-    Counter Transaction - บันทึกการแลก Food Court ID ที่ Counter
+    Counter Transaction - บันทึกการแลก Marketplace ID ที่ Counter
     """
     __tablename__ = "counter_transactions"
 
@@ -621,7 +624,7 @@ class CounterTransaction(Base):
 
 class StoreTransaction(Base):
     """
-    Store Transaction - บันทึกการใช้งาน Food Court ID ที่ร้านค้า
+    Store Transaction - บันทึกการใช้งาน Marketplace ID ที่ร้านค้า
     """
     __tablename__ = "store_transactions"
 

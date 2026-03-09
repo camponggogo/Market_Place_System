@@ -6,7 +6,7 @@
 set -e
 
 ENVIRONMENT=${1:-production}
-PROJECT_NAME="foodcourt"
+PROJECT_NAME="marketplace"
 COMPOSE_FILE="docker-compose.yml"
 
 echo "=========================================="
@@ -84,7 +84,7 @@ sleep 10
 # Check if database is healthy
 DB_HEALTHY=false
 for i in {1..30}; do
-    if docker exec foodcourt_db mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD:-P@ssw0rd@dev} --silent; then
+    if docker exec marketplace_db mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD:-P@ssw0rd@dev} --silent; then
         DB_HEALTHY=true
         break
     fi
@@ -102,7 +102,7 @@ echo -e "${GREEN}✓ Database is ready${NC}"
 
 # Initialize database (create tables)
 echo "Initializing database..."
-docker exec foodcourt_app python -c "
+docker exec marketplace_app python -c "
 from app.database import engine, Base
 from app.models import *
 Base.metadata.create_all(bind=engine)
@@ -114,7 +114,7 @@ print('Database tables created successfully!')
 # Or use init script if available
 if [ -f scripts/init_db.py ]; then
     echo "Running database initialization script..."
-    docker exec foodcourt_app python scripts/init_db.py || {
+    docker exec marketplace_app python scripts/init_db.py || {
         echo -e "${YELLOW}Warning: Init script had issues. Check logs.${NC}"
     }
 fi
@@ -125,7 +125,7 @@ sleep 5
 
 APP_HEALTHY=false
 for i in {1..20}; do
-    if curl -f http://localhost:8000/health &> /dev/null; then
+    if curl -f http://localhost:639/health &> /dev/null; then
         APP_HEALTHY=true
         break
     fi

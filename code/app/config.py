@@ -1,5 +1,5 @@
 """
-Configuration management for Food Court System
+Configuration management for Marketplace System
 ใช้ config.ini ไฟล์เดียว (ค่าใน environment ยัง override ได้ถ้าตั้งไว้ เช่น Docker)
 """
 import configparser
@@ -71,6 +71,9 @@ VAT_RATE = get_config("TAX", "VAT_RATE", fallback=0.07, env_var="VAT_RATE", env_
 TAX_ID = get_config("TAX", "TAX_ID", fallback="", env_var="TAX_ID")
 COMPANY_NAME = get_config("TAX", "COMPANY_NAME", fallback="", env_var="COMPANY_NAME")
 
+# Settlement / Report – อัตราหัก GP (Gross Profit) เป็น % ของยอดขาย (0 = ไม่หัก)
+SETTLEMENT_GP_PERCENT = get_config("PAYMENT", "SETTLEMENT_GP_PERCENT", fallback=0, env_var="SETTLEMENT_GP_PERCENT", env_type=float)
+
 # Payment Configuration
 PROMPTPAY_ENABLED = get_config("PAYMENT", "PROMPTPAY_ENABLED", fallback=True, env_var="PROMPTPAY_ENABLED", env_type=bool)
 PROMPTPAY_API_URL = get_config("PAYMENT", "PROMPTPAY_API_URL", fallback="", env_var="PROMPTPAY_API_URL")
@@ -102,6 +105,9 @@ STRIPE_API_URL = get_config("STRIPE", "STRIPE_API_URL", fallback="https://api.st
 STRIPE_SECRET_KEY = get_config("STRIPE", "STRIPE_SECRET_KEY", fallback="", env_var="STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = get_config("STRIPE", "STRIPE_PUBLISHABLE_KEY", fallback="", env_var="STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = get_config("STRIPE", "STRIPE_WEBHOOK_SECRET", fallback="", env_var="STRIPE_WEBHOOK_SECRET")
+# ช่องทางรับ webhook: ngrok | custom (Stripe API) เป็นหลัก; stripe_cli เป็นทางเลือกสำหรับ dev
+STRIPE_WEBHOOK_CHANNEL = get_config("STRIPE", "STRIPE_WEBHOOK_CHANNEL", fallback="ngrok", env_var="STRIPE_WEBHOOK_CHANNEL").strip().lower() or "ngrok"
+STRIPE_WEBHOOK_URL = get_config("STRIPE", "STRIPE_WEBHOOK_URL", fallback="", env_var="STRIPE_WEBHOOK_URL").strip()
 
 # Apple Pay – ใช้ผ่าน Stripe (https://docs.stripe.com/payments/apple-pay)
 APPLE_PAY_ENABLED = get_config("APPLE_PAY", "APPLE_PAY_ENABLED", fallback=True, env_var="APPLE_PAY_ENABLED", env_type=bool)

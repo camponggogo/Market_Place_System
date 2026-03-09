@@ -27,10 +27,17 @@ DEFAULT_SIGNAGE_MEDIA = [
 _signage_state: Dict[int, Dict[str, Any]] = {}
 
 
-def set_signage_display(store_id: int, qr_image: str, amount: float, order_items: Optional[List[dict]] = None) -> None:
-    """ให้ store-pos เรียกเมื่อกดสร้าง PromptPay QR"""
+def set_signage_display(
+    store_id: int,
+    qr_image: Optional[str] = None,
+    amount: float = 0,
+    order_items: Optional[List[dict]] = None,
+    qr_plain_text: Optional[str] = None,
+) -> None:
+    """ให้ store-pos เรียกเมื่อกดสร้าง PromptPay QR (qr_image = data URL หรือ qr_plain_text = ข้อความ Stripe)"""
     _signage_state[store_id] = {
-        "qr_image": qr_image,
+        "qr_image": qr_image or None,
+        "qr_plain_text": qr_plain_text or None,
         "amount": amount,
         "status": "waiting_payment",
         "order_items": order_items or [],
@@ -63,10 +70,14 @@ def clear_signage_display(store_id: int) -> None:
 
 
 def set_signage_cart(store_id: int, order_items: List[dict], amount: float) -> None:
-    """ให้ store-pos เรียกเมื่อเพิ่ม/ลด/แก้ไขรายการในตะกร้า (ยังไม่กด PromptPay) – จอที่ 2 แสดงรายการเท่านั้น ไม่แสดง QR"""
+    """ให้ store-pos เรียกเมื่อเพิ่ม/ลด/แก้ไขรายการในตะกร้า (ยังไม่กด PromptPay) – จอที่ 2 แสดงรายการเท่านั้น ไม่แสดง QR
+    ถ้าตอนนี้จอแสดง QR รอชำระ (waiting_payment) จะไม่เขียนทับ เพื่อไม่ให้ Stripe QR หาย"""
     if not order_items:
         if store_id in _signage_state and _signage_state[store_id].get("status") == "cart":
             del _signage_state[store_id]
+        return
+    # ไม่เขียนทับเมื่อกำลังแสดง QR รอชำระ (กด PromptPay แล้ว) – ให้จอ signage คงแสดง QR ไว้
+    if store_id in _signage_state and _signage_state[store_id].get("status") == "waiting_payment":
         return
     _signage_state[store_id] = {
         "status": "cart",
@@ -81,8 +92,9 @@ router = APIRouter(prefix="/api/signage", tags=["signage"])
 
 class SetDisplayPayload(BaseModel):
     store_id: int
-    qr_image: str  # base64 data URI
-    amount: float
+    qr_image: Optional[str] = None  # data URL (EMV/legacy)
+    qr_plain_text: Optional[str] = None  # ข้อความ Stripe PromptPay สำหรับสร้าง QR ที่ signage
+    amount: float = 0
     order_items: Optional[List[dict]] = None  # [{ name, qty, line_total }]
 
 
@@ -101,8 +113,14 @@ async def post_set_cart(payload: SetCartPayload):
 
 @router.post("/set-display")
 async def post_set_display(payload: SetDisplayPayload):
-    """Store-pos เรียกเมื่อกดสร้าง PromptPay QR Code หรือพิมพ์ Order+QR เพื่อให้จอที่ 2 แสดง QR ทันที"""
-    set_signage_display(payload.store_id, payload.qr_image, payload.amount, payload.order_items)
+    """Store-pos เรียกเมื่อกดสร้าง PromptPay QR (ส่ง qr_image หรือ qr_plain_text สำหรับ Stripe)"""
+    set_signage_display(
+        payload.store_id,
+        qr_image=payload.qr_image,
+        amount=payload.amount,
+        order_items=payload.order_items,
+        qr_plain_text=payload.qr_plain_text,
+    )
     return {"ok": True, "store_id": payload.store_id}
 
 
@@ -119,10 +137,11 @@ async def get_display(store_id: int = Query(..., description="รหัสร้
         pass
 
     if not data:
-        return {"status": None, "qr_image": None, "amount": None, "store_name": store_name, "order_items": []}
+        return {"status": None, "qr_image": None, "qr_plain_text": None, "amount": None, "store_name": store_name, "order_items": []}
     return {
         "status": data.get("status"),
         "qr_image": data.get("qr_image"),
+        "qr_plain_text": data.get("qr_plain_text"),
         "amount": data.get("amount"),
         "store_name": store_name,
         "order_items": data.get("order_items") or [],

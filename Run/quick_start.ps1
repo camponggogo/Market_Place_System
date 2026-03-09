@@ -30,6 +30,28 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Some dependencies may have conflicts" -ForegroundColor Yellow
 }
 
+# Step 2b: ติดตั้ง Stripe CLI (ถ้ามี Scoop) — ใช้รับ webhook ทดสอบโดยไม่โดน ngrok 403
+Write-Host ""
+Write-Host "Step 2b: Stripe CLI (optional, for webhook)..." -ForegroundColor Yellow
+if (Get-Command scoop -ErrorAction SilentlyContinue) {
+    $stripeBucket = scoop bucket list 2>$null | Select-String "stripe"
+    if (-not $stripeBucket) {
+        scoop bucket add stripe https://github.com/stripe/scoop-stripe-cli.git 2>$null
+    }
+    if (-not (Get-Command stripe -ErrorAction SilentlyContinue)) {
+        scoop install stripe 2>$null
+        if (Get-Command stripe -ErrorAction SilentlyContinue) {
+            Write-Host "OK Stripe CLI installed (ทางเลือก: stripe listen; ระบบใช้ Stripe API/ngrok เป็นหลัก)" -ForegroundColor Green
+        } else {
+            Write-Host "Stripe CLI install skipped or failed. ติดตั้งมือ: scoop install stripe" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "OK Stripe CLI already installed" -ForegroundColor Green
+    }
+} else {
+    Write-Host "Scoop not found. ติดตั้ง Stripe CLI เอง: ดู code/docs/STRIPE_NGROK.md" -ForegroundColor Gray
+}
+
 # Step 3: Check Setup (Run scripts ต้องเห็น code/)
 Write-Host ""
 Write-Host "Step 3: Checking setup..." -ForegroundColor Yellow
@@ -66,7 +88,51 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "OK Sample data created" -ForegroundColor Green
 }
 
-# Step 7: Start ngrok (ถ้ามี) แล้ว Start Server ด้วย URL ngrok
+# Step 6b: Seed stores + menus + users สำหรับ Store POS (สร้าง/ผูกเมนูและ user ถ้ายังไม่มี)
+Write-Host ""
+Write-Host "Step 6b: Seeding stores, menus, and Store POS users..." -ForegroundColor Yellow
+$env:PYTHONPATH = "$root\code"
+python Run/seed_stores_menus_users.py
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "OK Stores, menus, and POS users ready" -ForegroundColor Green
+}
+
+# Step 6c: Seed สมาชิก (Member) ตัวอย่าง สำหรับ /member ลงทะเบียน-ล็อกอิน
+Write-Host ""
+Write-Host "Step 6c: Seeding sample members..." -ForegroundColor Yellow
+python Run/seed_members.py
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "OK Sample members ready (member1/member123, demo/demo1234)" -ForegroundColor Green
+}
+
+# Step 7: เครียร์เฉพาะ port 8000 (Uvicorn) — ไม่ฆ่า ngrok (4040) เพื่อไม่เกินโควต้า 1 session
+Write-Host ""
+Write-Host "Step 7: Clearing port 8000 (previous Uvicorn)..." -ForegroundColor Yellow
+$port = 8000
+try {
+    $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($conns) {
+        $pids = $conns.OwningProcess | Sort-Object -Unique
+        foreach ($pid in $pids) {
+            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            Write-Host "  Stopped process on port $port (PID $pid)" -ForegroundColor Gray
+        }
+    }
+} catch {
+    $line = netstat -ano | findstr ":$port "
+    if ($line) {
+        $parts = $line.Trim() -split '\s+'
+        $pid = $parts[-1]
+        if ($pid -match '^\d+$') {
+            taskkill /PID $pid /F 2>$null
+            Write-Host "  Stopped process on port $port (PID $pid)" -ForegroundColor Gray
+        }
+    }
+}
+Start-Sleep -Seconds 1
+Write-Host "OK Port 8000 cleared" -ForegroundColor Green
+
+# Step 8: ใช้ ngrok ที่รันอยู่แล้วถ้ามี (บัญชีฟรีจำกัด 1 session) ไม่ก็สตาร์ทใหม่
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "Setup Complete!" -ForegroundColor Green
@@ -75,23 +141,37 @@ Write-Host ""
 
 $ngrokUrl = $null
 if (Get-Command ngrok -ErrorAction SilentlyContinue) {
-    Write-Host "Starting ngrok (port 8000) first..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "ngrok http 8000"
-    Write-Host "Waiting for ngrok tunnel..." -ForegroundColor Gray
-    $maxAttempts = 15
-    for ($i = 1; $i -le $maxAttempts; $i++) {
-        Start-Sleep -Seconds 1
-        try {
-            $tunnels = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-            $https = $tunnels.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
-            if ($https -and $https.public_url) {
-                $ngrokUrl = $https.public_url.TrimEnd("/")
-                Write-Host "OK ngrok URL: $ngrokUrl" -ForegroundColor Green
-                break
-            }
-        } catch {
-            if ($i -eq $maxAttempts) {
-                Write-Host "ngrok API not ready in time. Server will use config BACKEND_URL." -ForegroundColor Yellow
+    # ถ้า port 4040 ถูกใช้ = มี ngrok รันอยู่แล้ว → ใช้ tunnel เดิม (ไม่สตาร์ทซ้ำ จะได้ไม่โดน ERR_NGROK_108)
+    $ngrokAlreadyRunning = $false
+    try {
+        $tunnels = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+        $https = $tunnels.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+        if ($https -and $https.public_url) {
+            $ngrokUrl = $https.public_url.TrimEnd("/")
+            $ngrokAlreadyRunning = $true
+            Write-Host "Using existing ngrok tunnel: $ngrokUrl" -ForegroundColor Green
+        }
+    } catch { }
+
+    if (-not $ngrokAlreadyRunning) {
+        Write-Host "Starting ngrok (port 8000)..." -ForegroundColor Yellow
+        Start-Process powershell -ArgumentList "-NoExit", "-Command", "ngrok http 8000"
+        Write-Host "Waiting for ngrok tunnel..." -ForegroundColor Gray
+        $maxAttempts = 15
+        for ($i = 1; $i -le $maxAttempts; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+                $tunnels = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+                $https = $tunnels.tunnels | Where-Object { $_.public_url -like "https://*" } | Select-Object -First 1
+                if ($https -and $https.public_url) {
+                    $ngrokUrl = $https.public_url.TrimEnd("/")
+                    Write-Host "OK ngrok URL: $ngrokUrl" -ForegroundColor Green
+                    break
+                }
+            } catch {
+                if ($i -eq $maxAttempts) {
+                    Write-Host "ngrok API not ready in time. If you see ERR_NGROK_108, close any other ngrok window and run this script again." -ForegroundColor Yellow
+                }
             }
         }
     }
@@ -130,3 +210,6 @@ try {
     Write-Host "Open manually: $openUrl" -ForegroundColor Yellow
 }
 Write-Host "Server (and ngrok if used) running in separate windows. Close those windows to stop." -ForegroundColor Gray
+Write-Host ""
+Write-Host "ถ้าเปิดลิงก์ไม่ได้ (ERR_NGROK_3200 / ERR_NGROK_727): ใช้ localhost แทน -> " -ForegroundColor Yellow -NoNewline
+Write-Host "http://localhost:8000/launch?store_id=1" -ForegroundColor Cyan

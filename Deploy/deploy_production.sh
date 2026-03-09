@@ -36,7 +36,7 @@ python3 -c "from app.database import engine; from sqlalchemy import text; conn =
 echo ""
 read -p "5. Create systemd service? (Y/N): " create_service
 if [ "$create_service" = "Y" ] || [ "$create_service" = "y" ]; then
-    sudo tee /etc/systemd/system/foodcourt.service > /dev/null <<EOF
+    sudo tee /etc/systemd/system/marketplace.service > /dev/null <<EOF
 [Unit]
 Description=Food Court Management System
 After=network.target
@@ -54,20 +54,20 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
     sudo systemctl daemon-reload
-    sudo systemctl enable foodcourt
+    sudo systemctl enable marketplace
     echo "✅ Systemd service created"
-    echo "   Start: sudo systemctl start foodcourt"
-    echo "   Status: sudo systemctl status foodcourt"
-    echo "   Logs: sudo journalctl -u foodcourt -f"
+    echo "   Start: sudo systemctl start marketplace"
+    echo "   Status: sudo systemctl status marketplace"
+    echo "   Logs: sudo journalctl -u marketplace -f"
 fi
 
 # 6. Setup Nginx (optional)
 echo ""
 read -p "6. Setup Nginx configuration? (Y/N): " setup_nginx
 if [ "$setup_nginx" = "Y" ] || [ "$setup_nginx" = "y" ]; then
-    echo "Copy nginx.conf.example to /etc/nginx/sites-available/foodcourt"
+    echo "Copy nginx.conf.example to /etc/nginx/sites-available/marketplace"
     echo "Then run:"
-    echo "  sudo ln -s /etc/nginx/sites-available/foodcourt /etc/nginx/sites-enabled/"
+    echo "  sudo ln -s /etc/nginx/sites-available/marketplace /etc/nginx/sites-enabled/"
     echo "  sudo nginx -t"
     echo "  sudo systemctl reload nginx"
 fi
@@ -90,6 +90,6 @@ echo "To start the server:"
 echo "  gunicorn main:app -c gunicorn_config.py"
 echo ""
 echo "Or use systemd:"
-echo "  sudo systemctl start foodcourt"
+echo "  sudo systemctl start marketplace"
 echo ""
 

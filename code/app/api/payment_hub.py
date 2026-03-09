@@ -24,7 +24,7 @@ async def use_foodcourt_id(
     db: Session = Depends(get_db)
 ):
     """
-    ใช้ Food Court ID ที่ร้านค้า (หักยอดเงิน)
+    ใช้ Marketplace ID ที่ร้านค้า (หักยอดเงิน)
     """
     try:
         payment_hub = PaymentHub(db)
@@ -56,7 +56,7 @@ async def get_balance(
     balance_info = payment_hub.get_foodcourt_id_balance(foodcourt_id)
 
     if not balance_info:
-        raise HTTPException(status_code=404, detail="Food Court ID not found")
+        raise HTTPException(status_code=404, detail="Marketplace ID not found")
 
     return balance_info
 

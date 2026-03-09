@@ -41,7 +41,7 @@
 
         /* ซ้าย 50%: Image signage – ความสูงเต็ม 100%, crop ด้านกว้าง, เปลี่ยนรูปทุก 2 วินาที */
         .signage-video-section {
-            flex: 0 0 50%;
+            flex: 0 0 75%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -66,7 +66,7 @@
 
         /* ขวา 50%: ช่องรอชำระ PromptPay (QR ด้านบน + รายการสินค้าด้านล่าง) – โทนเข้ม */
         .signage-right-section {
-            flex: 0 0 50%;
+            flex: 0 0 25%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -105,13 +105,16 @@
         }
         .signage-right-section .qr-wrap img.qr-banner {
             display: block;
-            width: clamp(140px, 18vw, 200px);
+            width: 100%;
+            min-width: 220px;
+            max-width: 360px;
             height: auto;
             margin-bottom: 12px;
+            object-fit: contain;
         }
         .signage-right-section .qr-wrap img#signage-qr {
             display: block;
-            width: clamp(220px, 28vw, 360px);
+            width: 100%;
             height: auto;
             min-width: 220px;
             min-height: 220px;
@@ -119,6 +122,9 @@
             object-fit: contain;
             background: #fff;
         }
+        #signage-qr-plain-wrap img,
+        #signage-qr-plain-wrap table { display: block !important; max-width: 100%; height: auto; margin: 0 auto; }
+        #signage-qr-plain-wrap { min-width: 220px; min-height: 220px; max-width: 360px; margin: 0 auto; }
         .signage-right-section .payment-channel .amount {
             font-size: clamp(1.6rem, 4vw, 2.5rem);
             font-weight: 700;
@@ -227,6 +233,7 @@
                     <div id="qr-block" style="display:none;">
                         <div class="qr-wrap">
                             <img src="/static/imgs/ci-qrpayment-img-01.png" alt="Thai QR Payment" class="qr-banner">
+                            <div id="signage-qr-plain-wrap" style="display:none; min-height:220px;"></div>
                             <img id="signage-qr" src="" alt="QR Code">
                         </div>
                         <p class="price-label">ราคาอาหาร</p>
@@ -254,6 +261,7 @@
         <div class="amount" id="paid-amount">0.00 บาท</div>
     </div>
 
+    <script src="/static/js/qrcode.min.js"></script>
     <script>
         const API_BASE = window.location.origin + '/api';
         const urlParams = new URLSearchParams(window.location.search);
@@ -272,16 +280,48 @@
             h.textContent = 'สื่อโฆษณาของร้าน' + (storeName ? ' + ' + storeName : '');
         }
 
-        function showQRMode(qrImage, amount, orderItems) {
+        function showQRMode(qrImage, amount, orderItems, qrPlainText) {
             document.getElementById('qr-block').style.display = 'block';
             document.getElementById('idle-block').style.display = 'none';
             var qrEl = document.getElementById('signage-qr');
-            if (qrImage && (qrImage.startsWith('data:') || qrImage.startsWith('http'))) {
-                qrEl.src = qrImage;
-                qrEl.style.visibility = 'visible';
-            } else {
+            var plainWrap = document.getElementById('signage-qr-plain-wrap');
+            var hasPlain = qrPlainText && typeof qrPlainText === 'string' && qrPlainText.trim().length > 0;
+            if (hasPlain && typeof QRCode !== 'undefined' && plainWrap) {
+                plainWrap.innerHTML = '';
+                plainWrap.style.display = 'block';
+                qrEl.style.display = 'none';
                 qrEl.src = '';
-                qrEl.style.visibility = qrImage ? 'visible' : 'hidden';
+                try {
+                    new QRCode(plainWrap, {
+                        text: qrPlainText.trim(),
+                        width: 256,
+                        height: 256,
+                        colorDark: '#000',
+                        colorLight: '#fff'
+                    });
+                } catch (e) {
+                    console.warn('Signage QRCode draw failed', e);
+                    plainWrap.style.display = 'none';
+                    qrEl.style.display = 'block';
+                    if (qrImage && (qrImage.startsWith('data:') || qrImage.startsWith('http'))) {
+                        qrEl.src = qrImage;
+                        qrEl.style.visibility = 'visible';
+                    } else {
+                        qrEl.src = '';
+                        qrEl.style.visibility = 'hidden';
+                    }
+                }
+            } else {
+                plainWrap.style.display = 'none';
+                plainWrap.innerHTML = '';
+                qrEl.style.display = 'block';
+                if (qrImage && (qrImage.startsWith('data:') || qrImage.startsWith('http'))) {
+                    qrEl.src = qrImage;
+                    qrEl.style.visibility = 'visible';
+                } else {
+                    qrEl.src = '';
+                    qrEl.style.visibility = qrImage ? 'visible' : 'hidden';
+                }
             }
             document.getElementById('signage-amount').textContent = parseFloat(amount || 0).toFixed(2) + ' บาท';
             renderProductList(orderItems || [], amount);
@@ -429,10 +469,10 @@
                     }
                     return;
                 }
-                if (data.status === 'waiting_payment' && data.qr_image) {
+                if (data.status === 'waiting_payment' && (data.qr_plain_text || data.qr_image)) {
                     paidShownAt = null;
                     hidePaidMode();
-                    showQRMode(data.qr_image, data.amount, data.order_items);
+                    showQRMode(data.qr_image, data.amount, data.order_items, data.qr_plain_text);
                     return;
                 }
                 if (data.status === 'cart' && data.order_items && data.order_items.length > 0) {
@@ -441,8 +481,8 @@
                     showCartOnlyMode(data.order_items, data.amount);
                     return;
                 }
-                if (data.status === 'waiting_payment' && !data.qr_image) {
-                    console.warn('Signage: waiting_payment but no qr_image', data);
+                if (data.status === 'waiting_payment' && !data.qr_plain_text && !data.qr_image) {
+                    console.warn('Signage: waiting_payment but no qr_plain_text/qr_image', data);
                 }
                 paidShownAt = null;
                 hidePaidMode();

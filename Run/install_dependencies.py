@@ -70,7 +70,7 @@ def upgrade_pip():
 def main():
     """Main function"""
     print("\n" + "=" * 60)
-    print("Food Court Management System - Dependency Installer")
+    print("Marketplace Management System - Dependency Installer")
     print("=" * 60 + "\n")
     
     # Upgrade pip first

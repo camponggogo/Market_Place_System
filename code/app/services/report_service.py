@@ -117,7 +117,7 @@ class ReportService:
         start_date = datetime.combine(date.date(), datetime.min.time())
         end_date = datetime.combine(date.date(), datetime.max.time())
 
-        # ดึงข้อมูล Counter Transactions (การแลก Food Court ID)
+        # ดึงข้อมูล Counter Transactions (การแลก Marketplace ID)
         counter_transactions = self.db.query(CounterTransaction).filter(
             CounterTransaction.created_at >= start_date,
             CounterTransaction.created_at <= end_date,

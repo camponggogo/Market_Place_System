@@ -13,12 +13,15 @@ from typing import Dict, List
 # Rate limiting storage (ใน production ควรใช้ Redis)
 rate_limit_store: Dict[str, list] = defaultdict(list)
 
-# Paths ที่ไม่นับ rate limit (polling / หน้าเว็บที่โหลดบ่อย)
+# Paths ที่ไม่นับ rate limit (polling / หน้าเว็บที่โหลดบ่อย / login / webhook)
 RATE_LIMIT_SKIP_PREFIXES: List[str] = [
     "/admin",
     "/api/signage",
+    "/api/auth",
     "/api/payment-callback/stores/",
+    "/api/payment-callback/webhook",
     "/store-pos",
+    "/store-pos-login",
     "/signage",
     "/customer",
     "/launch",

@@ -136,10 +136,31 @@ def get_promptpay_qr_data_from_payment_intent(pi: Dict[str, Any]) -> Optional[st
     คืนค่า next_action.promptpay_display_qr_code.data หรือ None ถ้าไม่มี
     """
     next_action = pi.get("next_action") or {}
-    qr_action = next_action.get("promptpay_display_qr_code")
+    qr_action = next_action.get("promptpay_display_qr_code") or next_action.get("promptpayDisplayQrCode")
     if not qr_action:
+        logger.debug("Stripe PI next_action has no promptpay_display_qr_code: %s", list(next_action.keys()) if next_action else "empty")
         return None
-    return qr_action.get("data")
+    data = qr_action.get("data")
+    if not data:
+        logger.warning("Stripe promptpay_display_qr_code has no 'data': %s", list(qr_action.keys()) if isinstance(qr_action, dict) else type(qr_action))
+    return data
+
+
+def get_promptpay_qr_image_url_from_payment_intent(pi: Dict[str, Any]) -> Optional[str]:
+    """
+    ดึง URL รูป QR จาก next_action.promptpay_display_qr_code (image_url_png หรือ image_url_svg).
+    ใช้เป็น fallback เมื่อไม่มี data (plain text) สำหรับสร้าง QR ฝั่ง client
+    """
+    next_action = pi.get("next_action") or {}
+    qr_action = next_action.get("promptpay_display_qr_code") or next_action.get("promptpayDisplayQrCode")
+    if not qr_action or not isinstance(qr_action, dict):
+        return None
+    return (
+        qr_action.get("image_url_png")
+        or qr_action.get("imageUrlPng")
+        or qr_action.get("image_url_svg")
+        or qr_action.get("imageUrlSvg")
+    )
 
 
 def list_webhook_endpoints(secret_key: str) -> list:

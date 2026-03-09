@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food Court - ลูกค้า</title>
+    <title>Marketplace - ลูกค้า</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;700&display=swap');
         
@@ -521,7 +521,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🍽️ <span data-i18n="customer_title">Food Court - ลูกค้า</span></h1>
+            <h1>🍽️ <span data-i18n="customer_title">Marketplace - ลูกค้า</span></h1>
             <div style="margin-top:8px;font-size:14px;opacity:0.9;">
                 <a href="?locale=th" style="color:white;margin:0 6px;">ไทย</a>
                 <a href="?locale=en" style="color:white;margin:0 6px;">EN</a>
@@ -589,7 +589,7 @@
                 
                 <div class="info-grid">
                     <div class="info-item">
-                        <label>Food Court IDs</label>
+                        <label>Marketplace IDs</label>
                         <div class="value" id="total-fc-ids">0</div>
                     </div>
                     <div class="info-item">
@@ -624,7 +624,7 @@
         <div class="topup-modal-content">
             <div class="topup-modal-title">💳 เติมเงิน</div>
             <div style="text-align: center; margin-bottom: 15px;">
-                <div style="font-size: 16px; color: #666;">Food Court ID:</div>
+                <div style="font-size: 16px; color: #666;">Marketplace ID:</div>
                 <div style="font-size: 20px; font-weight: bold; color: #667eea;" id="topup-fc-id">-</div>
             </div>
             
@@ -919,7 +919,7 @@
                 const fcIdsList = document.getElementById('fc-ids-list');
                 
                 if (customerFCIds.length === 0) {
-                    fcIdsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Food Court ID</p>';
+                    fcIdsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Marketplace ID</p>';
                     return;
                 }
                 
@@ -970,7 +970,7 @@
                 });
                 
             } catch (error) {
-                console.error('Error loading Food Court IDs:', error);
+                console.error('Error loading Marketplace IDs:', error);
                 showAlert('❌ ไม่สามารถโหลดข้อมูลได้', 'error', 'dashboard-alert-container');
             }
         }
@@ -1009,25 +1009,25 @@
             if (!currentCustomer) return;
             
             try {
-                // Get Food Court IDs for this customer first
+                // Get Marketplace IDs for this customer first
                 const fcIdsResponse = await fetch(`${API_BASE_URL}/counter/foodcourt-ids?limit=100&customer_id=${currentCustomer.id}`);
                 const customerFCIds = await fcIdsResponse.json();
                 
                 const transactionsList = document.getElementById('transactions-list');
                 
                 if (customerFCIds.length === 0) {
-                    transactionsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Food Court ID ที่ผูกไว้</p>';
+                    transactionsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">ยังไม่มี Marketplace ID ที่ผูกไว้</p>';
                     return;
                 }
                 
                 // Get FC IDs list
                 const fcIdList = customerFCIds.map(fc => fc.foodcourt_id);
                 
-                // Get transactions for this customer's Food Court IDs
+                // Get transactions for this customer's Marketplace IDs
                 const response = await fetch(`${API_BASE_URL}/admin/transactions?limit=100`);
                 const transactions = await response.json();
                 
-                // Filter transactions for this customer's Food Court IDs only
+                // Filter transactions for this customer's Marketplace IDs only
                 const customerTransactions = transactions.filter(t => {
                     return t.foodcourt_id && fcIdList.includes(t.foodcourt_id);
                 });
@@ -1128,7 +1128,7 @@
             }
             
             if (!selectedTopupFCId) {
-                showAlert('ไม่พบ Food Court ID', 'error', 'dashboard-alert-container');
+                showAlert('ไม่พบ Marketplace ID', 'error', 'dashboard-alert-container');
                 return;
             }
             

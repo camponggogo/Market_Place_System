@@ -115,10 +115,10 @@ def main():
 
     try:
         # --- Profile ---
-        profile = db.query(Profile).filter(Profile.name == "Food Court ทดสอบ").first()
+        profile = db.query(Profile).filter(Profile.name == "Marketplace ทดสอบ").first()
         if not profile:
             profile = Profile(
-                name="Food Court ทดสอบ",
+                name="Marketplace ทดสอบ",
                 description="Profile สำหรับทดสอบ full-loop",
                 profile_type="store_rental",
                 is_active=True,
@@ -126,7 +126,7 @@ def main():
             db.add(profile)
             db.commit()
             db.refresh(profile)
-            print("  + Profile: Food Court ทดสอบ")
+            print("  + Profile: Marketplace ทดสอบ")
         else:
             print("  (Profile มีอยู่แล้ว)")
 

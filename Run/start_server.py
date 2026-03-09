@@ -16,7 +16,7 @@ def start_server():
     os_name = detect_os()
     
     print("=" * 50)
-    print("Food Court Management System - Server Startup")
+    print("Marketplace Management System - Server Startup")
     print("=" * 50)
     print(f"Detected OS: {platform.system()} {platform.release()}")
     print()

@@ -211,7 +211,7 @@ def check_api_modules():
 def main():
     """Main function"""
     print("\n" + "=" * 60)
-    print("Food Court Management System - Setup Checker")
+    print("Marketplace Management System - Setup Checker")
     print("=" * 60 + "\n")
     
     results = {

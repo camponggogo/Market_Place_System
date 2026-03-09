@@ -1,0 +1,43 @@
+# Deploy to server when code is pushed to main (or master).
+# เซิร์ฟเวอร์จะรับการ push แล้ว SSH เข้าไปรัน git pull + docker deploy อัตโนมัติ
+#
+# ต้องตั้งค่า Secrets ใน GitHub repo:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   - DEPLOY_SSH_KEY: เนื้อหา private key (ใช้เชื่อม SSH เข้าเซิร์ฟเวอร์)
+#   - DEPLOY_HOST: IP หรือ hostname เซิร์ฟเวอร์ (เช่น 150.95.85.185)
+#   - DEPLOY_USER: SSH user (เช่น admin)
+# ถ้า SSH ไม่ใช้พอร์ต 22:
+#   - DEPLOY_SSH_PORT: พอร์ต (เช่น 2222)
+# ถ้าโฟลเดอร์โปรเจกต์บนเซิร์ฟเวอร์ไม่ใช่ /opt/marketplace:
+#   - DEPLOY_REPO_DIR: path เต็ม (เช่น /home/admin/marketplace)
+
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        env:
+          DEPLOY_REPO_DIR: ${{ secrets.DEPLOY_REPO_DIR }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+          envs: DEPLOY_REPO_DIR
+          script: |
+            set -e
+            REPO_DIR="${DEPLOY_REPO_DIR:-/opt/marketplace}"
+            if [ ! -d "$REPO_DIR/Deploy" ]; then
+              echo "Error: $REPO_DIR/Deploy not found. Clone the repo on the server first."
+              exit 1
+            fi
+            cd "$REPO_DIR/Deploy"
+            chmod +x pull_and_deploy.sh
+            ./pull_and_deploy.sh

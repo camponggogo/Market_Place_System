@@ -76,10 +76,10 @@ class TaxService:
         # คำนวณ VAT
         tax_calc = self.calculate_vat(transaction.amount)
 
-        # ดึง Payment Method จาก Transaction หรือ Food Court ID
+        # ดึง Payment Method จาก Transaction หรือ Marketplace ID
         payment_method = transaction.payment_method.value if transaction.payment_method else None
         
-        # ถ้ามี Food Court ID ให้ดึง Payment Method จาก Food Court ID
+        # ถ้ามี Marketplace ID ให้ดึง Payment Method จาก Marketplace ID
         if transaction.foodcourt_id:
             from app.models import FoodCourtID
             foodcourt_id = self.db.query(FoodCourtID).filter(

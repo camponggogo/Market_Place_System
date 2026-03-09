@@ -1,4 +1,4 @@
-# Nginx Configuration Example for Food Court Management System
+# Nginx Configuration Example for Marketplace Management System
 # สำหรับ public internet access
 # Scale: ~1000 users/day, ~200 stores/day
 

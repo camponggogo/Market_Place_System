@@ -21,10 +21,10 @@ async def get_statistics(db: Session = Depends(get_db)):
     """
     ดึงสถิติรวมของระบบ
     """
-    # นับ Food Court IDs ทั้งหมด
+    # นับ Marketplace IDs ทั้งหมด
     total_fc_ids = db.query(FoodCourtID).count()
     
-    # นับ Food Court IDs ที่ active
+    # นับ Marketplace IDs ที่ active
     active_fc_ids = db.query(FoodCourtID).filter(FoodCourtID.status == "active").count()
     
     # ยอดเงินรวมทั้งหมด
@@ -129,7 +129,7 @@ async def list_customers(
     
     customers = query.order_by(Customer.created_at.desc()).offset(skip).limit(limit).all()
     
-    # ดึงยอดเงินคงเหลือและ Food Court IDs
+    # ดึงยอดเงินคงเหลือและ Marketplace IDs
     from app.models import CustomerBalance, FoodCourtID
     
     result = []
@@ -138,7 +138,7 @@ async def list_customers(
             CustomerBalance.customer_id == customer.id
         ).first()
         
-        # นับจำนวน Food Court IDs ที่ผูกไว้
+        # นับจำนวน Marketplace IDs ที่ผูกไว้
         fc_ids = db.query(FoodCourtID).filter(
             FoodCourtID.customer_id == customer.id
         ).all()
@@ -168,7 +168,7 @@ async def link_foodcourt_id(
     db: Session = Depends(get_db)
 ):
     """
-    ผูก Food Court ID กับลูกค้า
+    ผูก Marketplace ID กับลูกค้า
     ถ้าไม่ระบุ foodcourt_id จะหาที่ว่างหรือสร้างใหม่
     """
     try:
@@ -181,44 +181,44 @@ async def link_foodcourt_id(
             raise HTTPException(status_code=404, detail="Customer not found")
         
         if request.foodcourt_id:
-            # ผูกกับ Food Court ID ที่ระบุ
+            # ผูกกับ Marketplace ID ที่ระบุ
             fc_id = db.query(FoodCourtID).filter(
                 FoodCourtID.foodcourt_id == request.foodcourt_id
             ).first()
             
             if not fc_id:
-                raise HTTPException(status_code=404, detail="Food Court ID not found")
+                raise HTTPException(status_code=404, detail="Marketplace ID not found")
             
             if fc_id.customer_id and fc_id.customer_id != request.customer_id:
-                raise HTTPException(status_code=400, detail="Food Court ID already linked to another customer")
+                raise HTTPException(status_code=400, detail="Marketplace ID already linked to another customer")
             
             fc_id.customer_id = request.customer_id
             db.commit()
             
             return {
                 "success": True,
-                "message": f"Food Court ID {request.foodcourt_id} linked to customer {request.customer_id}",
+                "message": f"Marketplace ID {request.foodcourt_id} linked to customer {request.customer_id}",
                 "foodcourt_id": fc_id.foodcourt_id
             }
         else:
-            # หา Food Court ID ที่ว่าง
+            # หา Marketplace ID ที่ว่าง
             empty_fc_id = db.query(FoodCourtID).filter(
                 FoodCourtID.customer_id.is_(None),
                 FoodCourtID.status == "active"
             ).first()
             
             if empty_fc_id:
-                # ผูกกับ Food Court ID ที่ว่าง
+                # ผูกกับ Marketplace ID ที่ว่าง
                 empty_fc_id.customer_id = request.customer_id
                 db.commit()
                 
                 return {
                     "success": True,
-                    "message": f"Food Court ID {empty_fc_id.foodcourt_id} linked to customer {request.customer_id}",
+                    "message": f"Marketplace ID {empty_fc_id.foodcourt_id} linked to customer {request.customer_id}",
                     "foodcourt_id": empty_fc_id.foodcourt_id
                 }
             else:
-                # สร้าง Food Court ID ใหม่
+                # สร้าง Marketplace ID ใหม่
                 payment_hub = PaymentHub(db)
                 new_fc_id = payment_hub.exchange_to_foodcourt_id(
                     amount=0.0,
@@ -228,7 +228,7 @@ async def link_foodcourt_id(
                 
                 return {
                     "success": True,
-                    "message": f"New Food Court ID {new_fc_id.foodcourt_id} created and linked to customer {request.customer_id}",
+                    "message": f"New Marketplace ID {new_fc_id.foodcourt_id} created and linked to customer {request.customer_id}",
                     "foodcourt_id": new_fc_id.foodcourt_id
                 }
     except HTTPException:
@@ -237,7 +237,7 @@ async def link_foodcourt_id(
         db.rollback()
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error linking Food Court ID: {str(e)}", exc_info=True)
+        logger.error(f"Error linking Marketplace ID: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -248,7 +248,7 @@ async def unlink_foodcourt_id(
     db: Session = Depends(get_db)
 ):
     """
-    ยกเลิกการผูก Food Court ID กับลูกค้า
+    ยกเลิกการผูก Marketplace ID กับลูกค้า
     """
     try:
         from app.models import FoodCourtID
@@ -259,14 +259,14 @@ async def unlink_foodcourt_id(
         ).first()
         
         if not fc_id:
-            raise HTTPException(status_code=404, detail="Food Court ID not found or not linked to this customer")
+            raise HTTPException(status_code=404, detail="Marketplace ID not found or not linked to this customer")
         
         fc_id.customer_id = None
         db.commit()
         
         return {
             "success": True,
-            "message": f"Food Court ID {foodcourt_id} unlinked from customer {customer_id}"
+            "message": f"Marketplace ID {foodcourt_id} unlinked from customer {customer_id}"
         }
     except HTTPException:
         raise
