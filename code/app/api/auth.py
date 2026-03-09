@@ -79,18 +79,19 @@ async def login(
     if not user or not _verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
 
-    # ตรวจสอบสิทธิ์จาก user_store
+    # ตรวจสอบสิทธิ์จาก user_store (admin สามารถล็อกอินได้แม้ไม่มีร้าน — เพื่อเข้า Admin)
     user_stores = db.query(UserStore).filter(UserStore.user_id == user.id).all()
     store_ids = [us.store_id for us in user_stores]
+    is_admin = getattr(user, "is_admin", False)
 
-    if not store_ids:
+    if not store_ids and not is_admin:
         raise HTTPException(
             status_code=403,
             detail="ไม่พบสิทธิ์เข้าถึงร้านค้า กรุณาติดต่อผู้ดูแลระบบ",
         )
 
     # โหลด store names
-    stores = db.query(Store).filter(Store.id.in_(store_ids)).all()
+    stores = db.query(Store).filter(Store.id.in_(store_ids)).all() if store_ids else []
     stores_data = [{"id": s.id, "name": s.name} for s in stores]
 
     # บันทึก session

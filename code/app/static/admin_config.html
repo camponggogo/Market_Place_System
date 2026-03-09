@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จัดการ config.ini - Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'TH Sarabun New', 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; font-size: 16px; }
+    .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0 0 8px 0; font-size: 22px; }
+    .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+    .back:hover { text-decoration: underline; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 18px; color: #1f3a8a; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
+    th { background: #f8fafc; font-weight: 600; }
+    td.value-cell { font-family: monospace; word-break: break-all; max-width: 320px; }
+    .value-masked { color: #64748b; letter-spacing: 0.05em; }
+    .btn-icon { background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 18px; line-height: 1; }
+    .btn-icon:hover { background: #e5e7eb; }
+    .btn-icon.reveal { font-size: 20px; }
+    .btn-save, .btn-cancel { padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; margin-left: 4px; }
+    .btn-save { background: #2563eb; color: #fff; }
+    .btn-save:hover { background: #1d4ed8; }
+    .btn-cancel { background: #e5e7eb; color: #374151; }
+    .btn-cancel:hover { background: #d1d5db; }
+    input[type="text"].value-input { width: 100%; max-width: 360px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-family: monospace; font-size: 13px; }
+    #alert { margin-bottom: 16px; padding: 12px; border-radius: 8px; display: none; }
+    #alert.error { background: #fef2f2; color: #b91c1c; }
+    #alert.success { background: #f0fdf4; color: #166534; }
+    .revealed-value { background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+    .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    p.muted { color: #64748b; font-size: 14px; margin: 0 0 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/admin" class="back">← กลับ Admin</a>
+    <h1>⚙️ จัดการ config.ini</h1>
+    <p class="muted" style="margin:0; opacity:0.9;">ค่าลับแสดงเป็น **** กดไอคอนดวงตาเพื่อดูค่า (ลดความเสี่ยงจากการถ่ายภาพหรือ screen capture)</p>
+    <p class="muted" style="margin:4px 0 0 0; opacity:0.8; font-size:13px;">หมายเหตุ: การบันทึกผ่านหน้านี้อาจทำให้ comment ใน config.ini หายไป แนะนำให้ backup ไฟล์ก่อนแก้ไข</p>
+  </div>
+  <div id="alert"></div>
+  <div id="content"></div>
+  <script>
+    const API = window.location.origin + '/api/admin/config';
+
+    function showAlert(msg, type) {
+      const el = document.getElementById('alert');
+      el.textContent = msg;
+      el.className = type || 'error';
+      el.style.display = 'block';
+      setTimeout(function() { el.style.display = 'none'; }, 5000);
+    }
+
+    async function loadConfig() {
+      try {
+        const r = await fetch(API, { credentials: 'include' });
+        if (r.status === 403 || r.status === 401) {
+          window.location.href = '/store-pos-login?next=' + encodeURIComponent('/admin/config');
+          return;
+        }
+        const data = await r.json();
+        render(data.sections || {});
+      } catch (e) {
+        document.getElementById('content').innerHTML = '<div class="card"><p style="color:red">โหลด config ไม่สำเร็จ: ' + (e.message || '') + '</p></div>';
+      }
+    }
+
+    async function reveal(section, key, cellEl) {
+      try {
+        const r = await fetch(API + '/reveal?section=' + encodeURIComponent(section) + '&key=' + encodeURIComponent(key), { credentials: 'include' });
+        if (!r.ok) throw new Error('ดึงค่าไม่สำเร็จ');
+        const data = await r.json();
+        const span = document.createElement('span');
+        span.className = 'revealed-value';
+        span.textContent = data.value || '';
+        cellEl.innerHTML = '';
+        cellEl.appendChild(span);
+        setTimeout(function() {
+          cellEl.innerHTML = '<span class="value-masked">********</span>';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-icon reveal';
+          btn.title = 'แสดงค่า';
+          btn.textContent = '👁';
+          btn.onclick = function() { reveal(section, key, cellEl); };
+          cellEl.appendChild(btn);
+        }, 8000);
+      } catch (e) {
+        showAlert('ดึงค่าจริงไม่สำเร็จ', 'error');
+      }
+    }
+
+    function startEdit(section, key, value, rowEl) {
+      const cell = rowEl.querySelector('.value-cell');
+      const actionsCell = rowEl.querySelector('.actions-cell');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'value-input';
+      input.value = value === '********' ? '' : value;
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'btn-save';
+      saveBtn.textContent = 'บันทึก';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn-cancel';
+      cancelBtn.textContent = 'ยกเลิก';
+      cell.innerHTML = '';
+      cell.appendChild(input);
+      actionsCell.innerHTML = '';
+      actionsCell.appendChild(saveBtn);
+      actionsCell.appendChild(cancelBtn);
+      saveBtn.onclick = function() { saveValue(section, key, input.value, rowEl); };
+      cancelBtn.onclick = function() { loadConfig(); };
+    }
+
+    async function saveValue(section, key, value, rowEl) {
+      try {
+        const r = await fetch(API, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ section, key, value }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.detail || 'บันทึกไม่สำเร็จ');
+        showAlert(data.message || 'บันทึกแล้ว', 'success');
+        loadConfig();
+      } catch (e) {
+        showAlert(e.message || 'บันทึกไม่สำเร็จ', 'error');
+      }
+    }
+
+    function render(sections) {
+      let html = '';
+      for (const [section, items] of Object.entries(sections)) {
+        if (!items || !items.length) continue;
+        html += '<div class="card"><h2>' + escapeHtml(section) + '</h2><table><thead><tr><th>Key</th><th>Value</th><th style="width:120px">ดำเนินการ</th></tr></thead><tbody>';
+        for (const item of items) {
+          const masked = item.masked === true;
+          const displayValue = masked ? '********' : escapeHtml(item.value || '');
+          html += '<tr data-section="' + escapeAttr(section) + '" data-key="' + escapeAttr(item.key) + '" data-value="' + escapeAttr(item.value || '') + '" data-masked="' + (masked ? '1' : '0') + '">';
+          html += '<td><code>' + escapeHtml(item.key) + '</code></td>';
+          html += '<td class="value-cell">';
+          if (masked) {
+            html += '<span class="value-masked">********</span>';
+          } else {
+            html += '<span>' + displayValue + '</span>';
+          }
+          html += '</td>';
+          html += '<td class="actions-cell"><div class="actions">';
+          if (masked) {
+            html += '<button type="button" class="btn-icon reveal" title="แสดงค่า">👁</button>';
+          }
+          html += '<button type="button" class="btn-icon" title="แก้ไข">✏️</button>';
+          html += '</div></td></tr>';
+        }
+        html += '</tbody></table></div>';
+      }
+      const content = document.getElementById('content');
+      content.innerHTML = html || '<div class="card"><p>ไม่มี config</p></div>';
+
+      content.querySelectorAll('tr').forEach(function(row) {
+        const section = row.getAttribute('data-section');
+        const key = row.getAttribute('data-key');
+        const value = row.getAttribute('data-value');
+        const masked = row.getAttribute('data-masked') === '1';
+        const valueCell = row.querySelector('.value-cell');
+        const actionsCell = row.querySelector('.actions-cell');
+        const revealBtn = row.querySelector('.btn-icon.reveal');
+        const editBtn = row.querySelector('.btn-icon:last-child');
+        if (revealBtn) {
+          revealBtn.onclick = function() { reveal(section, key, valueCell); };
+        }
+        if (editBtn) {
+          editBtn.onclick = function() { startEdit(section, key, masked ? '********' : value, row); };
+        }
+      });
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    loadConfig();
+  </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่า % GP - Admin</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'TH Sarabun New', 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; font-size: 16px; }
+        .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 8px 0; font-size: 22px; }
+        .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+        .back:hover { text-decoration: underline; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 420px; }
+        .card h2 { font-size: 18px; color: #1f3a8a; margin: 0 0 16px 0; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; color: #374151; margin-bottom: 8px; }
+        .form-group input { padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 18px; width: 120px; text-align: right; }
+        .form-group .hint { font-size: 13px; color: #6b7280; margin-top: 6px; }
+        .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 16px; font-weight: 600; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        #alert { margin-bottom: 16px; padding: 12px; border-radius: 8px; display: none; max-width: 420px; }
+        #alert.error { background: #fef2f2; color: #b91c1c; }
+        #alert.success { background: #f0fdf4; color: #166534; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/admin" class="back">← กลับ Admin</a>
+        <h1>ตั้งค่า % GP (อัตราหัก Gross Profit)</h1>
+        <p style="margin:0; opacity:0.9; font-size:14px;">ใช้เป็นค่าเริ่มต้นในรายงานยอดโอนให้ร้านค้า (0 = ไม่หัก)</p>
+    </div>
+    <div id="alert"></div>
+    <div class="card">
+        <h2>อัตราหัก GP จากยอดขาย (%)</h2>
+        <div class="form-group">
+            <label for="gp-percent">ค่า GP ปัจจุบัน (%)</label>
+            <input type="number" id="gp-percent" min="0" max="100" step="0.01" placeholder="0">
+            <p class="hint">ค่าระหว่าง 0 ถึง 100 เช่น 2.5 = หัก 2.5% จากยอดขายเป็น GP</p>
+        <p class="hint" style="margin-top:8px;">ค่าจะถูกเขียนลง config.ini — บางครั้งอาจมีผลหลังรีสตาร์ทแอป</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-save" onclick="saveGP()">บันทึก</button>
+    </div>
+    <script>
+        const API = window.location.origin + '/api/admin/config';
+
+        function showAlert(msg, type) {
+            const el = document.getElementById('alert');
+            el.textContent = msg;
+            el.className = type || 'error';
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 5000);
+        }
+
+        async function loadGP() {
+            try {
+                const r = await fetch(API + '/gp', { credentials: 'include' });
+                if (r.status === 401 || r.status === 403) {
+                    window.location.href = '/store-pos-login?next=' + encodeURIComponent('/admin/gp-settings');
+                    return;
+                }
+                if (!r.ok) throw new Error(await r.text());
+                const data = await r.json();
+                document.getElementById('gp-percent').value = data.gp_percent ?? 0;
+            } catch (e) {
+                showAlert('โหลดค่าไม่สำเร็จ: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function saveGP() {
+            const input = document.getElementById('gp-percent');
+            const val = parseFloat(input.value);
+            if (isNaN(val) || val < 0 || val > 100) {
+                showAlert('กรุณากรอกตัวเลขระหว่าง 0 ถึง 100', 'error');
+                return;
+            }
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            try {
+                const r = await fetch(API + '/gp', {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gp_percent: val })
+                });
+                if (r.status === 403) {
+                    showAlert('ไม่มีสิทธิ์ (ต้องเป็น admin)', 'error');
+                    return;
+                }
+                if (!r.ok) throw new Error(await r.text());
+                const data = await r.json().catch(() => ({}));
+                showAlert(data.message || 'บันทึกอัตราหัก GP แล้ว', 'success');
+            } catch (e) {
+                showAlert('บันทึกไม่สำเร็จ: ' + (e.message || e), 'error');
+            }
+            btn.disabled = false;
+        }
+
+        loadGP();
+    </script>
+</body>
+</html>

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from app.database import engine, Base
-from app.api import customer, crypto, reports, tax, refund, stores, counter, payment_hub, reports_payment, admin, profiles, geo, store_quick_amounts, menus, payment_callback, signage, pos_settings, locale_settings, program_settings, auth, member, member_scan, admin_ecoupon, admin_ads, admin_backup_audit
+from app.api import customer, crypto, reports, tax, refund, stores, counter, payment_hub, reports_payment, admin, admin_config, profiles, geo, store_quick_amounts, menus, payment_callback, signage, pos_settings, locale_settings, program_settings, auth, member, member_scan, admin_ecoupon, admin_ads, admin_backup_audit
 from app.config import BACKEND_URL, SECRET_KEY
 import os
 
@@ -63,6 +63,7 @@ app.include_router(counter.router)
 app.include_router(payment_hub.router)
 app.include_router(reports_payment.router)
 app.include_router(admin.router)
+app.include_router(admin_config.router)
 app.include_router(profiles.router)
 app.include_router(geo.router)
 app.include_router(store_quick_amounts.router)
@@ -112,10 +113,13 @@ async def favicon():
     return Response(status_code=204)
 
 
-# Redirect root to admin dashboard
+# Redirect root to admin dashboard (ต้องล็อกอินและเป็น admin ก่อน)
 @app.get("/admin")
-async def admin_dashboard():
+async def admin_dashboard(request: Request):
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     file_path = os.path.join(_BASE_DIR, "app", "static", "admin_dashboard.html")
     return FileResponse(file_path)
 
@@ -135,9 +139,20 @@ def _get_session(request: Request):
     return getattr(request.state, "session", None) or getattr(request, "session", None)
 
 
+def _require_admin_redirect(request: Request):
+    """ใช้เฉพาะกับเส้นทาง Admin เท่านั้น: ถ้าไม่ได้ล็อกอินหรือไม่ใช่ admin ให้ redirect ไป store-pos-login (หน้า store-pos ไม่เรียกฟังก์ชันนี้)"""
+    from fastapi.responses import RedirectResponse
+    session = _get_session(request)
+    if not session or not session.get("user_id"):
+        return RedirectResponse(url="/store-pos-login?next=" + (request.url.path or "/admin"), status_code=302)
+    if not session.get("is_admin"):
+        return RedirectResponse(url="/store-pos-login?next=" + (request.url.path or "/admin") + "&error=admin_required", status_code=302)
+    return None
+
+
 @app.get("/store-pos")
 async def store_pos(request: Request):
-    """Store POS - ต้องล็อกอินก่อน (ตรวจสอบจาก user_store)"""
+    """Store POS - ต้องล็อกอินก่อน (มี user_id + สิทธิ์ร้าน) ไม่บังคับสิทธิ์ admin เฉพาะส่วน /admin ขึ้นไปที่ต้องเป็น admin"""
     from fastapi.responses import FileResponse, RedirectResponse
 
     session = _get_session(request)
@@ -284,18 +299,63 @@ async def emergency_backup_page(request: Request):
 
 @app.get("/audit-logs")
 async def audit_logs_page(request: Request):
-    """หน้า Audit Logs - เฉพาะ admin (ตรวจสอบที่ API)"""
+    """หน้า Audit Logs - เฉพาะ admin (ต้องล็อกอิน admin ก่อน)"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "audit_logs.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path)
 
 
+@app.get("/admin/config")
+async def admin_config_page(request: Request):
+    """หน้าจัดการ config.ini (เฉพาะ admin)"""
+    from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
+    path = os.path.join(_BASE_DIR, "app", "static", "admin_config.html")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
+
+
+@app.get("/admin/transfer-report")
+async def admin_transfer_report_page(request: Request):
+    """หน้ารายงานยอดโอนให้ร้านค้า (เฉพาะ admin)"""
+    from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
+    path = os.path.join(_BASE_DIR, "app", "static", "admin_transfer_report.html")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
+
+
+@app.get("/admin/gp-settings")
+async def admin_gp_settings_page(request: Request):
+    """หน้าตั้งค่า % GP (อัตราหัก Gross Profit) (เฉพาะ admin)"""
+    from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
+    path = os.path.join(_BASE_DIR, "app", "static", "admin_gp_settings.html")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
+
+
 @app.get("/admin/coupon")
-async def admin_coupon_page():
+async def admin_coupon_page(request: Request):
     """หน้าจัดการคูปอง / E-Coupon"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "admin_coupon.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -303,9 +363,12 @@ async def admin_coupon_page():
 
 
 @app.get("/admin/payment-settings")
-async def admin_payment_settings_page():
+async def admin_payment_settings_page(request: Request):
     """หน้าตั้งค่าการรับเงิน (Payment Gateway)"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "admin_payment_settings.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -313,9 +376,12 @@ async def admin_payment_settings_page():
 
 
 @app.get("/admin/calendar")
-async def admin_calendar_page():
+async def admin_calendar_page(request: Request):
     """ปฏิทินโฆษณา / โปรโมชั่น (Campaign) แบบ Google Calendar"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "admin_calendar.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -323,9 +389,12 @@ async def admin_calendar_page():
 
 
 @app.get("/admin/ads-summary")
-async def admin_ads_summary_page():
+async def admin_ads_summary_page(request: Request):
     """หน้าสรุปผลการตอบรับโฆษณา (Views / Clicks)"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "admin_ads_summary.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -333,9 +402,12 @@ async def admin_ads_summary_page():
 
 
 @app.get("/admin/ads-manage")
-async def admin_ads_manage_page():
+async def admin_ads_manage_page(request: Request):
     """จัดการโฆษณา / ตั้งเวลาปล่อย (start_at, end_at, store)"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "admin_ads_manage.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -343,9 +415,12 @@ async def admin_ads_manage_page():
 
 
 @app.get("/report-qr-payments")
-async def report_qr_payments_page():
+async def report_qr_payments_page(request: Request):
     """รายงานการชำระ QR / Stripe (Back Transactions) - สำหรับ Admin (ทุกร้าน)"""
     from fastapi.responses import FileResponse
+    redirect = _require_admin_redirect(request)
+    if redirect:
+        return redirect
     path = os.path.join(_BASE_DIR, "app", "static", "report_qr_payments.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")

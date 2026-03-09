@@ -191,6 +191,13 @@
             document.getElementById('alert-container').innerHTML = '';
         }
 
+        (function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('error') === 'admin_required') {
+                showAlert('บัญชีนี้ไม่มีสิทธิ์เข้า Admin กรุณาใช้บัญชีผู้ดูแลระบบ (is_admin)', 'error');
+            }
+        })();
+
         async function handleLogin(e) {
             e.preventDefault();
             clearAlert();
@@ -224,27 +231,28 @@
                     return false;
                 }
 
-                if (data.stores && data.stores.length > 0) {
-                    const next = new URLSearchParams(window.location.search).get('next') || '/store-pos';
-                    const sep = next.includes('?') ? '&' : '?';
+                const next = new URLSearchParams(window.location.search).get('next') || '/store-pos';
+                const isAdmin = data.is_admin === true;
 
+                if (data.stores && data.stores.length > 0) {
+                    const sep = next.includes('?') ? '&' : '?';
                     if (data.stores.length === 1) {
                         window.location.href = next + sep + 'store_id=' + data.stores[0].id;
                         return false;
                     }
-
                     const wrap = document.getElementById('store-select-wrap');
                     const sel = document.getElementById('store-select');
                     const btnGo = document.getElementById('btn-go-pos');
-
                     sel.innerHTML = data.stores.map(s => '<option value="' + s.id + '">' + s.name + ' (#' + s.id + ')</option>').join('');
                     wrap.style.display = 'block';
                     document.getElementById('login-form').style.display = 'none';
-
                     btnGo.onclick = function() {
                         const storeId = sel.value;
                         window.location.href = next + sep + 'store_id=' + storeId;
                     };
+                } else if (isAdmin) {
+                    window.location.href = next.startsWith('/admin') ? next : '/admin';
+                    return false;
                 } else {
                     showAlert('ไม่พบสิทธิ์เข้าถึงร้าน กรุณาติดต่อผู้ดูแลระบบ', 'error');
                 }

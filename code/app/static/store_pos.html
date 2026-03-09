@@ -282,26 +282,35 @@
         .qr-modal-content {
             background: #252830;
             border-radius: 16px;
-            padding: 24px;
-            max-width: 500px;
-            width: 90%;
+            padding: 20px 24px;
+            max-width: 420px;
+            width: 92%;
             text-align: center;
             position: relative;
             z-index: 1001;
             pointer-events: auto;
         }
         .qr-modal-content img { max-width: 100%; border-radius: 8px; }
-        #qr-modal-image, #qr-modal-image-legacy { min-width: 280px; min-height: 280px; width: 100%; max-width: 380px; margin: 0 auto; display: block; background: #fff; padding: 8px; border-radius: 8px; object-fit: contain; }
+        /* กล่องโฟกัส QR อยู่กลาง modal ขอบข้างพอดี */
+        .qr-modal-qr-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 12px 0;
+            width: 100%;
+        }
+        #qr-modal-image, #qr-modal-image-legacy { min-width: 260px; min-height: 260px; width: auto; max-width: 320px; height: auto; margin: 0 auto; display: block; background: #fff; padding: 10px; border-radius: 8px; object-fit: contain; }
         .qr-modal-content .amount { font-size: 28px; color: #28a745; margin: 16px 0; }
         #qr-modal-comparison { display: grid !important; }
         #qr-modal-comparison[style*="display: none"] { display: none !important; }
         .qr-modal-content.qr-modal-compare { max-width: 720px; }
         .qr-slot { background: #1e2128; border-radius: 10px; padding: 12px; border: 1px solid #444; }
         .qr-slot-label { font-size: 13px; color: #28a745; margin-bottom: 8px; font-weight: 600; }
-        #qr-modal-stripe-local { min-height: 260px; min-width: 260px; overflow: visible; }
-        #qr-modal-stripe-local img, #qr-modal-stripe-local canvas { display: block !important; max-width: 100% !important; width: 256px; height: auto !important; margin: 0 auto; }
+        #qr-modal-stripe-local { min-height: 260px; min-width: 260px; overflow: visible; display: flex; flex-direction: column; align-items: center; }
+        #qr-modal-stripe-local .qr-modal-promptpay-logo { display: block; width: 100%; max-width: 256px; height: auto; margin: 0 auto 8px auto; }
+        #qr-modal-stripe-local img:not(.qr-modal-promptpay-logo), #qr-modal-stripe-local canvas { display: block !important; max-width: 100% !important; width: 256px; height: auto !important; margin: 0 auto; }
         #qr-modal-stripe-local table { margin: 0 auto; flex-shrink: 0; }
-        #qr-modal-stripe-local > div { display: block !important; width: 256px; height: 256px; }
+        #qr-modal-stripe-local > div { display: block !important; width: 0; height: 256px; flex-shrink: 0; margin: 0; }
         .qr-modal-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .qr-modal-actions .btn { pointer-events: auto; cursor: pointer; }
         /* Cash modal */
@@ -438,8 +447,10 @@
             <p>สแกน QR เพื่อชำระเงิน (PromptPay)</p>
             <p class="text-muted" style="font-size:13px;margin:-8px 0 8px 0;">ลูกค้าใช้แอปธนาคารสแกน QR ได้ทันที - ชำระเงินได้ทั้งช่องทางออนไลน์และหน้าร้าน</p>
             <div id="qr-modal-details" class="qr-modal-details"></div>
-            <!-- โหมดเดี่ยว: QR เดิม (เมื่อไม่ใช้ Stripe) -->
-            <img id="qr-modal-image" src="" alt="QR">
+            <!-- โหมดเดี่ยว: QR อยู่กลาง modal ขอบข้างเหมาะสม -->
+            <div class="qr-modal-qr-wrap">
+                <img id="qr-modal-image" src="" alt="QR">
+            </div>
             <!-- โหมดเปรียบเทียบ: Stripe + QR เดิม (เมื่อใช้ Stripe) -->
             <div id="qr-modal-comparison" style="display:none; grid-template-columns: 1fr 1fr; gap:16px; margin:12px 0; align-items: start;">
                 <div class="qr-slot qr-slot-stripe">
@@ -1061,7 +1072,7 @@
                         var stripeQrWrap = null;
                         if (stripeLocalEl && data.promptpay_qr_data) {
                             stripeQrWrap = document.createElement('div');
-                            stripeQrWrap.style.cssText = 'width:256px;height:256px;flex-shrink:0;margin:0 auto;';
+                            stripeQrWrap.style.cssText = 'width:0px;height:256px;flex-shrink:0;margin:0 0;';
                             stripeLocalEl.appendChild(stripeQrWrap);
                         }
                         function sendToSignage(payload) {
@@ -1074,7 +1085,15 @@
                         }
                         var hasImageUrl = data.promptpay_qr_image_url && typeof data.promptpay_qr_image_url === 'string' && data.promptpay_qr_image_url.trim().length > 0;
                         var hasValidPlainText = data.promptpay_qr_data && typeof data.promptpay_qr_data === 'string' && data.promptpay_qr_data.trim().length > 0;
+                        function createPromptPayLogoImg() {
+                            var logo = document.createElement('img');
+                            logo.src = '/static/imgs/ci-qrpayment-img-01.png';
+                            logo.alt = 'PromptPay';
+                            logo.className = 'qr-modal-promptpay-logo';
+                            return logo;
+                        }
                         if (stripeLocalEl && hasImageUrl) {
+                            stripeLocalEl.appendChild(createPromptPayLogoImg());
                             var img = document.createElement('img');
                             img.src = data.promptpay_qr_image_url.trim();
                             img.alt = 'QR PromptPay (Stripe)';
@@ -1106,6 +1125,7 @@
                                     else if (existingImg && existingImg.src && existingImg.src.indexOf('data:') === 0) dataUrl = existingImg.src;
                                     if (dataUrl) {
                                         stripeLocalEl.innerHTML = '';
+                                        stripeLocalEl.appendChild(createPromptPayLogoImg());
                                         var img = document.createElement('img');
                                         img.src = dataUrl;
                                         img.alt = 'QR PromptPay (Stripe)';

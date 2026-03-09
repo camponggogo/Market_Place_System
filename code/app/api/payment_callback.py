@@ -31,12 +31,14 @@ from app.services.settlement_service import (
     create_daily_settlements,
     get_settlement_list,
     mark_settlement_transferred,
+    mark_settlement_pending,
     notify_store_settlement,
     get_store_settlements_for_receipt,
     get_recent_paid_for_store,
 )
 from app.api.signage import set_signage_paid
 from app.api.admin import resolve_banking_profile_for_store
+from app.api.auth import require_admin
 from app.services import scb_deeplink
 from app.models import Store, Order, Customer, CustomerBalance, MemberActivity, ECoupon
 from app.services import omise_promptpay, stripe_promptpay
@@ -915,21 +917,36 @@ async def create_daily_settlements_endpoint(
 async def mark_transferred(
     settlement_id: int,
     db: Session = Depends(get_db),
+    user: dict = Depends(require_admin),
 ):
-    """บันทึกว่าโอนเงินให้ร้านแล้ว"""
+    """บันทึกว่าโอนเงินให้ร้านแล้ว (เฉพาะ admin สิทธิ์ฝ่ายบัญชี)"""
     st = mark_settlement_transferred(db, settlement_id)
     if not st:
         raise HTTPException(status_code=404, detail="Settlement not found")
     return {"id": st.id, "status": st.status, "transferred_at": st.transferred_at.isoformat() if st.transferred_at else None}
 
 
+@router.post("/settlements/{settlement_id}/mark-pending")
+async def mark_pending(
+    settlement_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_admin),
+):
+    """แก้สถานะกลับเป็นรอโอน (เฉพาะ admin สิทธิ์ฝ่ายบัญชี)"""
+    st = mark_settlement_pending(db, settlement_id)
+    if not st:
+        raise HTTPException(status_code=404, detail="Settlement not found")
+    return {"id": st.id, "status": st.status, "transferred_at": None}
+
+
 @router.post("/settlements/{settlement_id}/notify-store")
 async def notify_store(
     settlement_id: int,
     db: Session = Depends(get_db),
+    user: dict = Depends(require_admin),
 ):
     """
-    แจ้งร้านว่าเงินเข้าเรียบร้อยแล้ว
+    แจ้งร้านว่าเงินเข้าเรียบร้อยแล้ว (เฉพาะ admin)
     ร้านสามารถพิมพ์ใบเสร็จรับเงินมอบให้ลูกค้าได้
     """
     st = notify_store_settlement(db, settlement_id)

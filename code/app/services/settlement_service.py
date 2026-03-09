@@ -319,6 +319,18 @@ def mark_settlement_transferred(db: Session, settlement_id: int) -> Optional[Sto
     return st
 
 
+def mark_settlement_pending(db: Session, settlement_id: int) -> Optional[StoreSettlement]:
+    """แก้สถานะกลับเป็นรอโอน (ยกเลิกการบันทึกโอนแล้ว)"""
+    st = db.query(StoreSettlement).filter(StoreSettlement.id == settlement_id).first()
+    if not st:
+        return None
+    st.status = "pending"
+    st.transferred_at = None
+    db.commit()
+    db.refresh(st)
+    return st
+
+
 def notify_store_settlement(db: Session, settlement_id: int) -> Optional[StoreSettlement]:
     """แจ้งร้านว่าเงินเข้าเรียบร้อยแล้ว (ร้านสามารถพิมพ์ใบเสร็จรับเงินมอบลูกค้าได้)"""
     st = db.query(StoreSettlement).filter(StoreSettlement.id == settlement_id).first()
@@ -400,6 +412,8 @@ def get_settlement_summary_by_period(
         store_name = store.name if store else f"ร้าน #{store_id}"
         store_bank_account = getattr(store, "bank_account", None) if store else None
         store_bank_account = (store_bank_account or "").strip() or None
+        store_bank_name = (getattr(store, "bank_name", None) or "").strip() or None if store else None
+        store_bank_branch = (getattr(store, "bank_branch", None) or "").strip() or None if store else None
 
         gp_deducted = round(total * gp_rate, 2)
         amount_to_transfer = round(total - gp_deducted, 2)
@@ -413,10 +427,33 @@ def get_settlement_summary_by_period(
             "store_id": store_id,
             "store_name": store_name,
             "store_bank_account": store_bank_account,
+            "store_bank_name": store_bank_name,
+            "store_bank_branch": store_bank_branch,
             "amount_to_transfer": amount_to_transfer,
             "gp_deducted": gp_deducted,
             "total_sales": round(total, 2),
         })
+
+    # รายวันเดียว: สร้าง/ดึง StoreSettlement แล้วใส่ settlement_id + transfer_status
+    single_day = start_date.date() == end_date.date()
+    if single_day and by_store:
+        create_daily_settlements(db, start_date.date())
+        settlement_date = start_date.date()
+        settlements = (
+            db.query(StoreSettlement)
+            .filter(func.date(StoreSettlement.settlement_date) == settlement_date)
+            .all()
+        )
+        store_to_settlement = {s.store_id: {"id": s.id, "status": s.status or "pending"} for s in settlements}
+        for row in by_store:
+            sid = row.get("store_id")
+            st = store_to_settlement.get(sid)
+            if st:
+                row["settlement_id"] = st["id"]
+                row["transfer_status"] = st["status"]
+            else:
+                row["settlement_id"] = None
+                row["transfer_status"] = "pending"
 
     overall = {
         "total_sales": round(total_sales, 2),

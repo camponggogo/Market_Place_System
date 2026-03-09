@@ -301,6 +301,8 @@ class Store(Base):
 
     # เลขที่บัญชีร้าน (สำหรับโอนเงินให้ร้าน – ใช้ในรายงานสรุปยอด)
     bank_account = Column(String(50), nullable=True)
+    bank_name = Column(String(128), nullable=True)      # ชื่อธนาคาร
+    bank_branch = Column(String(128), nullable=True)    # สาขาธนาคาร
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

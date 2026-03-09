@@ -91,6 +91,8 @@ def main():
         run_sql(conn, "ALTER TABLE `stores` ADD COLUMN `kbank_customer_id` varchar(128) DEFAULT NULL AFTER `scb_callback_url`", "stores.kbank_customer_id")
         run_sql(conn, "ALTER TABLE `stores` ADD COLUMN `kbank_consumer_secret` varchar(255) DEFAULT NULL AFTER `kbank_customer_id`", "stores.kbank_consumer_secret")
         run_sql(conn, "ALTER TABLE `stores` ADD COLUMN `bank_account` varchar(50) DEFAULT NULL AFTER `kbank_consumer_secret`", "stores.bank_account")
+        run_sql(conn, "ALTER TABLE `stores` ADD COLUMN `bank_name` varchar(128) DEFAULT NULL AFTER `bank_account`", "stores.bank_name")
+        run_sql(conn, "ALTER TABLE `stores` ADD COLUMN `bank_branch` varchar(128) DEFAULT NULL AFTER `bank_name`", "stores.bank_branch")
         # 4) menus: คอลัมน์ให้ตรงกับ model (name_i18n, description_i18n, image_*, barcode, addon_options)
         run_sql(conn, "ALTER TABLE `menus` ADD COLUMN `name_i18n` text DEFAULT NULL AFTER `name`", "menus.name_i18n")
         run_sql(conn, "ALTER TABLE `menus` ADD COLUMN `description_i18n` text DEFAULT NULL AFTER `description`", "menus.description_i18n")

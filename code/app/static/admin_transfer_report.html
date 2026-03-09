@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานยอดโอนให้ร้านค้า - Admin</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'TH Sarabun New', 'Sarabun', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; font-size: 16px; }
+        .header { background: linear-gradient(135deg, #1f3a8a, #2563eb); color: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 8px 0; font-size: 22px; }
+        .back { color: #fff; opacity: 0.9; text-decoration: none; font-size: 14px; }
+        .back:hover { text-decoration: underline; }
+        .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 18px; color: #1f3a8a; margin: 0 0 12px 0; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-weight: 600; color: #374151; }
+        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #6b7280; color: #fff; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-success { background: #059669; color: #fff; }
+        .btn-success:hover { background: #047857; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #e0e7ff; color: #1e3a8a; font-weight: 600; }
+        tr.total-row { background: #f3f4f6; font-weight: 600; }
+        tr.total-row td { border-top: 2px solid #1f3a8a; }
+        #alert { margin-bottom: 16px; padding: 12px; border-radius: 8px; display: none; }
+        #alert.error { background: #fef2f2; color: #b91c1c; }
+        #alert.success { background: #f0fdf4; color: #166534; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-transferred { background: #d1fae5; color: #065f46; }
+        .period-note { font-size: 13px; color: #6b7280; margin-top: 8px; }
+        @media print {
+            .hide-on-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/admin" class="back">← กลับ Admin</a>
+        <h1>📋 รายงานยอดโอนให้ร้านค้า</h1>
+        <p class="period-note">รายได้รวมยอดขาย | ยอดหัก GP | ยอดที่ร้านได้รับ = ยอดโอนให้ร้านค้า | เลขที่บัญชี ชื่อธนาคาร สาขา | สถานะการโอน (เฉพาะ admin ฝ่ายบัญชี)</p>
+    </div>
+    <div id="alert"></div>
+    <div class="card">
+        <h2>เลือกช่วงเวลา</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label>ประเภท</label>
+                <select id="period-type">
+                    <option value="day">รายวัน</option>
+                    <option value="custom">กำหนดช่วงเอง</option>
+                </select>
+            </div>
+            <div class="form-group" id="wrap-day">
+                <label>วันที่</label>
+                <input type="date" id="date-day">
+            </div>
+            <div class="form-group" id="wrap-range" style="display:none;">
+                <label>ตั้งแต่</label>
+                <input type="date" id="date-start">
+            </div>
+            <div class="form-group" id="wrap-range-end" style="display:none;">
+                <label>ถึง</label>
+                <input type="date" id="date-end">
+            </div>
+            <div class="form-group">
+                <label>อัตราหัก GP % (ใช้ค่าจาก <a href="/admin/gp-settings">หน้าตั้งค่า GP</a>)</label>
+                <input type="number" id="gp-percent" placeholder="โหลดจากตั้งค่า GP" min="0" max="100" step="0.01" style="width:100px;">
+            </div>
+            <div class="form-group">
+                <button class="btn btn-primary" id="btn-load" onclick="loadReport()">โหลดรายงาน</button>
+            </div>
+            <div class="form-group" id="wrap-export" style="display:none;">
+                <button class="btn btn-secondary" onclick="exportExcel()">Export Excel</button>
+                <button class="btn btn-success" onclick="exportPDF()">Export PDF</button>
+            </div>
+        </div>
+        <p class="period-note" id="period-display"></p>
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ร้าน</th>
+                        <th>เลขที่บัญชีร้านค้า</th>
+                        <th>ชื่อธนาคาร</th>
+                        <th>สาขาธนาคาร</th>
+                        <th>ยอดขาย (บาท)</th>
+                        <th>% GP</th>
+                        <th>ยอด GP (บาท)</th>
+                        <th>ยอดที่ร้านได้รับ (บาท)</th>
+                        <th>สถานะการโอน</th>
+                    </tr>
+                </thead>
+                <tbody id="report-body">
+                    <tr><td colspan="9">เลือกวันที่หรือช่วงเวลา แล้วกด โหลดรายงาน</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const API = window.location.origin + '/api';
+        let lastData = null;
+        let isSingleDay = false;
+
+        function showAlert(msg, type) {
+            const el = document.getElementById('alert');
+            el.textContent = msg;
+            el.className = type || 'error';
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 5000);
+        }
+
+        document.getElementById('period-type').addEventListener('change', function() {
+            const v = this.value;
+            document.getElementById('wrap-day').style.display = v === 'day' ? 'block' : 'none';
+            document.getElementById('wrap-range').style.display = v === 'custom' ? 'block' : 'none';
+            document.getElementById('wrap-range-end').style.display = v === 'custom' ? 'block' : 'none';
+        });
+
+        function getParams() {
+            const periodType = document.getElementById('period-type').value;
+            const params = new URLSearchParams();
+            params.set('period_type', periodType);
+            if (periodType === 'day') {
+                params.set('date', document.getElementById('date-day').value || new Date().toISOString().slice(0, 10));
+            } else {
+                params.set('start_date', document.getElementById('date-start').value || new Date().toISOString().slice(0, 10));
+                params.set('end_date', document.getElementById('date-end').value || new Date().toISOString().slice(0, 10));
+            }
+            const gp = document.getElementById('gp-percent').value.trim();
+            if (gp !== '') params.set('gp_percent', gp);
+            return params;
+        }
+
+        async function loadReport() {
+            const params = getParams();
+            const tbody = document.getElementById('report-body');
+            tbody.innerHTML = '<tr><td colspan="9">กำลังโหลด...</td></tr>';
+            document.getElementById('wrap-export').style.display = 'none';
+            try {
+                const r = await fetch(API + '/reports/payment/settlement-summary?' + params.toString(), { credentials: 'include' });
+                if (r.status === 401 || r.status === 403) {
+                    window.location.href = '/store-pos-login?next=' + encodeURIComponent('/admin/transfer-report');
+                    return;
+                }
+                if (!r.ok) throw new Error(await r.text());
+                const data = await r.json();
+                lastData = data;
+                const startStr = data.period?.start_date || '';
+                const endStr = data.period?.end_date || '';
+                isSingleDay = startStr.slice(0, 10) === endStr.slice(0, 10);
+                document.getElementById('period-display').textContent = 'ช่วง ' + startStr + ' ถึง ' + endStr + (isSingleDay ? ' (รายวัน — สามารถกดเปลี่ยนสถานะการโอนได้)' : '');
+                const byStore = data.by_store || [];
+                const overall = data.overall || {};
+                let html = '';
+                byStore.forEach(function(r) {
+                    const status = r.transfer_status || 'pending';
+                    const statusClass = status === 'transferred' ? 'status-transferred' : 'status-pending';
+                    const statusText = status === 'transferred' ? 'โอนแล้ว' : 'รอโอน';
+                    let actionCell = '<span class="status-badge ' + statusClass + '">' + statusText + '</span>';
+                    if (isSingleDay && r.settlement_id && status !== 'transferred') {
+                        actionCell += ' <span class="hide-on-print"><button type="button" class="btn btn-success btn-sm" style="margin-left:8px;" onclick="markTransferred(' + r.settlement_id + ')">โอนแล้ว</button></span>';
+                    } else if (isSingleDay && r.settlement_id && status === 'transferred') {
+                        actionCell += ' <span class="hide-on-print"><button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="markPending(' + r.settlement_id + ')">แก้เป็นรอโอน</button></span>';
+                    } else if (!isSingleDay) {
+                        actionCell = '-';
+                    }
+                    html += '<tr><td>' + (r.store_name || '-') + '</td><td>' + (r.store_bank_account || '-') + '</td><td>' + (r.store_bank_name || '-') + '</td><td>' + (r.store_bank_branch || '-') + '</td><td>' + (r.total_sales ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td>' + (overall.gp_percent ?? 0) + '%</td><td>' + (r.gp_deducted ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td>' + (r.amount_to_transfer ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td>' + actionCell + '</td></tr>';
+                });
+                html += '<tr class="total-row"><td>รวม</td><td colspan="3"></td><td>' + (overall.total_sales ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td></td><td>' + (overall.total_gp ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td>' + (overall.total_transfer ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + '</td><td></td></tr>';
+                tbody.innerHTML = html || '<tr><td colspan="9">ไม่มีข้อมูลในช่วงเวลานี้</td></tr>';
+                document.getElementById('wrap-export').style.display = 'block';
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="9" style="color:#b91c1c;">โหลดไม่สำเร็จ: ' + (e.message || e) + '</td></tr>';
+            }
+        }
+
+        async function markTransferred(settlementId) {
+            try {
+                const r = await fetch(API + '/payment-callback/settlements/' + settlementId + '/mark-transferred', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (r.status === 403) {
+                    showAlert('ไม่มีสิทธิ์ (ต้องเป็น admin ฝ่ายบัญชี)', 'error');
+                    return;
+                }
+                if (!r.ok) throw new Error(await r.text());
+                showAlert('บันทึกสถานะโอนแล้ว', 'success');
+                loadReport();
+            } catch (e) {
+                showAlert('บันทึกไม่สำเร็จ: ' + (e.message || e), 'error');
+            }
+        }
+
+        async function markPending(settlementId) {
+            try {
+                const r = await fetch(API + '/payment-callback/settlements/' + settlementId + '/mark-pending', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (r.status === 403) {
+                    showAlert('ไม่มีสิทธิ์ (ต้องเป็น admin ฝ่ายบัญชี)', 'error');
+                    return;
+                }
+                if (!r.ok) throw new Error(await r.text());
+                showAlert('แก้สถานะเป็นรอโอนแล้ว', 'success');
+                loadReport();
+            } catch (e) {
+                showAlert('แก้สถานะไม่สำเร็จ: ' + (e.message || e), 'error');
+            }
+        }
+
+        function exportExcel() {
+            if (!lastData || !lastData.by_store || lastData.by_store.length === 0) {
+                showAlert('ไม่มีข้อมูลให้ export', 'error');
+                return;
+            }
+            // รวมคอลัมน์ "สถานะการโอน" เฉพาะข้อความ (รอโอน/โอนแล้ว) ไม่รวมปุ่ม
+            const rows = [
+                ['ร้าน', 'เลขที่บัญชีร้านค้า', 'ชื่อธนาคาร', 'สาขาธนาคาร', 'ยอดขาย (บาท)', '% GP', 'ยอด GP (บาท)', 'ยอดที่ร้านได้รับ (บาท)', 'สถานะการโอน']
+            ];
+            const overall = lastData.overall || {};
+            lastData.by_store.forEach(function(r) {
+                rows.push([
+                    r.store_name || '',
+                    r.store_bank_account || '',
+                    r.store_bank_name || '',
+                    r.store_bank_branch || '',
+                    (r.total_sales ?? 0),
+                    overall.gp_percent ?? 0,
+                    (r.gp_deducted ?? 0),
+                    (r.amount_to_transfer ?? 0),
+                    r.transfer_status === 'transferred' ? 'โอนแล้ว' : 'รอโอน'
+                ]);
+            });
+            rows.push(['รวม', '', '', '', lastData.overall?.total_sales ?? 0, '', lastData.overall?.total_gp ?? 0, lastData.overall?.total_transfer ?? 0, '']);
+            const csv = rows.map(function(row) { return row.map(function(cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'transfer-report-' + (lastData.period?.start_date || '').slice(0, 10) + '.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function exportPDF() {
+            showAlert('Export PDF: ใช้ปุ่มพิมพ์ของเบราว์เซอร์ (Ctrl+P) แล้วเลือก Save as PDF', 'success');
+            window.print();
+        }
+
+        (function initDate() {
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('date-day').value = today;
+            document.getElementById('date-start').value = today;
+            document.getElementById('date-end').value = today;
+        })();
+
+        async function loadGpFromSettings() {
+            try {
+                const r = await fetch(API + '/admin/config/gp', { credentials: 'include' });
+                if (r.ok) {
+                    const data = await r.json();
+                    const gp = data.gp_percent;
+                    if (gp !== undefined && gp !== null) {
+                        document.getElementById('gp-percent').value = gp;
+                    }
+                }
+            } catch (e) { /* ใช้ค่าเดิมในช่องหรือว่าง */ }
+        }
+        loadGpFromSettings();
+    </script>
+</body>
+</html>
