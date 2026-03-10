@@ -205,6 +205,7 @@ class DashboardResponse(BaseModel):
     vouchers: List[dict]
     promotions: List[dict]
     e_coupon_balance: float  # ยอด e-coupon ที่ใช้จ่ายได้
+    auto_apply_coupon: bool  # ใช้คูปองอัตโนมัติเมื่อจ่าย (ปิดได้จากหน้า member = ไม่ใช้คูปอง)
     recent_activities: List[dict]
 
 
@@ -254,8 +255,59 @@ def me(customer: Customer = Depends(get_current_customer), db: Session = Depends
         vouchers=vouchers,
         promotions=promotions,
         e_coupon_balance=e_coupon_balance,
+        auto_apply_coupon=getattr(customer, "auto_apply_coupon", True),
         recent_activities=recent_activities,
     )
+
+
+# --- ตั้งค่าสมาชิก: ใช้คูปองอัตโนมัติหรือไม่ ---
+class SettingsUpdate(BaseModel):
+    auto_apply_coupon: Optional[bool] = None
+
+
+@router.patch("/settings")
+def update_settings(
+    body: SettingsUpdate,
+    customer: Customer = Depends(get_current_customer),
+    db: Session = Depends(get_db),
+):
+    """อัปเดตการตั้งค่า เช่น ใช้คูปองอัตโนมัติเมื่อจ่าย (เปิด/ปิด)"""
+    if body.auto_apply_coupon is not None:
+        customer.auto_apply_coupon = body.auto_apply_coupon
+        db.add(customer)
+        db.commit()
+    return {
+        "auto_apply_coupon": getattr(customer, "auto_apply_coupon", True),
+    }
+
+
+@router.get("/coupons")
+def list_my_coupons(customer: Customer = Depends(get_current_customer), db: Session = Depends(get_db)):
+    """รายการ e-coupon ที่ assigned ให้สมาชิก พร้อมช่วงเวลาใช้ได้ (valid_from/valid_to)"""
+    rows = (
+        db.query(ECoupon)
+        .filter(ECoupon.customer_id == customer.id, ECoupon.status == "assigned")
+        .order_by(ECoupon.id.asc())
+        .all()
+    )
+    now = datetime.utcnow()
+    out = []
+    for r in rows:
+        valid = True
+        if r.valid_from and r.valid_from > now:
+            valid = False
+        if r.valid_to and r.valid_to < now:
+            valid = False
+        out.append({
+            "id": r.id,
+            "code": r.code,
+            "amount": float(r.amount),
+            "valid_from": r.valid_from.isoformat() if r.valid_from else None,
+            "valid_to": r.valid_to.isoformat() if r.valid_to else None,
+            "allowed_store_ids": r.allowed_store_ids,  # JSON string; ว่าง = ทุกร้าน
+            "is_currently_valid": valid,
+        })
+    return out
 
 
 # --- Ad Feed (สำหรับหน้าแอปสมาชิก) - กรองตามช่วงเวลา start_at/end_at; store_id=null = ทุกร้าน ---

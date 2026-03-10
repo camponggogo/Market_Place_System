@@ -32,6 +32,12 @@
     <h1>จัดการคูปอง / E-Coupon</h1>
   </div>
 
+  <div class="tabs main-tabs">
+    <button type="button" data-tab="ecoupon" class="active">E-Coupon</button>
+    <button type="button" data-tab="promo">ตั้งค่าคูปองโปรโมชั่น</button>
+  </div>
+
+  <div id="panel-ecoupon" class="tab-panel">
   <div class="card">
     <h2>ออก E-Coupon ใหม่</h2>
     <div class="grid2">
@@ -78,10 +84,145 @@
       <tbody id="ecoupon-body"></tbody>
     </table>
   </div>
+  </div>
+
+  <div id="panel-promo" class="tab-panel" style="display:none;">
+    <div class="card">
+      <h2>เพิ่มโปรโมชั่นคูปอง</h2>
+      <p style="font-size:13px; color:#555;">เช่น เติมเงิน 200 บาท ได้คูปองส่วนลด 20 บาท ใช้ได้ที่ร้านที่เลือก และในช่วงวันที่กำหนด</p>
+      <div class="grid2">
+        <div>
+          <label>ชื่อโปรโมชั่น</label>
+          <input type="text" id="promo-title" placeholder="เติม 200 ได้คูปอง 20">
+          <label>คำอธิบาย (ถ้ามี)</label>
+          <input type="text" id="promo-desc" placeholder="">
+          <label>เติมเงินขั้นต่ำ (บาท) ถึงได้คูปอง</label>
+          <input type="number" id="promo-min-topup" min="0" step="1" value="200">
+          <label>ส่วนลดที่ได้ (บาท)</label>
+          <input type="number" id="promo-discount" min="1" step="1" value="20">
+        </div>
+        <div>
+          <label>คูปองใช้ได้ตั้งแต่ (วันเวลา, ว่าง=ใช้ได้ทันที)</label>
+          <input type="datetime-local" id="promo-valid-from">
+          <label>คูปองใช้ได้ถึง (วันเวลา, ว่าง=ไม่มีหมดอายุ)</label>
+          <input type="datetime-local" id="promo-valid-to">
+          <label>ร้านที่ร่วมรายการ (ไม่เลือก = ทุกร้าน)</label>
+          <select id="promo-store-ids" multiple style="min-height:80px;"></select>
+          <label><input type="checkbox" id="promo-active" checked> เปิดใช้งาน</label>
+          <br><button type="button" id="btn-promo-create">เพิ่มโปรโมชั่น</button>
+          <span id="promo-msg" style="margin-left:8px; font-size:13px;"></span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>รายการโปรโมชั่นคูปอง</h2>
+      <div id="promo-list-loading">กำลังโหลด...</div>
+      <table id="promo-table" style="display:none; width:100%;">
+        <thead><tr><th>ชื่อ</th><th>เติมขั้นต่ำ</th><th>ส่วนลด</th><th>ใช้ได้ตั้งแต่</th><th>ใช้ได้ถึง</th><th>ร้านร่วม</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <tbody id="promo-body"></tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
     const API = window.location.origin + '/api';
     let currentStatus = '';
+    let storesList = [];
+
+    document.querySelectorAll('.main-tabs button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.main-tabs button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const tab = this.dataset.tab || 'ecoupon';
+        document.getElementById('panel-ecoupon').style.display = tab === 'ecoupon' ? 'block' : 'none';
+        document.getElementById('panel-promo').style.display = tab === 'promo' ? 'block' : 'none';
+        if (tab === 'promo') { loadStores(); loadPromoList(); }
+      });
+    });
+
+    function toLocalDatetime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+      const h = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padStart(2,'0');
+      return y + '-' + m + '-' + day + 'T' + h + ':' + min;
+    }
+    async function loadStores() {
+      const r = await fetch(API + '/admin/coupon-promo/stores');
+      if (r.ok) storesList = await r.json();
+      const sel = document.getElementById('promo-store-ids');
+      sel.innerHTML = storesList.map(s => '<option value="' + s.id + '">' + (s.name || 'ร้าน ' + s.id) + '</option>').join('');
+    }
+    async function loadPromoList() {
+      document.getElementById('promo-list-loading').style.display = 'block';
+      document.getElementById('promo-table').style.display = 'none';
+      const r = await fetch(API + '/admin/coupon-promo/list');
+      const list = r.ok ? await r.json() : [];
+      document.getElementById('promo-list-loading').style.display = 'none';
+      document.getElementById('promo-table').style.display = 'table';
+      const tbody = document.getElementById('promo-body');
+      if (!list || !list.length) {
+        tbody.innerHTML = '<tr><td colspan="8">ไม่มีรายการ</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(p => {
+        const storesText = (p.store_ids && p.store_ids.length) ? p.store_ids.join(', ') : 'ทุกร้าน';
+        return '<tr><td>' + (p.title || '') + '</td><td>' + (p.min_topup_amount || 0) + '</td><td>' + (p.discount_amount || 0) + '</td><td>' + (p.valid_from ? p.valid_from.slice(0,16) : '-') + '</td><td>' + (p.valid_to ? p.valid_to.slice(0,16) : '-') + '</td><td>' + storesText + '</td><td>' + (p.is_active ? 'เปิด' : 'ปิด') + '</td><td><button type="button" class="btn-edit-promo" data-id="' + p.id + '">แก้ไข</button> <button type="button" class="btn-delete-promo" data-id="' + p.id + '">ลบ</button></td></tr>';
+      }).join('');
+      document.querySelectorAll('.btn-edit-promo').forEach(b => b.addEventListener('click', function() { editPromo(parseInt(this.dataset.id, 10)); }));
+      document.querySelectorAll('.btn-delete-promo').forEach(b => b.addEventListener('click', function() { deletePromo(parseInt(this.dataset.id, 10)); }));
+    }
+    async function editPromo(id) {
+      const r = await fetch(API + '/admin/coupon-promo/list');
+      const list = r.ok ? await r.json() : [];
+      const p = list.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('promo-title').value = p.title || '';
+      document.getElementById('promo-desc').value = p.description || '';
+      document.getElementById('promo-min-topup').value = p.min_topup_amount || 0;
+      document.getElementById('promo-discount').value = p.discount_amount || 0;
+      document.getElementById('promo-valid-from').value = toLocalDatetime(p.valid_from);
+      document.getElementById('promo-valid-to').value = toLocalDatetime(p.valid_to);
+      document.getElementById('promo-active').checked = p.is_active !== false;
+      Array.from(document.getElementById('promo-store-ids').options).forEach(opt => { opt.selected = (p.store_ids || []).indexOf(parseInt(opt.value, 10)) >= 0; });
+      window._editingPromoId = id;
+    }
+    async function deletePromo(id) {
+      if (!confirm('ลบโปรโมชั่นนี้?')) return;
+      const r = await fetch(API + '/admin/coupon-promo/' + id, { method: 'DELETE' });
+      const d = r.ok ? await r.json() : { detail: (await r.json()).detail };
+      if (!r.ok) { alert(d.detail || 'ลบไม่ได้'); return; }
+      loadPromoList();
+    }
+    document.getElementById('btn-promo-create').addEventListener('click', async function() {
+      const title = document.getElementById('promo-title').value.trim();
+      const minTopup = parseFloat(document.getElementById('promo-min-topup').value) || 0;
+      const discount = parseFloat(document.getElementById('promo-discount').value) || 0;
+      const msg = document.getElementById('promo-msg');
+      if (!title || discount <= 0) { msg.textContent = 'กรอกชื่อและส่วนลด'; msg.style.color = 'red'; return; }
+      const validFrom = document.getElementById('promo-valid-from').value;
+      const validTo = document.getElementById('promo-valid-to').value;
+      const storeIds = Array.from(document.getElementById('promo-store-ids').selectedOptions).map(o => parseInt(o.value, 10));
+      const isActive = document.getElementById('promo-active').checked;
+      const body = { title, description: document.getElementById('promo-desc').value.trim() || null, min_topup_amount: minTopup, discount_amount: discount, is_active: isActive, store_ids: storeIds.length ? storeIds : null };
+      if (validFrom) body.valid_from = validFrom + ':00.000Z';
+      if (validTo) body.valid_to = validTo + ':00.000Z';
+      const url = window._editingPromoId ? (API + '/admin/coupon-promo/' + window._editingPromoId) : (API + '/admin/coupon-promo/create');
+      const method = window._editingPromoId ? 'PUT' : 'POST';
+      msg.textContent = 'กำลังบันทึก...';
+      try {
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { msg.textContent = d.detail || 'ผิดพลาด'; msg.style.color = 'red'; return; }
+        msg.textContent = window._editingPromoId ? 'แก้ไขสำเร็จ' : 'เพิ่มสำเร็จ';
+        msg.style.color = 'green';
+        window._editingPromoId = null;
+        document.getElementById('promo-title').value = '';
+        document.getElementById('promo-discount').value = 20;
+        document.getElementById('promo-min-topup').value = 200;
+        loadPromoList();
+      } catch (e) { msg.textContent = e.message; msg.style.color = 'red'; }
+    });
 
     async function loadList() {
       document.getElementById('list-loading').style.display = 'block';

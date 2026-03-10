@@ -1,8 +1,10 @@
 """
 Member Scan-Pay API - อ่าน QR PromptPay (plain text) ดึง store_id, order_id แล้วหักจ่ายด้วย e-coupon
+กรองคูปองตาม valid_from/valid_to และร้านที่ร่วมรายการ; รองรับ use_coupon (ไม่ใช้คูปองจากหน้า member)
 """
 import re
-from typing import Optional
+import json
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -15,6 +17,23 @@ from app.models import Customer, ECoupon, Order, MemberActivity
 from app.api.member import get_current_customer
 
 router = APIRouter(prefix="/api/member", tags=["member"])
+
+
+def _parse_allowed_store_ids(s: Optional[str]) -> List[int]:
+    if not s or not s.strip():
+        return []
+    try:
+        out = json.loads(s)
+        return [int(x) for x in out] if isinstance(out, list) else []
+    except Exception:
+        return []
+
+
+def _coupon_valid_for_store(ec: ECoupon, store_id: int) -> bool:
+    allowed = _parse_allowed_store_ids(ec.allowed_store_ids)
+    if not allowed:
+        return True
+    return store_id in allowed
 
 
 def parse_promptpay_qr(qr_text: str) -> dict:
@@ -55,6 +74,7 @@ class ScanPayRequest(BaseModel):
     store_id: Optional[int] = None  # ถ้าส่งตรงมา
     order_id: Optional[int] = None
     amount: Optional[float] = None
+    use_coupon: Optional[bool] = None  # True=ใช้คูปอง, False=ไม่ใช้ (เลือกจากหน้า member), ไม่ส่ง=ใช้ตาม auto_apply_coupon
 
 
 class ScanPayResponse(BaseModel):
@@ -99,13 +119,31 @@ def scan_pay(
         if not store_id or amount is None or amount <= 0:
             raise HTTPException(status_code=400, detail="ต้องระบุ store_id และ amount")
 
-    # หา e-coupon ที่ assigned ให้ลูกค้า เรียงจากหมดอายุก่อน ใช้ทีละใบจนครบ
-    available = (
+    # ถ้าสมาชิกเลือกไม่ใช้คูปอง (use_coupon=False) หรือส่ง True แต่ระบบปิด auto_apply ก็ยังใช้ได้ถ้าส่ง True
+    use_coupon = data.use_coupon if data.use_coupon is not None else getattr(customer, "auto_apply_coupon", True)
+    if not use_coupon:
+        raise HTTPException(
+            status_code=400,
+            detail="คุณเลือกไม่ใช้คูปองสำหรับการชำระนี้ กรุณาชำระด้วยวิธีอื่นหรือเปลี่ยนการตั้งค่าในหน้า Member",
+        )
+
+    now_utc = datetime.utcnow()
+    # หา e-coupon ที่ assigned ให้ลูกค้า อยู่ในช่วงใช้ได้ (valid_from/valid_to) และใช้ได้ที่ร้านนี้
+    all_assigned = (
         db.query(ECoupon)
         .filter(ECoupon.customer_id == customer.id, ECoupon.status == "assigned")
         .order_by(ECoupon.id.asc())
         .all()
     )
+    available = []
+    for ec in all_assigned:
+        if ec.valid_from and ec.valid_from > now_utc:
+            continue
+        if ec.valid_to and ec.valid_to < now_utc:
+            continue
+        if not _coupon_valid_for_store(ec, store_id):
+            continue
+        available.append(ec)
     total_available = sum(float(c.amount) for c in available)
     if total_available < amount:
         raise HTTPException(

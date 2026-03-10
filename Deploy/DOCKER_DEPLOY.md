@@ -322,15 +322,27 @@ docker compose logs db
 docker compose exec app python -c "from app.database import engine; engine.connect()"
 ```
 
-### Port Already in Use
+### Port Already in Use / "address already in use" (marketplace_db)
 
-```bash
-# ตรวจสอบ port ที่ใช้
-netstat -tulpn | grep :80
-netstat -tulpn | grep :639
+ถ้าเห็นข้อความ `failed to set up container networking` หรือ `address already in use` ตอนรัน `docker compose up` มักเป็นเพราะ **พอร์ต 3306** (MariaDB) ถูกใช้อยู่แล้วบน host (เช่น มี MySQL/MariaDB ติดตั้งอยู่แล้ว)
 
-# เปลี่ยน port ใน docker-compose.yml หรือ .env
-```
+**วิธีแก้:**
+
+1. **ใช้พอร์ตอื่นสำหรับ DB บน host** — ในโฟลเดอร์ `Deploy` สร้างหรือแก้ไฟล์ `.env` แล้วตั้ง:
+   ```env
+   DB_PORT=3307
+   ```
+   จากนั้นรัน `docker compose -f Deploy/docker-compose.yml up -d` อีกครั้ง  
+   แอปใน container ยังเชื่อม DB ผ่านพอร์ต 3306 ภายใน Docker network ตามเดิม
+
+2. **ตรวจสอบว่าใครใช้พอร์ต 3306:**
+   ```bash
+   # Linux
+   sudo netstat -tulpn | grep 3306
+   # หรือ
+   sudo ss -tulpn | grep 3306
+   ```
+   ถ้าเป็น MySQL/MariaDB บน host ที่ไม่ใช้แล้ว สามารถหยุดบริการชั่วคราว หรือใช้วิธีข้อ 1 แทน
 
 ## 📝 Notes
 

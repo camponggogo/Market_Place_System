@@ -73,6 +73,10 @@
       <label>จำนวนเงิน (บาท)</label>
       <input type="number" id="amount" step="0.01" placeholder="100">
     </div>
+    <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="noUseCoupon" style="accent-color:#28a745; width:20px; height:20px;">
+      <label for="noUseCoupon" style="margin:0; font-size:14px;">ไม่ใช้คูปองสำหรับการชำระนี้ (ชำระด้วยวิธีอื่นที่ร้าน)</label>
+    </div>
     <button type="button" class="btn" id="btnPay">ยืนยันจ่ายด้วย E-Coupon</button>
   </div>
 
@@ -222,11 +226,14 @@
     }
 
     async function doPayWithQr(qrText) {
+      const noUse = document.getElementById('noUseCoupon') && document.getElementById('noUseCoupon').checked;
+      const body = { qr_text: qrText };
+      if (noUse) body.use_coupon = false;
       try {
         const r = await fetch(API + '/api/member/scan-pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ qr_text: qrText })
+          body: JSON.stringify(body)
         });
         const data = await r.json().catch(() => ({}));
         if (r.ok) {
@@ -252,6 +259,7 @@
       if (storeId != null) body.store_id = storeId;
       if (orderId != null) body.order_id = orderId;
       if (amount != null) body.amount = amount;
+      if (document.getElementById('noUseCoupon').checked) body.use_coupon = false;
       if (!body.qr_text && body.store_id == null && body.order_id == null && body.amount == null) {
         showResult('กรุณากรอกข้อความ QR หรือ store_id/order_id/amount', true);
         return;

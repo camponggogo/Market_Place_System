@@ -121,6 +121,14 @@
         <span>E-Coupon ใช้จ่ายได้</span>
         <span class="ecoupon" id="ecoupon">0.00 บาท</span>
       </div>
+      <div class="row" style="margin-top:14px; align-items: center;">
+        <span style="font-size:14px;">ใช้คูปองอัตโนมัติเมื่อจ่าย</span>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="auto-apply-coupon" style="accent-color:#28a745; width:20px; height:20px;">
+          <span id="auto-apply-coupon-label">เปิด</span>
+        </label>
+      </div>
+      <p style="font-size:12px; color:#888; margin-top:8px;">ปิด = ไม่ใช้คูปองเมื่อจ่าย (ชำระด้วยวิธีอื่นที่ร้าน หรือเลือกใช้คูปองเมื่อจ่ายเอง)</p>
     </div>
 
     <h2>คูปอง / โปรโมชั่น</h2>
@@ -193,6 +201,10 @@
       document.getElementById('balance').textContent = (d.balance != null ? d.balance : 0).toFixed(2) + ' บาท';
       document.getElementById('points').textContent = (d.total_points != null ? d.total_points : 0);
       document.getElementById('ecoupon').textContent = (d.e_coupon_balance != null ? d.e_coupon_balance : 0).toFixed(2) + ' บาท';
+      const autoApply = d.auto_apply_coupon !== false;
+      const autoCheck = document.getElementById('auto-apply-coupon');
+      const autoLabel = document.getElementById('auto-apply-coupon-label');
+      if (autoCheck) { autoCheck.checked = autoApply; autoLabel.textContent = autoApply ? 'เปิด' : 'ปิด'; }
       if (d.vouchers && d.vouchers.length) {
         document.getElementById('vouchers').innerHTML = d.vouchers.map(v => '<div class="item">' + (v.name || 'คูปอง') + ' มูลค่า ' + v.value + '</div>').join('');
       }
@@ -256,6 +268,19 @@
         document.getElementById('ads').innerHTML = '<div class="ad-item">ไม่มีโฆษณา</div>';
       }
     }
+
+    document.getElementById('auto-apply-coupon').addEventListener('change', async function() {
+      const on = this.checked;
+      document.getElementById('auto-apply-coupon-label').textContent = on ? 'เปิด' : 'ปิด';
+      try {
+        const r = await fetch(API + '/api/member/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ auto_apply_coupon: on })
+        });
+        if (!r.ok) { this.checked = !on; document.getElementById('auto-apply-coupon-label').textContent = this.checked ? 'เปิด' : 'ปิด'; }
+      } catch (e) { this.checked = !on; document.getElementById('auto-apply-coupon-label').textContent = this.checked ? 'เปิด' : 'ปิด'; }
+    });
 
     loadMe();
     loadAds();

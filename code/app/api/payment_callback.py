@@ -40,7 +40,7 @@ from app.api.signage import set_signage_paid
 from app.api.admin import resolve_banking_profile_for_store
 from app.api.auth import require_admin
 from app.services import scb_deeplink
-from app.models import Store, Order, Customer, CustomerBalance, MemberActivity, ECoupon
+from app.models import Store, Order, Customer, CustomerBalance, MemberActivity, ECoupon, CouponPromo
 from app.services import omise_promptpay, stripe_promptpay
 import hashlib
 import secrets
@@ -796,6 +796,44 @@ async def webhook_stripe_receive(request: Request, db: Session = Depends(get_db)
                         description=f"เติมเงินผ่าน Stripe {amount_baht:.2f} บาท",
                     )
                     db.add(act)
+                    # ออกคูปองจากโปรโมชั่นที่ตรงเงื่อนไข (เติมขั้นต่ำได้ส่วนลด) — ใช้โปรที่ min_topup สูงสุดที่ยังไม่เกินยอดเติม
+                    now_utc = datetime.utcnow()
+                    promo = (
+                        db.query(CouponPromo)
+                        .filter(
+                            CouponPromo.is_active == True,
+                            CouponPromo.min_topup_amount <= amount_baht,
+                        )
+                        .order_by(CouponPromo.min_topup_amount.desc())
+                        .first()
+                    )
+                    if promo and float(promo.discount_amount) > 0:
+                        code = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+                        code = "EC" + code
+                        while db.query(ECoupon).filter(ECoupon.code == code).first():
+                            code = "EC" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+                        ec = ECoupon(
+                            code=code,
+                            amount=float(promo.discount_amount),
+                            customer_id=customer_id,
+                            status="assigned",
+                            payment_method="stripe",
+                            paid_at=now_utc,
+                            promotion_id=promo.id,
+                            valid_from=promo.valid_from,
+                            valid_to=promo.valid_to,
+                            allowed_store_ids=promo.store_ids,
+                        )
+                        db.add(ec)
+                        act2 = MemberActivity(
+                            customer_id=customer_id,
+                            activity_type="redeem",
+                            amount=float(promo.discount_amount),
+                            description=f"ได้คูปอง {promo.discount_amount:.0f} บาท จากโปรโมชั่น: {promo.title}",
+                            ref_id=ec.id,
+                        )
+                        db.add(act2)
+                        logger.info("Stripe webhook: member_topup issued coupon promo_id=%s amount=%.2f code=%s", promo.id, promo.discount_amount, code)
                     db.commit()
                     logger.info("Stripe webhook: member_topup customer_id=%s +%.2f balance=%.2f", customer_id, amount_baht, bal.balance)
                 else:  # member_ecoupon

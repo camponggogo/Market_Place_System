@@ -110,6 +110,31 @@ def main():
         run_sql(conn, "ALTER TABLE `customers` ADD COLUMN `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp() AFTER `created_at`", "customers.updated_at")
         run_sql(conn, "ALTER TABLE `customers` ADD UNIQUE KEY `ix_customers_username` (`username`)", "customers unique ix_customers_username")
         run_sql(conn, "ALTER TABLE `customers` ADD UNIQUE KEY `ix_customers_email` (`email`)", "customers unique ix_customers_email")
+        # 6) CouponPromo + ECoupon/Customer สำหรับระบบคูปองโปรโมชั่น
+        run_sql(
+            conn,
+            """CREATE TABLE IF NOT EXISTS `coupon_promos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `min_topup_amount` double NOT NULL,
+  `discount_amount` double NOT NULL,
+  `valid_from` datetime DEFAULT NULL,
+  `valid_to` datetime DEFAULT NULL,
+  `store_ids` text,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+            "coupon_promos table",
+        )
+        run_sql(conn, "ALTER TABLE `e_coupons` ADD COLUMN `promotion_id` int DEFAULT NULL AFTER `redeemed_at`", "e_coupons.promotion_id")
+        run_sql(conn, "ALTER TABLE `e_coupons` ADD COLUMN `valid_from` datetime DEFAULT NULL AFTER `promotion_id`", "e_coupons.valid_from")
+        run_sql(conn, "ALTER TABLE `e_coupons` ADD COLUMN `valid_to` datetime DEFAULT NULL AFTER `valid_from`", "e_coupons.valid_to")
+        run_sql(conn, "ALTER TABLE `e_coupons` ADD COLUMN `allowed_store_ids` text DEFAULT NULL AFTER `valid_to`", "e_coupons.allowed_store_ids")
+        run_sql(conn, "ALTER TABLE `e_coupons` ADD KEY `ix_e_coupons_promotion_id` (`promotion_id`)", "e_coupons index promotion_id")
+        run_sql(conn, "ALTER TABLE `customers` ADD COLUMN `auto_apply_coupon` tinyint(1) NOT NULL DEFAULT 1 AFTER `total_points`", "customers.auto_apply_coupon")
         print("\nเสร็จแล้ว")
     finally:
         conn.close()

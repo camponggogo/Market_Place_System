@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from app.database import engine, Base
-from app.api import customer, crypto, reports, tax, refund, stores, counter, payment_hub, reports_payment, admin, admin_config, profiles, geo, store_quick_amounts, menus, payment_callback, signage, pos_settings, locale_settings, program_settings, auth, member, member_scan, admin_ecoupon, admin_ads, admin_backup_audit
+from app.api import customer, crypto, reports, tax, refund, stores, counter, payment_hub, reports_payment, admin, admin_config, profiles, geo, store_quick_amounts, menus, payment_callback, signage, pos_settings, locale_settings, program_settings, auth, member, member_scan, admin_ecoupon, admin_coupon_promo, admin_ads, admin_backup_audit
 from app.config import BACKEND_URL, SECRET_KEY
 import os
 
@@ -77,6 +77,7 @@ app.include_router(auth.router)
 app.include_router(member.router)
 app.include_router(member_scan.router)
 app.include_router(admin_ecoupon.router)
+app.include_router(admin_coupon_promo.router)
 app.include_router(admin_ads.router)
 app.include_router(admin_backup_audit.router)
 

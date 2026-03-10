@@ -141,6 +141,7 @@ class Customer(Base):
     email = Column(String(255), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=True)
     total_points = Column(Float, default=0.0, nullable=False)  # แต้มสะสม
+    auto_apply_coupon = Column(Boolean, default=True, nullable=False)  # ใช้คูปองอัตโนมัติเมื่อจ่าย (สมาชิกปิดได้จากหน้า member)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -440,6 +441,28 @@ class StorePromotion(Base):
     store = relationship("Store", backref="store_promotions")
 
 
+class CouponPromo(Base):
+    """
+    ตั้งค่าคูปองโปรโมชั่น เช่น เติม 200 ได้คูปอง 20 บาท
+    กำหนดร้านที่ร่วมรายการ (store_ids ว่าง = ทุกร้าน) และวันเวลาที่คูปองใช้ได้
+    """
+    __tablename__ = "coupon_promos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    min_topup_amount = Column(Float, nullable=False)   # เติมเงินขั้นต่ำ (บาท) ถึงได้คูปอง
+    discount_amount = Column(Float, nullable=False)    # ส่วนลดที่ได้ (บาท)
+    valid_from = Column(DateTime(timezone=True), nullable=True)  # วันที่คูปองที่ออกจากโปรนี้ใช้ได้ตั้งแต่
+    valid_to = Column(DateTime(timezone=True), nullable=True)    # วันที่คูปองใช้ได้ถึง
+    store_ids = Column(Text, nullable=True)  # JSON array ของ store_id ที่ร่วมรายการ เช่น "[1,2,3]" ว่าง = ทุกร้าน
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    e_coupons = relationship("ECoupon", back_populates="promotion", foreign_keys="ECoupon.promotion_id")
+
+
 class ECoupon(Base):
     """อีคูปอง - ลูกค้าแลกด้วยเงินสด/PromptPay/บัตร/E-wallet แล้วนำไปจ่ายที่ร้านแทน PromptPay จริง"""
     __tablename__ = "e_coupons"
@@ -454,11 +477,16 @@ class ECoupon(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
     redeemed_at = Column(DateTime(timezone=True), nullable=True)
+    promotion_id = Column(Integer, ForeignKey("coupon_promos.id"), nullable=True, index=True)
+    valid_from = Column(DateTime(timezone=True), nullable=True)  # ใช้คูปองได้ตั้งแต่
+    valid_to = Column(DateTime(timezone=True), nullable=True)    # ใช้คูปองได้ถึง
+    allowed_store_ids = Column(Text, nullable=True)  # JSON array store_id ที่ใช้ได้ เช่น "[1,2,3]" ว่าง = ทุกร้าน
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     customer = relationship("Customer", back_populates="e_coupons", foreign_keys=[customer_id])
     order = relationship("Order", backref="e_coupon_payments")
     store = relationship("Store", backref="e_coupons")
+    promotion = relationship("CouponPromo", back_populates="e_coupons", foreign_keys=[promotion_id])
 
 
 class AdFeed(Base):
